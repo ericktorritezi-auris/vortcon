@@ -38,5 +38,5 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  return NextResponse.json({ status: 'ok' });
+  return NextResponse.json({ status: 'ok', role: result.role });
 }

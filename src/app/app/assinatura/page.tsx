@@ -19,6 +19,7 @@ const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', cu
 export default async function MySubscriptionPage(): Promise<React.ReactElement> {
   const result = await evaluateAccessPolicy();
 
+  if (result.kind === 'WRONG_AREA_FOR_ADMIN') redirect('/admin');
   if (result.kind === 'TENANT_INACTIVE') redirect('/inativo');
   if (result.kind === 'LEGAL_ACCEPTANCE_REQUIRED') redirect('/aceitar-termos');
   if (result.kind !== 'ALLOWED') redirect('/entrar');

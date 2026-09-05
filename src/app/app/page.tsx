@@ -13,6 +13,8 @@ export default async function AppHomePage(): Promise<React.ReactElement> {
   switch (result.kind) {
     case 'UNAUTHENTICATED':
       redirect('/entrar');
+    case 'WRONG_AREA_FOR_ADMIN':
+      redirect('/admin');
     case 'TENANT_INACTIVE':
       redirect('/inativo');
     case 'DELINQUENCY_BLOCKED':

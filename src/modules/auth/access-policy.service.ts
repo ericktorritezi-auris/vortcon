@@ -18,11 +18,15 @@ import { getCurrentSession } from './session.service';
  *
  * Este serviço avalia acesso à área financeira do tenant (`TENANT_OWNER`).
  * `GLOBAL_ADMIN` não tem tenant (Seção 22) e usa seu próprio guard mais
- * simples no painel Admin (Estágio 6) — chamar este gate para um
- * `GLOBAL_ADMIN` é erro de programação, não um estado de usuário.
+ * simples no painel Admin (Estágio 6). Isso já se provou alcançável por
+ * navegação normal (favorito antigo, botão voltar do navegador, link de
+ * convite/login redirecionando errado antes da correção) — não é só "erro
+ * de programação" como o comentário anterior assumia, então o resultado é
+ * um estado tratável (`WRONG_AREA_FOR_ADMIN`), nunca uma exceção fatal.
  */
 export type AccessPolicyResult =
   | { kind: 'UNAUTHENTICATED' }
+  | { kind: 'WRONG_AREA_FOR_ADMIN' }
   | { kind: 'TENANT_INACTIVE' }
   | { kind: 'DELINQUENCY_BLOCKED' }
   | { kind: 'ADMIN_BLOCKED' }
@@ -38,9 +42,7 @@ export async function evaluateAccessPolicy(): Promise<AccessPolicyResult> {
 
   const role: Role = session.user.role;
   if (role === 'GLOBAL_ADMIN') {
-    throw new Error(
-      'evaluateAccessPolicy() foi chamado para um GLOBAL_ADMIN — use o guard do painel Admin (Estágio 6).',
-    );
+    return { kind: 'WRONG_AREA_FOR_ADMIN' };
   }
 
   const tenant = await tenantRepository.findTenantByUserId(session.userId);

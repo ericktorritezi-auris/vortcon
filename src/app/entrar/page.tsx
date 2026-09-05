@@ -30,15 +30,26 @@ function LoginForm(): React.ReactElement {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
-      const body = (await response.json()) as { message?: string };
+      const body = (await response.json()) as {
+        message?: string;
+        role?: 'GLOBAL_ADMIN' | 'TENANT_OWNER';
+      };
 
       if (!response.ok) {
         setError(body.message ?? 'Não foi possível entrar agora.');
         return;
       }
 
-      const redirectTo = searchParams.get('redirect') ?? '/app';
-      router.push(redirectTo);
+      // GLOBAL_ADMIN nunca vai para /app — chamar o AccessPolicyService do
+      // tenant para um admin é erro de propósito (Seção 22, Estágio 6). O
+      // parâmetro `redirect` (usado pelo middleware ao proteger /app/*)
+      // nunca se aplica a um admin, então é ignorado nesse caso.
+      if (body.role === 'GLOBAL_ADMIN') {
+        router.push('/admin');
+      } else {
+        const redirectTo = searchParams.get('redirect') ?? '/app';
+        router.push(redirectTo);
+      }
       router.refresh();
     } catch {
       setError('Não foi possível entrar agora. Tente novamente.');

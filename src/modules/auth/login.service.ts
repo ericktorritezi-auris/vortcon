@@ -1,9 +1,10 @@
+import type { Role } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
 import { verifyPassword } from '@/shared/security/password';
 import { createSessionAndSetCookie } from './session.service';
 
 export type LoginResult =
-  | { kind: 'SUCCESS'; userId: string }
+  | { kind: 'SUCCESS'; userId: string; role: Role }
   | { kind: 'INVALID_CREDENTIALS' }
   | { kind: 'ACCOUNT_NOT_ACTIVATED' };
 
@@ -39,5 +40,5 @@ export async function login(usernameOrEmail: string, password: string): Promise<
   }
 
   await createSessionAndSetCookie(user.id);
-  return { kind: 'SUCCESS', userId: user.id };
+  return { kind: 'SUCCESS', userId: user.id, role: user.role };
 }
