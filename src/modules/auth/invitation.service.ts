@@ -33,19 +33,29 @@ export async function createInvitation(
  * Resend envia boas-vindas → usuário abre o link → define a própria senha.
  * Admin nunca conhece a senha permanente — não existe "senha temporária".
  */
-export async function createAndSendInvitation(userId: string, userEmail: string, userName: string) {
+export async function createAndSendInvitation(
+  userId: string,
+  userEmail: string,
+  userName: string,
+  username: string,
+) {
   const { inviteUrl } = await createInvitation(userId);
-  await sendInviteEmail(userEmail, userName, inviteUrl);
+  await sendInviteEmail(userEmail, userName, username, inviteUrl);
 }
 
 /** Reenvio de convite (Seção 25) — invalida o anterior e gera um novo. */
-export async function resendInvitation(userId: string, userEmail: string, userName: string) {
+export async function resendInvitation(
+  userId: string,
+  userEmail: string,
+  userName: string,
+  username: string,
+) {
   await prisma.userInvitation.updateMany({
     where: { userId, usedAt: null },
     data: { expiresAt: new Date() }, // expira imediatamente os convites pendentes anteriores
   });
 
-  return createAndSendInvitation(userId, userEmail, userName);
+  return createAndSendInvitation(userId, userEmail, userName, username);
 }
 
 export type ConsumeInvitationResult =

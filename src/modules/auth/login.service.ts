@@ -11,9 +11,18 @@ export type LoginResult =
  * Autenticação (Seção 18): usuário + senha. Mensagem de erro é sempre
  * genérica (não revela se o usuário existe ou se foi a senha) — mesma
  * lógica anti-enumeração da recuperação de senha (Seção 27).
+ *
+ * Aceita o valor digitado como username OU e-mail (nesta ordem) — o campo
+ * continua se chamando "Usuário" na tela (Seção 18 não muda), mas username
+ * e e-mail são fáceis de confundir na prática (o username é derivado
+ * automaticamente e nunca é comunicado com destaque em lugar nenhum do
+ * fluxo de ativação), então aceitar os dois evita um erro genérico de
+ * "usuário ou senha inválidos" que na real é só o campo errado.
  */
-export async function login(username: string, password: string): Promise<LoginResult> {
-  const user = await prisma.user.findUnique({ where: { username } });
+export async function login(usernameOrEmail: string, password: string): Promise<LoginResult> {
+  const user =
+    (await prisma.user.findUnique({ where: { username: usernameOrEmail } })) ??
+    (await prisma.user.findUnique({ where: { email: usernameOrEmail } }));
 
   if (!user) {
     return { kind: 'INVALID_CREDENTIALS' };

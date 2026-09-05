@@ -48,18 +48,22 @@ export async function bootstrapGlobalAdmin(providedToken: string): Promise<Boots
 
   const { inviteUrl } = await createInvitation(admin.id);
 
-  // Sempre loga o link, independente do Resend conseguir entregar (Seção 162
-  // é uma ação de configuração única, feita por quem já tem acesso aos logs
-  // do Railway — não há exposição adicional relevante em expor este link
-  // especificamente aqui). Crítico quando `ADMIN_BOOTSTRAP_EMAIL` não é uma
-  // caixa real: sem isso, o único admin ficaria sem forma de ativar a conta.
-  console.warn(`[admin-bootstrap] Link de ativação do administrador: ${inviteUrl}`);
+  // Sempre loga o link E o username, independente do Resend conseguir
+  // entregar (Seção 162 é uma ação de configuração única, feita por quem já
+  // tem acesso aos logs do Railway — não há exposição adicional relevante
+  // em expor isso especificamente aqui). Crítico quando `ADMIN_BOOTSTRAP_EMAIL`
+  // não é uma caixa real: sem isso, o único admin ficaria sem forma de
+  // ativar a conta OU sem saber qual username usar para logar depois
+  // (login é por username — Seção 18 — não por e-mail).
+  console.warn(
+    `[admin-bootstrap] Link de ativação do administrador: ${inviteUrl} — username de login: ${username}`,
+  );
 
   try {
-    await sendInviteEmail(admin.email, admin.name, inviteUrl);
+    await sendInviteEmail(admin.email, admin.name, admin.username, inviteUrl);
   } catch (error) {
     console.error(
-      '[admin-bootstrap] Falha ao enviar e-mail de convite (o link acima nos logs continua válido):',
+      '[admin-bootstrap] Falha ao enviar e-mail de convite (o link e o username acima nos logs continuam válidos):',
       error,
     );
   }

@@ -50,7 +50,7 @@ function LoginForm(): React.ReactElement {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <Input
-        label="Usuário"
+        label="Usuário ou e-mail"
         name="username"
         autoComplete="username"
         value={username}
@@ -77,7 +77,10 @@ function LoginForm(): React.ReactElement {
         Entrar
       </Button>
 
-      <Link href="/esqueci-senha" className="text-center text-sm text-brand-intelligence hover:underline">
+      <Link
+        href="/esqueci-senha"
+        className="text-center text-sm text-brand-intelligence hover:underline"
+      >
         Esqueci minha senha
       </Link>
     </form>

@@ -74,7 +74,7 @@ export async function provisionTenantWithOwner(input: ProvisionTenantInput) {
   // Fora da transação de propósito: falha no envio do e-mail não deve
   // desfazer a criação do tenant — o Admin pode reenviar o convite
   // (Seção 25: "Reenvio possível") sem precisar recriar nada.
-  await createAndSendInvitation(user.id, user.email, user.name);
+  await createAndSendInvitation(user.id, user.email, user.name, user.username);
   await ensureCurrentMonthCharge(tenant.id);
   await recordAuditEvent({
     actorType: 'GLOBAL_ADMIN',

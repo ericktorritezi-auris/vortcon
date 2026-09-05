@@ -31,13 +31,19 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
   }
 }
 
-export async function sendInviteEmail(to: string, name: string, inviteUrl: string): Promise<void> {
+export async function sendInviteEmail(
+  to: string,
+  name: string,
+  username: string,
+  inviteUrl: string,
+): Promise<void> {
   await sendEmail(
     to,
     'Bem-vindo à VortCon — defina sua senha',
     `<p>Olá, ${name}.</p>
      <p>Sua conta VortCon foi criada. Para ativá-la, defina sua senha no link abaixo:</p>
      <p><a href="${inviteUrl}">${inviteUrl}</a></p>
+     <p>Seu usuário de login é <strong>${username}</strong> — guarde-o, você vai usá-lo (não o e-mail) para entrar depois de ativar a conta.</p>
      <p>Este link expira em 48 horas e só pode ser usado uma vez.</p>
      <p>VortCon — Entenda seu dinheiro. Assuma o controle.</p>`,
   );
