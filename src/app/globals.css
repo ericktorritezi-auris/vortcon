@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Tokens de marca VortCon como CSS variables (Master Document, Seções 7-11).
+ * Fonte única de verdade para cor — consumida pelo tailwind.config.ts e por
+ * qualquer estilo que precise ler o valor bruto (ex.: gráficos SVG).
+ *
+ * V1 é Light Mode somente (Seção 11); os tokens já ficam nomeados por papel
+ * semântico para permitir uma futura variante de Dark Mode sem retrabalho.
+ */
+:root {
+  --vc-deep: #123b46;
+  --vc-flow: #19a7a0;
+  --vc-intelligence: #3c82f6;
+
+  --vc-surface-page: #f7f9fa;
+  --vc-surface-card: #ffffff;
+
+  --vc-text-primary: #172126;
+  --vc-text-secondary: #6b7c85;
+
+  --vc-success: #22c55e;
+  --vc-danger: #ef4444;
+  --vc-warning: #f59e0b;
+  --vc-info: #3c82f6;
+
+  --vc-radius-sm: 6px;
+  --vc-radius-md: 10px;
+  --vc-radius-lg: 12px;
+  --vc-radius-xl: 16px;
+  --vc-radius-pill: 999px;
+
+  color-scheme: light;
+}
+
+body {
+  background: var(--vc-surface-page);
+  color: var(--vc-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Valores monetários usam sempre números tabulares (Seção 8) */
+.money {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}

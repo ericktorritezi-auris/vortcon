@@ -48,15 +48,25 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 
 ## Status do projeto
 
-| Item | Valor |
-|---|---|
-| Versão | `1.0.0` (baseline em construção) |
-| Estágio atual | Estágio 0 — README e repositório |
-| Plano comercial inicial | VortCon Pro — R$ 49,90/mês |
-| Domínio oficial | `vortcon.belleplanner.com.br` |
-| Documento normativo | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
+| Item                    | Valor                                                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Versão                  | `1.0.0` (baseline em construção)                                                                                  |
+| Estágio atual           | Estágio 1 — Fundação técnica ✅ concluído                                                                          |
+| Próximo estágio         | Estágio 2 — Design System                                                                                         |
+| Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
+| Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
+| Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
 
 Este README evolui junto com o desenvolvimento. Ele é a documentação operacional raiz do projeto, não um arquivo descartável.
+
+### Estágio 1 — o que foi entregue
+
+- Next.js 14 (App Router) + TypeScript strict + Prisma + Tailwind configurados e validados (`lint`, `typecheck`, `test` e `build` rodando limpos neste ambiente).
+- Estrutura dos 21 módulos de domínio (`src/modules/*`) e 8 módulos compartilhados (`src/shared/*`), cada um com `README.md` de escopo — nenhum contém regra de negócio ainda, conforme a ordem de implementação (Seção 181).
+- `schema.prisma` de fundação, validação de variáveis de ambiente com Zod conectada ao boot da aplicação (via `src/shared/database/client.ts`), healthcheck real em `/api/health` e CI completo no GitHub Actions (install → lint → format → typecheck → prisma → testes → build).
+- Testes unitário (Vitest) e E2E (Playwright) configurados, com um caso real passando em cada.
+
+Limitação conhecida do ambiente usado para validar esta etapa: `fonts.googleapis.com` e `binaries.prisma.sh` não são alcançáveis por restrição de rede local do sandbox — isso não afeta CI real (GitHub Actions) nem Railway, ambos com acesso irrestrito a esses domínios públicos.
 
 ## Stack
 
@@ -201,8 +211,34 @@ Envio transacional (convite, boas-vindas, recuperação de senha, avisos de assi
 
 Infraestrutura oficial: Railway (não Heroku), com topologia Web + Worker + PostgreSQL.
 
+**Automação de ponta a ponta — zero passo manual.** Este projeto é mantido por alguém sem
+ambiente local para rodar comandos, então nenhuma etapa de deploy pode depender de um
+comando digitado à mão. O pipeline garante isso em duas camadas:
+
 ```
-merge → CI (install/lint/typecheck/unit/integration/build) → migrations → Railway → smoke tests
+push → main → Railway detecta o push → build automático → deploy automático
+```
+
+1. **Build automático** (`railway.json`, builder Nixpacks): `npm install` roda o hook
+   `postinstall`, que executa `prisma generate` sozinho — o Prisma Client nunca precisa
+   ser gerado manualmente. Em seguida `npm run build` compila o Next.js.
+2. **Start automático**: o script `start` é `npm run db:migrate:deploy && next start` —
+   toda migration pendente é aplicada automaticamente antes de a aplicação começar a
+   servir tráfego, a cada deploy, sem exceção.
+3. **Seed automático (a partir do Estágio 6)**: quando o plano `VortCon Pro` e demais
+   dados de baseline forem introduzidos, `prisma/seed.ts` será escrito de forma
+   **idempotente** (upsert, nunca `create` puro) e encadeado nesse mesmo `start`, para
+   que também rode sozinho em todo deploy sem duplicar dados.
+4. **Healthcheck automático**: `railway.json` aponta `healthcheckPath` para
+   `/api/health` — o Railway só considera o deploy saudável depois que a rota confirma
+   conexão real com o PostgreSQL.
+
+`.github/workflows/ci.yml` roda em paralelo a cada push/PR (install → lint → format →
+typecheck → prisma → testes → build) como *gate* de qualidade — o deploy em si é
+disparado pelo próprio Railway ao detectar o push em `main`, não pelo GitHub Actions.
+
+```
+push → CI (gate de qualidade, em paralelo) → Railway build → migrate deploy → start → healthcheck
 ```
 
 ## Versionamento
@@ -211,7 +247,18 @@ SemVer (`MAJOR.MINOR.PATCH`), iniciando em `1.0.0`. Branch principal: `main`.
 
 ## Troubleshooting
 
-_A ser expandido conforme o projeto avança — decisões de infraestrutura, erros comuns de ambiente e runbooks de incidentes entram aqui progressivamente._
+**Build falha por falta de `DATABASE_URL`.** `next build` coleta dados de página e, ao
+fazer isso, importa `src/shared/database/client.ts`, que valida o ambiente e instancia o
+Prisma Client. No Railway, garanta que o serviço Web tenha `DATABASE_URL` disponível
+também na fase de *build* (não só em runtime) — ao anexar o plugin PostgreSQL do Railway
+ao serviço, isso é automático via variável de referência (`${{Postgres.DATABASE_URL}}`).
+
+**Deploy passou mas o app não sobe / healthcheck falha.** Veja os *Deploy Logs* do
+Railway: se a falha for em `prisma migrate deploy`, normalmente é uma migration com
+conflito — nunca edite uma migration já aplicada em produção (Seção 160); crie uma nova.
+
+_Este runbook cresce conforme o projeto avança — cada incidente real resolvido vira uma
+entrada aqui, para nunca precisar ser resolvido "de cabeça" duas vezes._
 
 ## Escopo e não escopo da V1
 

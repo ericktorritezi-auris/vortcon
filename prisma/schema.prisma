@@ -1,0 +1,26 @@
+// VortCon — schema.prisma
+// Fonte transacional de verdade: PostgreSQL, com foreign keys, constraints e migrations
+// versionadas (Master Document, Seção 35). Nunca usar FLOAT/DOUBLE para dinheiro (Seção 36).
+//
+// Este arquivo é a fundação do Estágio 1. As entidades de domínio (users, tenants,
+// financial_accounts, categories, tags, financial_transactions, etc. — Seção 38)
+// são introduzidas nos Estágios 3 (Multitenancy) e 7 (Domínio Financeiro), para que
+// cada modelo chegue já acompanhado de suas migrations, repositórios e testes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Healthcheck mínimo para validar conectividade em CI/deploy (Seção 159).
+// Pode ser removido assim que houver uma entidade real para essa finalidade.
+model SystemHealth {
+  id        String   @id @default(cuid())
+  checkedAt DateTime @default(now())
+
+  @@map("system_health")
+}
