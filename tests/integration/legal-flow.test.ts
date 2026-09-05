@@ -9,6 +9,7 @@ import {
   recordAcceptance,
 } from '@/modules/legal/legal-acceptance.service';
 import { generateSecureToken, hashToken } from '@/shared/security/tokens';
+import { cleanupTenant, createTestPlan, deleteTestPlan } from '../helpers/commercial';
 
 /**
  * Fluxo legal completo (Seções 129-135), validado contra PostgreSQL real em
@@ -19,13 +20,18 @@ import { generateSecureToken, hashToken } from '@/shared/security/tokens';
 describe('fluxo de documentos legais', () => {
   let tenantId: string;
   let userId: string;
+  let planId: string;
 
   beforeAll(async () => {
+    const plan = await createTestPlan();
+    planId = plan.id;
+
     const suffix = crypto.randomUUID().slice(0, 8);
     const { tenant, user } = await provisionTenantWithOwner({
       name: 'Legal Flow Owner',
       email: `legalflow-${suffix}@example.com`,
       username: `legalflow_${suffix}`,
+      planId,
     });
     tenantId = tenant.id;
     userId = user.id;
@@ -40,11 +46,8 @@ describe('fluxo de documentos legais', () => {
 
   afterAll(async () => {
     await prisma.legalAcceptance.deleteMany({ where: { tenantId } });
-    await prisma.session.deleteMany({ where: { userId } });
-    await prisma.userInvitation.deleteMany({ where: { userId } });
-    await prisma.tenantUser.deleteMany({ where: { userId } });
-    await prisma.user.delete({ where: { id: userId } });
-    await prisma.tenant.delete({ where: { id: tenantId } });
+    await cleanupTenant(tenantId);
+    await deleteTestPlan(planId);
   });
 
   it('sem versao publicada, a lista de pendencias nao lanca', async () => {

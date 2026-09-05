@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { AuthCardLayout, Button, Input } from '@/shared/ui';
+import { PASSWORD_POLICY_DESCRIPTION } from '@/shared/security/password-policy';
 
 interface AcceptInvitePageProps {
   params: { token: string };
@@ -53,10 +54,7 @@ export default function AcceptInvitePage({ params }: AcceptInvitePageProps): Rea
   }
 
   return (
-    <AuthCardLayout
-      title="Bem-vindo à VortCon"
-      description="Defina sua senha para ativar sua conta."
-    >
+    <AuthCardLayout title="Bem-vindo à VortCon" description={PASSWORD_POLICY_DESCRIPTION}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Input
           label="Senha"

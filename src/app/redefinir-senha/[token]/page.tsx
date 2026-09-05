@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { AuthCardLayout, Button, Input } from '@/shared/ui';
+import { PASSWORD_POLICY_DESCRIPTION } from '@/shared/security/password-policy';
 
 interface ResetPasswordPageProps {
   params: { token: string };
@@ -47,7 +48,7 @@ export default function ResetPasswordPage({ params }: ResetPasswordPageProps): R
   }
 
   return (
-    <AuthCardLayout title="Defina uma nova senha" description="Mínimo de 8 caracteres.">
+    <AuthCardLayout title="Defina uma nova senha" description={PASSWORD_POLICY_DESCRIPTION}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Input
           label="Nova senha"

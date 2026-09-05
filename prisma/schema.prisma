@@ -91,6 +91,7 @@ model Tenant {
   memberships      TenantUser[]
   accessBlocks     TenantAccessBlock[]
   legalAcceptances LegalAcceptance[]
+  subscription     TenantSubscription?
 
   @@map("tenants")
 }
@@ -257,4 +258,124 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ESTÁGIO 6 — ADMIN/COMERCIAL (Seções 22-24, 102-115, 146-148, 162)
+// ─────────────────────────────────────────────────────────────────────────
+
+enum PlanPeriodicity {
+  MONTHLY
+}
+
+// Planos não são tiers de feature (Seção 105) — só catálogo comercial.
+// Histórico impede hard delete quando já usado (Seção 102): inativar, nunca
+// apagar um plano referenciado por alguma assinatura.
+model SubscriptionPlan {
+  id          String          @id @default(cuid())
+  name        String
+  priceCents  Int
+  periodicity PlanPeriodicity @default(MONTHLY)
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  subscriptions TenantSubscription[]
+
+  @@map("subscription_plans")
+}
+
+enum SubscriptionCondition {
+  PAID
+  EXEMPT
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+}
+
+// Separado de `SubscriptionPlan` de propósito (Seção 106): o preço
+// contratado é congelado aqui no momento da criação — mudar o preço do
+// plano no catálogo nunca altera contratos já existentes (Seção 107).
+model TenantSubscription {
+  id                   String                @id @default(cuid())
+  tenantId             String                @unique
+  planId               String
+  contractedPriceCents Int
+  condition            SubscriptionCondition @default(PAID)
+  status                SubscriptionStatus    @default(ACTIVE)
+  // Dia do mês de vencimento (Seção 113 usa dia 10 como exemplo). 1-28 para
+  // nunca cair em dia inexistente em fevereiro.
+  dueDay                Int                   @default(10)
+  createdAt             DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  plan    SubscriptionPlan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+  charges SubscriptionCharge[]
+
+  @@map("tenant_subscriptions")
+}
+
+enum ChargeStatus {
+  PENDING
+  PAID
+}
+
+// A "mensalidade" (Seção 109). Pagamento é sempre registrado pelo Admin
+// (PIX externo, Seção 110) — o tenant nunca marca a própria cobrança como
+// paga. OVERDUE é derivado (dueDate no passado + status ainda PENDING),
+// nunca um status próprio — mesmo padrão de financial_transactions.
+model SubscriptionCharge {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  tenantId       String
+  // Competência (mês de referência), armazenada como o primeiro dia do mês.
+  competence     DateTime     @db.Date
+  amountCents    Int
+  dueDate        DateTime     @db.Date
+  status         ChargeStatus @default(PENDING)
+  paidAt         DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  subscription TenantSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@unique([subscriptionId, competence])
+  @@index([tenantId, status])
+  @@map("subscription_charges")
+}
+
+enum AuditActorType {
+  GLOBAL_ADMIN
+  TENANT_OWNER
+  SYSTEM
+}
+
+enum AuditVisibility {
+  ADMIN
+  INTERNAL
+}
+
+// Trilha de auditoria (Seção 146). `metadataSanitized` nunca contém valor,
+// descrição, categoria, tag, nota ou saldo (Seção 147) — quem grava o
+// evento é responsável por só incluir metadados seguros; este modelo não
+// tem como validar isso automaticamente, é uma disciplina de quem chama
+// `recordAuditEvent()`.
+model AuditEvent {
+  id                String           @id @default(cuid())
+  actorType         AuditActorType
+  actorId           String?
+  tenantId          String?
+  eventType         String
+  entityType        String
+  entityId          String?
+  visibility        AuditVisibility  @default(ADMIN)
+  metadataSanitized Json?
+  createdAt         DateTime         @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([eventType])
+  @@map("audit_events")
 }

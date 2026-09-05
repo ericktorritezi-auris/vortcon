@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { consumePasswordReset } from '@/modules/auth/password-reset.service';
+import { passwordSchema } from '@/shared/security/password-policy';
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1),
-  password: z.string().min(8, 'A senha deve ter ao menos 8 caracteres.'),
+  password: passwordSchema,
 });
 
 export async function POST(request: Request): Promise<NextResponse> {

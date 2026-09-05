@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '@/shared/database/client';
 import * as tenantRepository from '@/modules/tenants/tenant.repository';
 import { provisionTenantWithOwner } from '@/modules/tenants/tenant.service';
+import { cleanupTenant, createTestPlan, deleteTestPlan } from '../helpers/commercial';
 
 /**
  * Testes obrigatórios de multitenancy A/B (Seção 21, 174). Rodam contra um
@@ -17,17 +18,23 @@ describe('isolamento multitenant (tenant A / tenant B)', () => {
   let tenantAId: string;
   let tenantBId: string;
   let userAId: string;
+  let planId: string;
 
   beforeAll(async () => {
+    const plan = await createTestPlan();
+    planId = plan.id;
+
     const a = await provisionTenantWithOwner({
       name: 'Tenant A',
       email: `a-${crypto.randomUUID()}@example.com`,
       username: `tenant_a_${crypto.randomUUID().slice(0, 8)}`,
+      planId,
     });
     const b = await provisionTenantWithOwner({
       name: 'Tenant B',
       email: `b-${crypto.randomUUID()}@example.com`,
       username: `tenant_b_${crypto.randomUUID().slice(0, 8)}`,
+      planId,
     });
 
     tenantAId = a.tenant.id;
@@ -38,12 +45,9 @@ describe('isolamento multitenant (tenant A / tenant B)', () => {
   });
 
   afterAll(async () => {
-    await prisma.tenantAccessBlock.deleteMany({
-      where: { tenantId: { in: [tenantAId, tenantBId] } },
-    });
-    await prisma.tenantUser.deleteMany({ where: { tenantId: { in: [tenantAId, tenantBId] } } });
-    await prisma.user.deleteMany({ where: { id: userAId } });
-    await prisma.tenant.deleteMany({ where: { id: { in: [tenantAId, tenantBId] } } });
+    await cleanupTenant(tenantAId);
+    await cleanupTenant(tenantBId);
+    await deleteTestPlan(planId);
   });
 
   it('bloqueio do tenant B nunca aparece numa checagem escopada no tenant A', async () => {

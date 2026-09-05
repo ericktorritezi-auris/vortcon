@@ -6,6 +6,7 @@ import { login } from '@/modules/auth/login.service';
 import { consumePasswordReset, requestPasswordReset } from '@/modules/auth/password-reset.service';
 import * as sessionRepository from '@/modules/auth/session.repository';
 import { generateSecureToken, hashToken } from '@/shared/security/tokens';
+import { cleanupTenant, createTestPlan, deleteTestPlan } from '../helpers/commercial';
 
 /**
  * Fluxo completo de Auth (Seções 18, 25, 27), validado contra PostgreSQL
@@ -15,33 +16,33 @@ import { generateSecureToken, hashToken } from '@/shared/security/tokens';
  * clicando no link recebido por e-mail em produção.
  */
 describe('fluxo de autenticação', () => {
+  let tenantId: string;
   let userId: string;
   let userEmail: string;
   let userUsername: string;
+  let planId: string;
 
   beforeAll(async () => {
+    const plan = await createTestPlan();
+    planId = plan.id;
+
     const suffix = crypto.randomUUID().slice(0, 8);
     userEmail = `owner-${suffix}@example.com`;
     userUsername = `owner_${suffix}`;
 
-    const { user } = await provisionTenantWithOwner({
+    const { tenant, user } = await provisionTenantWithOwner({
       name: 'Dono do Tenant',
       email: userEmail,
       username: userUsername,
+      planId,
     });
+    tenantId = tenant.id;
     userId = user.id;
   });
 
   afterAll(async () => {
-    await prisma.session.deleteMany({ where: { userId } });
-    await prisma.userInvitation.deleteMany({ where: { userId } });
-    await prisma.passwordResetToken.deleteMany({ where: { userId } });
-    const tenantMembership = await prisma.tenantUser.findFirst({ where: { userId } });
-    await prisma.tenantUser.deleteMany({ where: { userId } });
-    await prisma.user.delete({ where: { id: userId } });
-    if (tenantMembership) {
-      await prisma.tenant.deleteMany({ where: { id: tenantMembership.tenantId } });
-    }
+    await cleanupTenant(tenantId);
+    await deleteTestPlan(planId);
   });
 
   it('provisionar tenant cria usuário sem senha e com convite pendente', async () => {

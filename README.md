@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 5 — Legal ✅ concluído                                                                                    |
-| Próximo estágio         | Estágio 6 — Admin/Comercial                                                                                       |
+| Estágio atual           | Estágio 6 — Admin/Comercial ✅ concluído                                                                          |
+| Próximo estágio         | Estágio 7 — Domínio Financeiro                                                                                    |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -171,6 +171,40 @@ Limitação conhecida do ambiente usado para validar esta etapa: `fonts.googleap
   uma biblioteca WYSIWYG completa para esta etapa.
 - Teste de integração do fluxo completo (rascunho → publicação → gate bloqueia →
   aceite → gate libera → republicação com/sem exigência de reaceite) pronto para CI.
+
+### Estágio 6 — o que foi entregue
+
+- Modelo comercial (Seções 102-114, 38): `SubscriptionPlan`, `TenantSubscription`
+  (preço congelado no momento da contratação — Seção 107), `SubscriptionCharge`
+  (mensalidade), `AuditEvent`. Migration escrita à mão e validada contra PostgreSQL 16
+  local — 3 cenários de constraint (uma assinatura por tenant, uma cobrança por
+  competência, proteção contra apagar plano em uso).
+- Seed idempotente do plano **VortCon Pro** (R$ 49,90/mês) finalmente encadeado no
+  `start` — cumprindo a promessa feita no Estágio 1.
+- `provisionTenantWithOwner` (Estágio 3) agora cria a assinatura atomicamente junto do
+  tenant e do owner, com a primeira mensalidade gerada logo em seguida.
+- Inadimplência e desbloqueio automáticos (Seções 113-114): sem job agendado ainda
+  (Estágio 13), a checagem roda reativamente a cada avaliação do `AccessPolicyService` —
+  documentado explicitamente como solução temporária no código.
+- Isento (Seção 108) nunca gera cobrança — "sem dívida artificial".
+- Bootstrap seguro do primeiro `GLOBAL_ADMIN` (Seção 162) via
+  `ADMIN_BOOTSTRAP_EMAIL`/`TOKEN`, reaproveitando o fluxo de convite do Estágio 4 — sem
+  senha hardcoded. O link de ativação é sempre logado no console do Railway,
+  independente do Resend conseguir entregar, para nunca deixar o Admin sem forma de
+  ativar a própria conta.
+- Política de senha por requisito de produto (8+ caracteres, maiúscula, número,
+  especial) — documentado explicitamente no código que **não existe** restrição de
+  caractere por segurança de banco (Argon2id + queries parametrizadas do Prisma já
+  eliminam essa classe de risco por completo, independente do conteúdo da senha).
+- Admin Dashboard (métricas da Seção 148, sem patrimônio privado), gestão de planos,
+  criação/listagem de tenants com seleção de plano, detalhe do tenant (assinatura,
+  mensalidades, registrar pagamento, bloqueio manual). Tela "Minha Assinatura" do lado
+  do tenant (Seção 112, read-only, chave PIX vinda de `VORTCON_PIX_KEY`).
+- Auditoria (Seção 146-147) conectada a: provisionamento, bloqueio/desbloqueio
+  (automático e manual), pagamento — nunca expõe dado financeiro privado do tenant.
+- 27 testes unitários passando de verdade neste ambiente, mais teste de integração do
+  fluxo comercial completo (mensalidade → atraso → bloqueio automático → pagamento →
+  desbloqueio automático → isento nunca gera cobrança) pronto para CI.
 
 ## Stack
 

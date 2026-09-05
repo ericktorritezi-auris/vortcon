@@ -2,6 +2,10 @@ import type { Role } from '@prisma/client';
 import type { TenantContext } from '@/shared/security/tenant-context';
 import * as tenantRepository from '@/modules/tenants/tenant.repository';
 import { hasAcceptedAllRequiredDocuments } from '@/modules/legal/legal-acceptance.service';
+import {
+  ensureCurrentMonthCharge,
+  evaluateAndApplyDelinquency,
+} from '@/modules/subscriptions/subscription.service';
 import { getCurrentSession } from './session.service';
 
 /**
@@ -49,6 +53,14 @@ export async function evaluateAccessPolicy(): Promise<AccessPolicyResult> {
   if (tenant.lifecycle === 'INACTIVE') {
     return { kind: 'TENANT_INACTIVE' };
   }
+
+  // Substituto reativo de job agendado (Estágio 13 ainda não existe) — ver
+  // comentário em subscription.service.ts. `ensureCurrentMonthCharge` cria a
+  // mensalidade do mês vigente se ainda não existir; `evaluateAndApplyDelinquency`
+  // depende dela existir para decidir se há atraso. Roda antes de checar
+  // bloqueios para que um bloqueio recém-aplicado já apareça abaixo.
+  await ensureCurrentMonthCharge(tenant.id);
+  await evaluateAndApplyDelinquency(tenant.id);
 
   const activeBlocks = await tenantRepository.findActiveBlocks(tenant.id);
   if (activeBlocks.some((block) => block.type === 'SECURITY')) {

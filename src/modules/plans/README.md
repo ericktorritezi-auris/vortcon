@@ -2,6 +2,11 @@
 
 Catálogo de planos comerciais (ex.: VortCon Pro) — não são tiers de feature (Seções 102-105).
 
-> Este módulo ainda não contém implementação — a fundação técnica (Estágio 1)
-> apenas reserva o limite de domínio. Ver `README.md` raiz e o Master Document
-> para a ordem de implementação por estágio.
+## Implementado (Estágio 6)
+
+`plan.service.ts` — CRUD de planos. Nunca hard delete (Seção 102): `deactivatePlan`
+inativa, preservando histórico de qualquer assinatura que já referencia o plano.
+Editar plano nunca altera `contractedPriceCents` de assinaturas existentes (Seção 107).
+
+Seed idempotente do "VortCon Pro" (R$ 49,90, mensal) em `prisma/seed.ts`, encadeado no
+`start` (ver README raiz, seção Deploy).

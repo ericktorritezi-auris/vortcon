@@ -7,11 +7,14 @@ import { generateSecureToken, hashToken } from '@/shared/security/tokens';
 const INVITE_DURATION_MS = 48 * 60 * 60 * 1000; // 48 horas (Seção 25: uso único, expiração)
 
 /**
- * Fluxo de ativação (Seção 25): Admin cria tenant/user → convite gerado →
- * Resend envia boas-vindas → usuário abre o link → define a própria senha.
- * Admin nunca conhece a senha permanente — não existe "senha temporária".
+ * Cria o registro de convite e retorna o token bruto (Seção 25). Separado
+ * do envio de e-mail de propósito: o bootstrap do admin (Seção 162) precisa
+ * do link mesmo quando o e-mail configurado não é uma caixa real — ver
+ * `admin-bootstrap.service.ts`.
  */
-export async function createAndSendInvitation(userId: string, userEmail: string, userName: string) {
+export async function createInvitation(
+  userId: string,
+): Promise<{ rawToken: string; inviteUrl: string }> {
   const rawToken = generateSecureToken();
 
   await prisma.userInvitation.create({
@@ -22,7 +25,16 @@ export async function createAndSendInvitation(userId: string, userEmail: string,
     },
   });
 
-  const inviteUrl = `${process.env.APP_URL}/convite/${rawToken}`;
+  return { rawToken, inviteUrl: `${process.env.APP_URL}/convite/${rawToken}` };
+}
+
+/**
+ * Fluxo de ativação (Seção 25): Admin cria tenant/user → convite gerado →
+ * Resend envia boas-vindas → usuário abre o link → define a própria senha.
+ * Admin nunca conhece a senha permanente — não existe "senha temporária".
+ */
+export async function createAndSendInvitation(userId: string, userEmail: string, userName: string) {
+  const { inviteUrl } = await createInvitation(userId);
   await sendInviteEmail(userEmail, userName, inviteUrl);
 }
 

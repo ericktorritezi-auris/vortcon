@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { consumeInvitation } from '@/modules/auth/invitation.service';
 import { createSessionAndSetCookie } from '@/modules/auth/session.service';
+import { passwordSchema } from '@/shared/security/password-policy';
 
 const acceptInviteSchema = z.object({
   token: z.string().min(1),
-  password: z.string().min(8, 'A senha deve ter ao menos 8 caracteres.'),
+  password: passwordSchema,
 });
 
 export async function POST(request: Request): Promise<NextResponse> {

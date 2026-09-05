@@ -1,21 +1,42 @@
 /**
- * VortCon — seed inicial (Estágio 1)
+ * VortCon — seed (Estágio 6)
  *
- * Regra normativa (Seção 161): não criar dados privados nem catálogo financeiro
- * obrigatório sem decisão explícita. O seed comercial (plano "VortCon Pro — R$ 49,90
- * — Mensal — Ativo", Seção 103/153) entra no Estágio 6, junto do módulo de planos.
+ * Idempotente (upsert por nome, nunca `create` puro) — seguro de rodar em
+ * todo boot da aplicação, encadeado no script `start` (ver README, seção
+ * "Deploy"). Nenhum dado privado de tenant é criado aqui (Seção 161).
  *
- * Automação (ver README, seção "Deploy"): a partir do Estágio 6, este arquivo passa a
- * usar `upsert` (nunca `create` puro) para ser seguro de rodar em todo deploy, e será
- * encadeado automaticamente no script `start` — sem qualquer comando manual.
+ * A inserção incondicional em `SystemHealth` do Estágio 1 foi removida:
+ * agora que este arquivo roda a cada `next start`, uma linha por boot
+ * cresceria sem limite. O healthcheck (`/api/health`) usa `SELECT 1` direto,
+ * nunca leu essa tabela — a tabela continua existindo (sem motivo pra
+ * migration só por isso), mas o seed não a alimenta mais.
  */
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+const VORTCON_PRO_PLAN = {
+  name: 'VortCon Pro',
+  priceCents: 4990, // R$ 49,90 (Seção 103) — nunca float (Seção 36)
+} as const;
+
 async function main(): Promise<void> {
-  await prisma.systemHealth.create({ data: {} });
-  console.warn('[seed] Estágio 1: seed de fundação executado com sucesso.');
+  const existing = await prisma.subscriptionPlan.findFirst({
+    where: { name: VORTCON_PRO_PLAN.name },
+  });
+
+  if (existing) {
+    await prisma.subscriptionPlan.update({
+      where: { id: existing.id },
+      data: { priceCents: VORTCON_PRO_PLAN.priceCents, active: true },
+    });
+  } else {
+    await prisma.subscriptionPlan.create({
+      data: { ...VORTCON_PRO_PLAN, periodicity: 'MONTHLY', active: true },
+    });
+  }
+
+  console.warn('[seed] VortCon Pro convergido (R$ 49,90 / mensal / ativo).');
 }
 
 main()
