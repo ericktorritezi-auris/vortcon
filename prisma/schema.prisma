@@ -88,10 +88,15 @@ model Tenant {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 
-  memberships      TenantUser[]
-  accessBlocks     TenantAccessBlock[]
-  legalAcceptances LegalAcceptance[]
-  subscription     TenantSubscription?
+  memberships          TenantUser[]
+  accessBlocks         TenantAccessBlock[]
+  legalAcceptances     LegalAcceptance[]
+  subscription         TenantSubscription?
+  financialAccounts    FinancialAccount[]
+  categories           Category[]
+  tags                 Tag[]
+  financialTransactions FinancialTransaction[]
+  transfers            Transfer[]
 
   @@map("tenants")
 }
@@ -378,4 +383,174 @@ model AuditEvent {
   @@index([tenantId, createdAt])
   @@index([eventType])
   @@map("audit_events")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ESTÁGIO 7 — DOMÍNIO FINANCEIRO (Seções 38-70, 202-204, 225)
+//
+// Regra estrutural inegociável (Seção 225, reforçada com redundância de
+// propósito no documento original): Category e Tag NUNCA têm campo `type`.
+// A natureza financeira (entrada/saída) pertence exclusivamente a
+// `FinancialTransaction.type`. Uma mesma categoria/tag pode aparecer em
+// receitas E despesas simultaneamente — isso é o comportamento correto,
+// não um bug. Relatórios "completos" mostram os dois lados + resultado
+// líquido; filtrar por natureza filtra a TRANSAÇÃO, nunca a categoria/tag.
+//
+// `recurrenceSeriesId`/`recurrenceOccurrenceKey` (Seção 54) ficam de fora
+// deste estágio de propósito — `recurrence_series` só existe no Estágio 8;
+// adicionar a coluna agora exigiria uma FK para uma tabela inexistente.
+// ─────────────────────────────────────────────────────────────────────────
+
+enum FinancialAccountType {
+  CHECKING
+  SAVINGS
+  CASH
+  OTHER
+}
+
+// Conta representa onde o dinheiro está (Seção 39). Saldo nunca é uma
+// coluna mutável — é sempre derivado (Seção 40): saldo inicial + receitas
+// recebidas - despesas pagas ± transferências concluídas.
+model FinancialAccount {
+  id                  String               @id @default(cuid())
+  tenantId            String
+  name                String
+  type                FinancialAccountType @default(CHECKING)
+  initialBalanceCents Int
+  initialBalanceDate  DateTime             @db.Date
+  active              Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  tenant             Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  transactions       FinancialTransaction[]
+  transfersOut       Transfer[]             @relation("TransferSource")
+  transfersIn        Transfer[]             @relation("TransferDestination")
+
+  @@index([tenantId])
+  @@map("financial_accounts")
+}
+
+// Categoria global e transversal ao tenant (Seção 41-42). SEM campo de
+// natureza financeira — ver aviso no topo desta seção do schema.
+model Category {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  iconKey   String   @default("wallet")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  transactions FinancialTransaction[]
+
+  @@index([tenantId])
+  @@map("categories")
+}
+
+// Tag global e transversal ao tenant (Seção 51-52). Mesma regra da
+// categoria: sem natureza financeira própria.
+model Tag {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant          Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  transactionTags FinancialTransactionTag[]
+
+  @@index([tenantId])
+  @@map("tags")
+}
+
+enum FinancialTransactionType {
+  EXPENSE
+  INCOME
+}
+
+enum FinancialTransactionStatus {
+  PENDING
+  PAID
+  RECEIVED
+  CANCELLED
+}
+
+// Entidade unificada para receitas e despesas (Seção 54). A natureza
+// financeira vive exclusivamente em `type` — nunca em categoria/tag.
+model FinancialTransaction {
+  id                  String                      @id @default(cuid())
+  tenantId            String
+  type                FinancialTransactionType
+  description         String
+  amountCents         Int
+  dueDate             DateTime                    @db.Date
+  settlementDate      DateTime?                   @db.Date
+  status              FinancialTransactionStatus  @default(PENDING)
+  accountId           String
+  categoryId          String?
+  reminderEnabled     Boolean                     @default(false)
+  ignored             Boolean                     @default(false)
+  note                String?
+  cancelledAt         DateTime?
+  cancelledFromStatus FinancialTransactionStatus?
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+
+  tenant   Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  account  FinancialAccount          @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category Category?                 @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags     FinancialTransactionTag[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, dueDate])
+  @@index([accountId])
+  @@index([categoryId])
+  @@map("financial_transactions")
+}
+
+// Associação transação↔tag (Seção 55). Tag e transação devem pertencer ao
+// mesmo tenant — validado em código (ownership, Seção 210), não pelo schema.
+model FinancialTransactionTag {
+  transactionId String
+  tagId         String
+
+  transaction FinancialTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  tag         Tag                  @relation(fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([transactionId, tagId])
+  @@map("financial_transaction_tags")
+}
+
+enum TransferStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+// Transferência entre contas (Seção 66) — entidade própria, nunca distorce
+// resultado (não é receita nem despesa). Pendente não altera saldo real
+// (Seção 67); concluída diminui origem e aumenta destino atomicamente.
+model Transfer {
+  id                   String         @id @default(cuid())
+  tenantId             String
+  sourceAccountId      String
+  destinationAccountId String
+  amountCents          Int
+  scheduledDate        DateTime       @db.Date
+  settlementDate       DateTime?      @db.Date
+  status               TransferStatus @default(PENDING)
+  note                 String?
+  cancelledAt          DateTime?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  sourceAccount      FinancialAccount @relation("TransferSource", fields: [sourceAccountId], references: [id], onDelete: Restrict)
+  destinationAccount FinancialAccount @relation("TransferDestination", fields: [destinationAccountId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, status])
+  @@map("transfers")
 }

@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 6 — Admin/Comercial ✅ concluído                                                                          |
-| Próximo estágio         | Estágio 7 — Domínio Financeiro                                                                                    |
+| Estágio atual           | Estágio 7 — Domínio Financeiro ✅ concluído                                                                       |
+| Próximo estágio         | Estágio 8 — Recorrências                                                                                          |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -205,6 +205,39 @@ Limitação conhecida do ambiente usado para validar esta etapa: `fonts.googleap
 - 27 testes unitários passando de verdade neste ambiente, mais teste de integração do
   fluxo comercial completo (mensalidade → atraso → bloqueio automático → pagamento →
   desbloqueio automático → isento nunca gera cobrança) pronto para CI.
+- Correções pós-deploy nesta etapa: tipo `Json?` do Prisma exige `Prisma.InputJsonValue`
+  (não `Record<string, unknown>`) — só aparece com o Client gerado de verdade;
+  redirecionamento de `GLOBAL_ADMIN` corrigido em dois pontos (aceitar convite e login
+  normal, ambos sempre mandavam para `/app`) e blindado na raiz (`AccessPolicyService`
+  agora retorna um estado tratável em vez de lançar exceção); login aceita username OU
+  e-mail (o username é gerado automaticamente e nunca era comunicado com destaque);
+  e-mail de convite agora informa o username; `AdminShell` (com botão Sair) unificado
+  em todas as páginas do Admin, incluindo as de Legal que ficaram órfãs desde o
+  Estágio 5 (construídas antes do Shell existir).
+
+### Estágio 7 — o que foi entregue
+
+- Modelo de domínio financeiro completo (Seções 38-70, 225): `FinancialAccount`,
+  `Category`, `Tag`, `FinancialTransaction`, `FinancialTransactionTag`, `Transfer`.
+  Migration escrita à mão e validada contra PostgreSQL 16 local, incluindo o cenário
+  mais crítico do documento inteiro: uma mesma categoria com receita **e** despesa
+  simultâneas, confirmando por `information_schema` que nenhuma coluna `type` existe
+  em `categories` nem `tags`.
+- **Financial Engine** (Seção 63) com o contrato completo: saldo real, saldo por conta,
+  receita/despesa/resultado do período, pendências, saldo projetado, breakdown e fluxo
+  de categoria/tag (nunca assumindo natureza fixa), totais diários, evolução mensal.
+  Exclusões financeiras (cancelado/ignorado) centralizadas num único filtro reutilizado
+  por toda função do engine (Seção 59).
+- Módulos `accounts`, `categories`, `tags`, `transactions`, `transfers` com validação de
+  ownership entre tenant e IDs recebidos (Seção 210) — conhecer o ID nunca concede acesso.
+- Suíte de testes obrigatória (`financial-engine-mandatory.test.ts`) cobrindo item a item
+  as Seções 170 (receita/despesa pendente vs. liquidada, competência vs. caixa entre
+  meses, transferência neutra no resultado, cancelado/ignorado excluídos), 171 (categoria
+  bidirecional — o cenário exato do Empréstimo do documento) e 172 (tag bidirecional +
+  isolamento de tenant).
+- Por decisão de escopo do próprio roadmap (Seção 181): este estágio é só modelo de
+  dados + Financial Engine + serviços de domínio — a UI de transações (formulários,
+  drawer, filtros, mobile) é construída no Estágio 9, propositalmente depois.
 
 ## Stack
 
