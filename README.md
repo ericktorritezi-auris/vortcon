@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 1 — Fundação técnica ✅ concluído                                                                         |
-| Próximo estágio         | Estágio 2 — Design System                                                                                         |
+| Estágio atual           | Estágio 2 — Design System ✅ concluído                                                                            |
+| Próximo estágio         | Estágio 3 — Multitenancy                                                                                          |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -67,6 +67,26 @@ Este README evolui junto com o desenvolvimento. Ele é a documentação operacio
 - Testes unitário (Vitest) e E2E (Playwright) configurados, com um caso real passando em cada.
 
 Limitação conhecida do ambiente usado para validar esta etapa: `fonts.googleapis.com` e `binaries.prisma.sh` não são alcançáveis por restrição de rede local do sandbox — isso não afeta CI real (GitHub Actions) nem Railway, ambos com acesso irrestrito a esses domínios públicos.
+
+### Estágio 2 — o que foi entregue
+
+- 23 componentes globais do Design System em `src/shared/ui/` (Seção 14): Button, Input,
+  MoneyInput, DateInput, Select, SearchableSelect, IconPicker, TagPicker, Toggle,
+  Checkbox, Badge, MetricCard, FinancialValue, Modal, Drawer, Toast, Pagination,
+  EmptyState, ErrorState, Skeleton, Header, Sidebar, MobileMenu, Footer — acessíveis
+  (labels, `aria-*`, foco visível, alvo de toque ~44px, nunca só cor para estado
+  crítico) e consumindo só os tokens Tailwind, sem cor/espaçamento hardcoded.
+- `<VortConMark />` (`src/shared/design-system/Logo.tsx`) — símbolo oficial como
+  componente React reutilizável, colorido ou monocromático, qualquer tamanho.
+- Catálogo controlado de ícones (`src/shared/design-system/icons.ts`, lucide-react) —
+  categorias nunca aceitam SVG arbitrário (Seção 13).
+- Favicons e ícones de PWA reais em `public/icons/` (16/32/64/192/512 + apple-touch-icon),
+  gerados a partir do símbolo oficial.
+- Landing Page pública real (Seção 17), substituindo o placeholder do Estágio 1.
+- Componentes com forma atrelada a uma entidade de domínio que ainda não existe
+  (AccountCard, TransactionRow, InsightCard, OnboardingCard, SubscriptionCard,
+  ReportCard, NotificationCenter) foram deliberadamente adiados para o estágio que os
+  torna reais — lista completa em `src/shared/ui/README.md`.
 
 ## Stack
 
