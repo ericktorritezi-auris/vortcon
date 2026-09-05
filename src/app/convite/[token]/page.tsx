@@ -11,9 +11,12 @@ interface AcceptInvitePageProps {
 
 /**
  * Definição da senha inicial (Seção 25). Ao concluir, o backend já autentica
- * (ver `accept-invite/route.ts`) — o próximo passo normativo seria o gate
- * legal (Seção 25: "Passa pelo gate legal"), que chega no Estágio 5; por
- * ora, redireciona direto para `/app`, onde o AccessPolicyService decide.
+ * (ver `accept-invite/route.ts`) — GLOBAL_ADMIN e TENANT_OWNER pousam em
+ * áreas diferentes depois de ativar (Seção 22): admin vai para `/admin`,
+ * nunca para `/app` (que lançaria erro de propósito — ver
+ * `AccessPolicyService`). O próximo passo normativo para TENANT_OWNER seria
+ * o gate legal (Seção 25: "Passa pelo gate legal"), já real desde o
+ * Estágio 5 — `/app` decide isso sozinho.
  */
 export default function AcceptInvitePage({ params }: AcceptInvitePageProps): React.ReactElement {
   const router = useRouter();
@@ -38,14 +41,17 @@ export default function AcceptInvitePage({ params }: AcceptInvitePageProps): Rea
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: params.token, password }),
       });
-      const body = (await response.json()) as { message?: string };
+      const body = (await response.json()) as {
+        message?: string;
+        role?: 'GLOBAL_ADMIN' | 'TENANT_OWNER';
+      };
 
       if (!response.ok) {
         setError(body.message ?? 'Não foi possível ativar sua conta.');
         return;
       }
 
-      router.push('/app');
+      router.push(body.role === 'GLOBAL_ADMIN' ? '/admin' : '/app');
     } catch {
       setError('Não foi possível ativar sua conta. Tente novamente.');
     } finally {

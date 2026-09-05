@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { consumeInvitation } from '@/modules/auth/invitation.service';
 import { createSessionAndSetCookie } from '@/modules/auth/session.service';
 import { passwordSchema } from '@/shared/security/password-policy';
+import { prisma } from '@/shared/database/client';
 
 const acceptInviteSchema = z.object({
   token: z.string().min(1),
@@ -35,5 +36,14 @@ export async function POST(request: Request): Promise<NextResponse> {
   // "Conta é liberada. Onboarding inicia.").
   await createSessionAndSetCookie(result.userId);
 
-  return NextResponse.json({ status: 'ok' });
+  // GLOBAL_ADMIN e TENANT_OWNER pousam em áreas diferentes depois de ativar
+  // (Seção 22: Admin é separado dos ambientes financeiros) — o client
+  // precisa saber o papel para redirecionar para /admin ou /app, nunca
+  // sempre para /app (isso derrubava o bootstrap do admin com um erro).
+  const user = await prisma.user.findUnique({
+    where: { id: result.userId },
+    select: { role: true },
+  });
+
+  return NextResponse.json({ status: 'ok', role: user?.role ?? 'TENANT_OWNER' });
 }
