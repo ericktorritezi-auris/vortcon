@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 4 — Auth ✅ concluído                                                                                     |
-| Próximo estágio         | Estágio 5 — Legal                                                                                                 |
+| Estágio atual           | Estágio 5 — Legal ✅ concluído                                                                                    |
+| Próximo estágio         | Estágio 6 — Admin/Comercial                                                                                       |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -146,6 +146,31 @@ Limitação conhecida do ambiente usado para validar esta etapa: `fonts.googleap
   Client), mais teste de integração do fluxo completo (provisiona → convite pendente →
   login barrado → ativa → login funciona → reset invalida sessão antiga → login com senha
   nova → anti-enumeração) para rodar em CI.
+
+### Estágio 5 — o que foi entregue
+
+- Modelo de documentos legais (Seções 129-133, 38): `LegalDocument`, `LegalDocumentVersion`
+  (`DRAFT`/`PUBLISHED`/`ARCHIVED`, versão publicada imutável), `LegalAcceptance` (evidência
+  de IP/user agent, nunca um booleano solto). Migration escrita à mão e validada de
+  verdade contra PostgreSQL 16 local — 4 cenários de constraint (versão única por
+  documento, aceite único por versão, tipo de documento único, proteção contra
+  hard-delete).
+- Sanitização real de rich text (`sanitize-html`, Seção 130) — 5 testes unitários
+  rodando de verdade: remove `<script>`, remove atributos de evento inline, bloqueia
+  `javascript:`, preserva as tags permitidas, descarta tags fora da lista.
+- `saveDraft`/`publishDraft` (Seção 131-132): publicar arquiva a versão anterior; a
+  flag "exigir novo aceite" definida na publicação decide se aceites de versões
+  anteriores continuam valendo (correção cosmética) ou não (mudança relevante).
+- `AccessPolicyService` (Estágio 4) agora usa a checagem legal real, substituindo o
+  stub — o resultado `LEGAL_ACCEPTANCE_REQUIRED` leva à tela real `/aceitar-termos`
+  (Seção 135: só documentos, aceite e logout, nunca o Dashboard).
+- Páginas públicas `/privacidade` e `/termos` (Seção 136) — conteúdo do banco, nunca
+  hardcoded.
+- Painel Admin mínimo (`/admin/legal`, Seções 129, 137) com editor rich-text por
+  toolbar (envolve a seleção nas tags permitidas) — decisão deliberada de não trazer
+  uma biblioteca WYSIWYG completa para esta etapa.
+- Teste de integração do fluxo completo (rascunho → publicação → gate bloqueia →
+  aceite → gate libera → republicação com/sem exigência de reaceite) pronto para CI.
 
 ## Stack
 

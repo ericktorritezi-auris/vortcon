@@ -1,6 +1,7 @@
 import type { Role } from '@prisma/client';
 import type { TenantContext } from '@/shared/security/tenant-context';
 import * as tenantRepository from '@/modules/tenants/tenant.repository';
+import { hasAcceptedAllRequiredDocuments } from '@/modules/legal/legal-acceptance.service';
 import { getCurrentSession } from './session.service';
 
 /**
@@ -24,16 +25,6 @@ export type AccessPolicyResult =
   | { kind: 'SECURITY_BLOCKED' }
   | { kind: 'LEGAL_ACCEPTANCE_REQUIRED'; context: TenantContext }
   | { kind: 'ALLOWED'; context: TenantContext };
-
-/**
- * Estágio 5 (Legal) substitui este stub por uma checagem real contra
- * `legal_documents`/`legal_acceptances`. Até lá, o gate nunca bloqueia por
- * aceite pendente — mantemos o formato do resultado correto desde já para
- * não precisar tocar em quem consome `AccessPolicyResult` quando isso mudar.
- */
-async function hasAcceptedRequiredLegalDocuments(_tenantId: string): Promise<boolean> {
-  return true;
-}
 
 export async function evaluateAccessPolicy(): Promise<AccessPolicyResult> {
   const session = await getCurrentSession();
@@ -72,7 +63,7 @@ export async function evaluateAccessPolicy(): Promise<AccessPolicyResult> {
 
   const context: TenantContext = { tenantId: tenant.id, userId: session.userId, role };
 
-  const legalAccepted = await hasAcceptedRequiredLegalDocuments(tenant.id);
+  const legalAccepted = await hasAcceptedAllRequiredDocuments(session.userId);
   if (!legalAccepted) {
     return { kind: 'LEGAL_ACCEPTANCE_REQUIRED', context };
   }

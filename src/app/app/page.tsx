@@ -20,8 +20,7 @@ export default async function AppHomePage(): Promise<React.ReactElement> {
     case 'SECURITY_BLOCKED':
       redirect('/bloqueado');
     case 'LEGAL_ACCEPTANCE_REQUIRED':
-      // Estágio 5 substitui por uma tela real de aceite de termos.
-      redirect('/entrar');
+      redirect('/aceitar-termos');
     case 'ALLOWED':
       break;
   }

@@ -77,6 +77,7 @@ model User {
   sessions            Session[]
   invitations         UserInvitation[]
   passwordResetTokens PasswordResetToken[]
+  legalAcceptances    LegalAcceptance[]
 
   @@map("users")
 }
@@ -87,8 +88,9 @@ model Tenant {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 
-  memberships TenantUser[]
-  accessBlocks TenantAccessBlock[]
+  memberships      TenantUser[]
+  accessBlocks     TenantAccessBlock[]
+  legalAcceptances LegalAcceptance[]
 
   @@map("tenants")
 }
@@ -129,7 +131,78 @@ model TenantAccessBlock {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// ESTÁGIO 4 — AUTH (Seções 18, 25-29, 38)
+// ESTÁGIO 5 — LEGAL (Seções 129-137)
+// ─────────────────────────────────────────────────────────────────────────
+
+enum LegalDocumentType {
+  PRIVACY_POLICY
+  TERMS_OF_USE
+}
+
+enum LegalDocumentVersionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// Um "documento" é o conceito estável (ex.: "nossa Política de Privacidade");
+// o conteúdo de verdade vive em `LegalDocumentVersion` (Seção 131).
+model LegalDocument {
+  id        String            @id @default(cuid())
+  type      LegalDocumentType @unique
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  versions LegalDocumentVersion[]
+
+  @@map("legal_documents")
+}
+
+// Versão publicada é imutável (Seção 131) — qualquer alteração de conteúdo
+// depois de PUBLISHED cria uma nova versão DRAFT, nunca edita esta linha.
+model LegalDocumentVersion {
+  id         String                     @id @default(cuid())
+  documentId String
+  version    Int
+  status     LegalDocumentVersionStatus @default(DRAFT)
+  // HTML já sanitizado no momento da escrita (Seção 130) — nunca confiar em
+  // sanitização só no client.
+  contentHtml String
+  // Seção 132: "Admin define: Exigir novo aceite?" — só tem efeito relevante
+  // em versões PUBLISHED; controla se aceites de versões anteriores deste
+  // documento deixam de contar (gate exige novo aceite desta versão).
+  requiresReacceptance Boolean   @default(true)
+  publishedAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  document    LegalDocument      @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  acceptances LegalAcceptance[]
+
+  @@unique([documentId, version])
+  @@index([documentId, status])
+  @@map("legal_document_versions")
+}
+
+// Evidência de aceite (Seção 133) — nunca um booleano solto tipo
+// `lgpd_accepted = true`. Guarda quem, o quê, quando e com que evidência.
+model LegalAcceptance {
+  id                String   @id @default(cuid())
+  tenantId          String
+  userId            String
+  documentVersionId String
+  acceptedAt        DateTime @default(now())
+  ipAddress         String?
+  userAgent         String?
+
+  tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  documentVersion LegalDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, documentVersionId])
+  @@index([tenantId])
+  @@map("legal_acceptances")
+}
 //
 // Nenhum token de uso único (convite, redefinição de senha) é armazenado em
 // texto puro — só o hash SHA-256 do token (Seção 26 é sobre senha, mas o
