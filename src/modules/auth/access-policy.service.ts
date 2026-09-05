@@ -1,0 +1,81 @@
+import type { Role } from '@prisma/client';
+import type { TenantContext } from '@/shared/security/tenant-context';
+import * as tenantRepository from '@/modules/tenants/tenant.repository';
+import { getCurrentSession } from './session.service';
+
+/**
+ * Gate central de acesso (Seção 29). Toda rota privada da área do tenant
+ * passa por aqui antes de renderizar — nunca confia em "está logado" sozinho.
+ *
+ * Ordem de verificação: identidade → tenant → lifecycle → bloqueios → legal
+ * → autorização. Cada resultado leva a uma tela específica (definida pelo
+ * middleware/páginas que consomem este serviço).
+ *
+ * Este serviço avalia acesso à área financeira do tenant (`TENANT_OWNER`).
+ * `GLOBAL_ADMIN` não tem tenant (Seção 22) e usa seu próprio guard mais
+ * simples no painel Admin (Estágio 6) — chamar este gate para um
+ * `GLOBAL_ADMIN` é erro de programação, não um estado de usuário.
+ */
+export type AccessPolicyResult =
+  | { kind: 'UNAUTHENTICATED' }
+  | { kind: 'TENANT_INACTIVE' }
+  | { kind: 'DELINQUENCY_BLOCKED' }
+  | { kind: 'ADMIN_BLOCKED' }
+  | { kind: 'SECURITY_BLOCKED' }
+  | { kind: 'LEGAL_ACCEPTANCE_REQUIRED'; context: TenantContext }
+  | { kind: 'ALLOWED'; context: TenantContext };
+
+/**
+ * Estágio 5 (Legal) substitui este stub por uma checagem real contra
+ * `legal_documents`/`legal_acceptances`. Até lá, o gate nunca bloqueia por
+ * aceite pendente — mantemos o formato do resultado correto desde já para
+ * não precisar tocar em quem consome `AccessPolicyResult` quando isso mudar.
+ */
+async function hasAcceptedRequiredLegalDocuments(_tenantId: string): Promise<boolean> {
+  return true;
+}
+
+export async function evaluateAccessPolicy(): Promise<AccessPolicyResult> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { kind: 'UNAUTHENTICATED' };
+  }
+
+  const role: Role = session.user.role;
+  if (role === 'GLOBAL_ADMIN') {
+    throw new Error(
+      'evaluateAccessPolicy() foi chamado para um GLOBAL_ADMIN — use o guard do painel Admin (Estágio 6).',
+    );
+  }
+
+  const tenant = await tenantRepository.findTenantByUserId(session.userId);
+  if (!tenant) {
+    // TENANT_OWNER sem tenant é estado inconsistente (nunca deveria ocorrer
+    // dado provisionTenantWithOwner ser atômico) — trata como não autenticado.
+    return { kind: 'UNAUTHENTICATED' };
+  }
+
+  if (tenant.lifecycle === 'INACTIVE') {
+    return { kind: 'TENANT_INACTIVE' };
+  }
+
+  const activeBlocks = await tenantRepository.findActiveBlocks(tenant.id);
+  if (activeBlocks.some((block) => block.type === 'SECURITY')) {
+    return { kind: 'SECURITY_BLOCKED' };
+  }
+  if (activeBlocks.some((block) => block.type === 'ADMINISTRATIVE')) {
+    return { kind: 'ADMIN_BLOCKED' };
+  }
+  if (activeBlocks.some((block) => block.type === 'DELINQUENCY')) {
+    return { kind: 'DELINQUENCY_BLOCKED' };
+  }
+
+  const context: TenantContext = { tenantId: tenant.id, userId: session.userId, role };
+
+  const legalAccepted = await hasAcceptedRequiredLegalDocuments(tenant.id);
+  if (!legalAccepted) {
+    return { kind: 'LEGAL_ACCEPTANCE_REQUIRED', context };
+  }
+
+  return { kind: 'ALLOWED', context };
+}

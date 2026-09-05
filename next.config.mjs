@@ -2,6 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // @node-rs/argon2 (Seção 26) é um binário nativo — nunca deve ser
+  // empacotado pelo bundler do Next.js, só carregado via require() em
+  // runtime. Sem isso, o build falha ao tentar interpretar o .node como JS.
+  experimental: {
+    serverComponentsExternalPackages: ['@node-rs/argon2'],
+  },
   async headers() {
     return [
       {

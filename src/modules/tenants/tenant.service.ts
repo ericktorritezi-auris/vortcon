@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
+import { createAndSendInvitation } from '@/modules/auth/invitation.service';
 import * as tenantRepository from './tenant.repository';
 
 export type TenantStatus =
@@ -27,8 +28,8 @@ interface ProvisionTenantInput {
  * usuário definir a própria senha via convite (Estágio 4).
  */
 export async function provisionTenantWithOwner(input: ProvisionTenantInput) {
-  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    const user = await tx.user.create({
+  const { tenant, user } = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const createdUser = await tx.user.create({
       data: {
         name: input.name,
         email: input.email,
@@ -40,14 +41,21 @@ export async function provisionTenantWithOwner(input: ProvisionTenantInput) {
       },
     });
 
-    const tenant = await tx.tenant.create({ data: {} });
+    const createdTenant = await tx.tenant.create({ data: {} });
 
     await tx.tenantUser.create({
-      data: { tenantId: tenant.id, userId: user.id },
+      data: { tenantId: createdTenant.id, userId: createdUser.id },
     });
 
-    return { tenant, user };
+    return { tenant: createdTenant, user: createdUser };
   });
+
+  // Fora da transação de propósito: falha no envio do e-mail não deve
+  // desfazer a criação do tenant — o Admin pode reenviar o convite
+  // (Seção 25: "Reenvio possível") sem precisar recriar nada.
+  await createAndSendInvitation(user.id, user.email, user.name);
+
+  return { tenant, user };
 }
 
 /**

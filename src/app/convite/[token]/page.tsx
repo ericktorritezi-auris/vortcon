@@ -1,0 +1,94 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { AuthCardLayout, Button, Input } from '@/shared/ui';
+
+interface AcceptInvitePageProps {
+  params: { token: string };
+}
+
+/**
+ * Definição da senha inicial (Seção 25). Ao concluir, o backend já autentica
+ * (ver `accept-invite/route.ts`) — o próximo passo normativo seria o gate
+ * legal (Seção 25: "Passa pelo gate legal"), que chega no Estágio 5; por
+ * ora, redireciona direto para `/app`, onde o AccessPolicyService decide.
+ */
+export default function AcceptInvitePage({ params }: AcceptInvitePageProps): React.ReactElement {
+  const router = useRouter();
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent): Promise<void> {
+    event.preventDefault();
+    setError(null);
+
+    if (password !== confirmPassword) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/auth/accept-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: params.token, password }),
+      });
+      const body = (await response.json()) as { message?: string };
+
+      if (!response.ok) {
+        setError(body.message ?? 'Não foi possível ativar sua conta.');
+        return;
+      }
+
+      router.push('/app');
+    } catch {
+      setError('Não foi possível ativar sua conta. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <AuthCardLayout
+      title="Bem-vindo à VortCon"
+      description="Defina sua senha para ativar sua conta."
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Input
+          label="Senha"
+          name="password"
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+          minLength={8}
+        />
+        <Input
+          label="Confirmar senha"
+          name="confirmPassword"
+          type="password"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          required
+          minLength={8}
+        />
+
+        {error ? (
+          <p role="alert" className="text-sm font-medium text-financial-danger">
+            {error}
+          </p>
+        ) : null}
+
+        <Button type="submit" loading={loading} className="w-full">
+          Ativar conta
+        </Button>
+      </form>
+    </AuthCardLayout>
+  );
+}

@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 3 — Multitenancy ✅ concluído                                                                             |
-| Próximo estágio         | Estágio 4 — Auth                                                                                                  |
+| Estágio atual           | Estágio 4 — Auth ✅ concluído                                                                                     |
+| Próximo estágio         | Estágio 5 — Legal                                                                                                 |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -114,6 +114,38 @@ Limitação conhecida do ambiente usado para validar esta etapa: `fonts.googleap
 - Correção de reprodutibilidade: `prettier`, `eslint`, `typescript` e os plugins
   `@typescript-eslint/*` estavam com versão flutuante (`^`) — fixadas em versão exata
   para eliminar drift de formatação entre sessões de desenvolvimento.
+
+### Estágio 4 — o que foi entregue
+
+- Fluxo completo de autenticação (Seções 18, 25-29): login por usuário/senha, sessão
+  server-side via cookie (`HttpOnly`, `Secure` em produção, `SameSite=Lax`), convite de
+  ativação (uso único, 48h, sem senha temporária), recuperação de senha (uso único, 1h,
+  resposta anti-enumeração idêntica exista ou não a conta), `AccessPolicyService` como
+  gate central com todos os estados da Seção 29
+  (`UNAUTHENTICATED`/`TENANT_INACTIVE`/`DELINQUENCY_BLOCKED`/`ADMIN_BLOCKED`/`SECURITY_BLOCKED`/`LEGAL_ACCEPTANCE_REQUIRED`/`ALLOWED`).
+- Novas tabelas `sessions`, `user_invitations`, `password_reset_tokens` (Seção 38) — só
+  o hash SHA-256 do token fica no banco, nunca o valor bruto. Migration escrita à mão e
+  validada de verdade contra PostgreSQL 16 local (unicidade de `tokenHash`, cascade
+  delete ao remover usuário).
+- Senhas com Argon2id (`@node-rs/argon2`, Seção 26) — hash/verify testados de verdade,
+  nunca reversível, nunca plaintext.
+- `provisionTenantWithOwner` (Estágio 3) agora dispara o convite automaticamente via
+  Resend, com fallback seguro (loga e segue, sem derrubar o fluxo) quando
+  `RESEND_API_KEY` não está configurada — necessário para dev/CI funcionarem sem a chave.
+- Middleware protegendo `/app/*` mesmo em acesso direto por URL (Seção 18), páginas reais
+  de login/convite/redefinição de senha/bloqueio/tenant inativo.
+- Dois bugs reais de build corrigidos durante a validação (não a limitação de rede já
+  conhecida): (1) o Next.js tentava empacotar o binário nativo do Argon2 no bundle —
+  corrigido isolando o pacote via `experimental.serverComponentsExternalPackages`; (2) o
+  middleware (roda em Edge Runtime) importava `node:crypto` indiretamente através do
+  módulo de sessão — corrigido isolando a constante do cookie num arquivo sem
+  dependências (`session.constants.ts`).
+- Correção de UX prometida na sessão anterior: `Header.tsx` agora garante espaçamento
+  mínimo entre logo/menu/botão "Entrar", nunca mais cola em nenhuma largura de tela.
+- Testes unitários reais de senha e token rodando neste ambiente (não dependem do Prisma
+  Client), mais teste de integração do fluxo completo (provisiona → convite pendente →
+  login barrado → ativa → login funciona → reset invalida sessão antiga → login com senha
+  nova → anti-enumeração) para rodar em CI.
 
 ## Stack
 

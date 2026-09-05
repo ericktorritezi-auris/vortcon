@@ -8,15 +8,19 @@ import { Button } from './Button';
  */
 export function Header(): React.ReactElement {
   return (
-    <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-      <Link href="/" className="flex items-center gap-2" aria-label="VortCon — página inicial">
+    <header className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-5">
+      <Link
+        href="/"
+        className="flex shrink-0 items-center gap-2"
+        aria-label="VortCon — página inicial"
+      >
         <VortConMark size={28} />
         <span className="text-lg font-extrabold tracking-tight text-brand-deep">VortCon</span>
       </Link>
 
       <nav
         aria-label="Navegação principal"
-        className="hidden gap-8 text-sm font-medium text-ink-secondary md:flex"
+        className="hidden shrink-0 gap-8 text-sm font-medium text-ink-secondary md:flex"
       >
         <Link href="/produto" className="hover:text-brand-deep">
           Produto
@@ -32,7 +36,7 @@ export function Header(): React.ReactElement {
         </Link>
       </nav>
 
-      <Link href="/entrar">
+      <Link href="/entrar" className="shrink-0">
         <Button>Entrar</Button>
       </Link>
     </header>

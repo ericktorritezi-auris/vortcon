@@ -73,7 +73,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tenantMemberships TenantUser[]
+  tenantMemberships   TenantUser[]
+  sessions            Session[]
+  invitations         UserInvitation[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -123,4 +126,62 @@ model TenantAccessBlock {
 
   @@index([tenantId, type, active])
   @@map("tenant_access_blocks")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ESTÁGIO 4 — AUTH (Seções 18, 25-29, 38)
+//
+// Nenhum token de uso único (convite, redefinição de senha) é armazenado em
+// texto puro — só o hash SHA-256 do token (Seção 26 é sobre senha, mas o
+// mesmo princípio de "nunca guardar segredo recuperável" se aplica aqui: o
+// valor real só existe no link enviado por e-mail, nunca no banco).
+// ─────────────────────────────────────────────────────────────────────────
+
+// Sessão server-side (Seção 28). O cookie guarda o token bruto; o banco
+// guarda só o hash — comprometer o banco não permite sequestrar sessões.
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// Convite de ativação (Seção 25). Uso único (`usedAt`), com expiração.
+// Admin nunca conhece a senha — só o convite existe até o usuário definir a
+// própria senha em `/convite/[token]`.
+model UserInvitation {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_invitations")
+}
+
+// Recuperação de senha (Seção 27). Mesmo padrão de uso único + expiração
+// curta do convite.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
