@@ -51,7 +51,7 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 1 — Fundação técnica ✅ concluído                                                                          |
+| Estágio atual           | Estágio 1 — Fundação técnica ✅ concluído                                                                         |
 | Próximo estágio         | Estágio 2 — Design System                                                                                         |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
@@ -234,12 +234,38 @@ push → main → Railway detecta o push → build automático → deploy autom�
    conexão real com o PostgreSQL.
 
 `.github/workflows/ci.yml` roda em paralelo a cada push/PR (install → lint → format →
-typecheck → prisma → testes → build) como *gate* de qualidade — o deploy em si é
+typecheck → prisma → testes → build) como _gate_ de qualidade — o deploy em si é
 disparado pelo próprio Railway ao detectar o push em `main`, não pelo GitHub Actions.
 
 ```
 push → CI (gate de qualidade, em paralelo) → Railway build → migrate deploy → start → healthcheck
 ```
+
+### Variáveis obrigatórias no serviço Railway (configuração única, não é "rodar comando")
+
+O build/deploy é 100% automático — mas automação não inventa segredos: o Railway
+precisa saber os valores uma única vez, configurados na aba **Variables** do serviço
+Web. Isso é feito uma vez só e vale para todo deploy seguinte, sem repetir. No mínimo:
+
+| Variável              | Valor no seu caso                                                                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | Referência ao plugin PostgreSQL do Railway (ex.: `${{Postgres.DATABASE_URL}}`) — se você já anexou o Postgres ao serviço, isso já existe |
+| `APP_URL`             | A URL pública do serviço, ex.: `https://vortcon-production.up.railway.app`                                                               |
+| `AUTH_SESSION_SECRET` | Um segredo aleatório de 32+ caracteres — gere um e cole, nunca reuse entre ambientes                                                     |
+
+Essas três precisam existir tanto no build quanto no runtime — no Railway, variáveis
+do serviço já ficam disponíveis nas duas fases automaticamente, então uma única
+configuração resolve ambas.
+
+Mesmo assim, o build não trava mais só por essas variáveis estarem ausentes: o Next.js
+executa "Collecting page data" durante `next build`, o que carrega o módulo das rotas
+(inclusive imports) para análise estática — sem que o runtime real tenha começado. Se a
+validação de ambiente for estrita nesse momento, uma variável de runtime ausente derruba
+o build inteiro, mesmo sem nenhum código quebrado. `src/shared/config/env.ts` detecta
+essa fase (`NEXT_PHASE=phase-production-build`, definida pelo próprio Next.js) e usa
+valores de build seguros só para não travar a análise estática — a validação estrita
+continua acontecendo de verdade no boot real (`next start`), que é quando falta de
+configuração deve mesmo derrubar o processo.
 
 ## Versionamento
 
@@ -247,13 +273,14 @@ SemVer (`MAJOR.MINOR.PATCH`), iniciando em `1.0.0`. Branch principal: `main`.
 
 ## Troubleshooting
 
-**Build falha por falta de `DATABASE_URL`.** `next build` coleta dados de página e, ao
-fazer isso, importa `src/shared/database/client.ts`, que valida o ambiente e instancia o
-Prisma Client. No Railway, garanta que o serviço Web tenha `DATABASE_URL` disponível
-também na fase de *build* (não só em runtime) — ao anexar o plugin PostgreSQL do Railway
-ao serviço, isso é automático via variável de referência (`${{Postgres.DATABASE_URL}}`).
+**Build falha em "Collecting page data" com `[env] Variáveis de ambiente inválidas ou
+ausentes`.** Ocorrido no primeiro deploy real (Estágio 1): `APP_URL` e/ou
+`AUTH_SESSION_SECRET` não estavam configuradas nas Variables do serviço Railway. Desde
+a correção descrita em "Deploy (Railway)" acima, essa classe específica de erro não
+derruba mais o build — mas as variáveis continuam obrigatórias para o app iniciar de
+verdade (`next start`). Configure-as uma vez em Variables e o próximo deploy resolve.
 
-**Deploy passou mas o app não sobe / healthcheck falha.** Veja os *Deploy Logs* do
+**Deploy passou mas o app não sobe / healthcheck falha.** Veja os _Deploy Logs_ do
 Railway: se a falha for em `prisma migrate deploy`, normalmente é uma migration com
 conflito — nunca edite uma migration já aplicada em produção (Seção 160); crie uma nova.
 

@@ -37,7 +37,30 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+/**
+ * Next.js executa "Collecting page data" durante `next build`: ele carrega o
+ * módulo de cada rota (inclusive os `import`s no topo do arquivo) só para
+ * analisar sua forma — sem que as variáveis de runtime estejam necessariamente
+ * configuradas ainda no serviço. `NEXT_PHASE` é definida pelo próprio Next.js
+ * nesse momento; usamos isso para não travar o build por uma variável que só
+ * é necessária quando a aplicação de fato começa a servir tráfego.
+ *
+ * A validação estrita continua acontecendo sempre no boot real do processo
+ * (`next start`, `next dev`, worker, scripts) — falha rápido é preservado
+ * onde importa: no runtime, não numa etapa estática de análise do build.
+ */
+const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
+
 function loadEnv(): Env {
+  if (isBuildPhase) {
+    return envSchema.parse({
+      ...process.env,
+      APP_URL: process.env.APP_URL ?? 'http://localhost:3000',
+      AUTH_SESSION_SECRET: process.env.AUTH_SESSION_SECRET ?? 'x'.repeat(32),
+      DATABASE_URL: process.env.DATABASE_URL ?? 'postgresql://build:build@localhost:5432/build',
+    });
+  }
+
   const parsed = envSchema.safeParse(process.env);
 
   if (!parsed.success) {
