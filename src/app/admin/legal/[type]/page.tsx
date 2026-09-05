@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { evaluateAdminAccess } from '@/modules/admin/admin-access.service';
 import { findLatestDraft, findPublishedVersion } from '@/modules/legal/legal-document.repository';
+import { AdminShell } from '../../AdminShell';
 import { LegalEditor } from './LegalEditor';
 
 export const dynamic = 'force-dynamic';
@@ -30,13 +31,13 @@ export default async function AdminLegalEditorPage({
   ]);
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <AdminShell>
       <LegalEditor
         slug={params.type}
         label={meta.label}
         initialContent={draft?.contentHtml ?? published?.contentHtml ?? ''}
         publishedVersion={published?.version ?? null}
       />
-    </main>
+    </AdminShell>
   );
 }

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { evaluateAdminAccess } from '@/modules/admin/admin-access.service';
 import { findLatestDraft, findPublishedVersion } from '@/modules/legal/legal-document.repository';
 import { Badge } from '@/shared/ui';
+import { AdminShell } from '../AdminShell';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,7 @@ export default async function AdminLegalIndexPage(): Promise<React.ReactElement>
   );
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <AdminShell>
       <h1 className="mb-6 text-xl font-semibold text-ink-primary">Documentos legais</h1>
       <div className="flex flex-col gap-3">
         {rows.map((row) => (
@@ -44,6 +45,6 @@ export default async function AdminLegalIndexPage(): Promise<React.ReactElement>
           </Link>
         ))}
       </div>
-    </main>
+    </AdminShell>
   );
 }
