@@ -42,7 +42,11 @@ export function MobileMenu({ items }: MobileMenuProps): React.ReactElement {
       {open ? (
         <div className="fixed inset-0 z-50 bg-white">
           <div className="flex items-center justify-between px-6 py-5">
-            <Link href="/" className="flex items-center gap-2" aria-label="VortCon — página inicial">
+            <Link
+              href="/"
+              className="flex items-center gap-2"
+              aria-label="VortCon — página inicial"
+            >
               <VortConMark size={26} />
               <span className="text-lg font-extrabold text-brand-deep">VortCon</span>
             </Link>

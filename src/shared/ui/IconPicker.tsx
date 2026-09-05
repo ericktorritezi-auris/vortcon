@@ -13,10 +13,17 @@ interface IconPickerProps {
  * Seletor de ícone para categorias (Seção 48). Restrito ao catálogo
  * controlado — nunca aceita upload ou SVG arbitrário do usuário (Seção 13).
  */
-export function IconPicker({ label, value, onChange, hideLabel = false }: IconPickerProps): React.ReactElement {
+export function IconPicker({
+  label,
+  value,
+  onChange,
+  hideLabel = false,
+}: IconPickerProps): React.ReactElement {
   return (
     <fieldset className="flex flex-col gap-1.5">
-      <legend className={hideLabel ? 'sr-only' : 'text-sm font-medium text-ink-primary'}>{label}</legend>
+      <legend className={hideLabel ? 'sr-only' : 'text-sm font-medium text-ink-primary'}>
+        {label}
+      </legend>
       <div role="radiogroup" className="grid grid-cols-6 gap-2 sm:grid-cols-8">
         {(Object.keys(ICON_CATALOG) as IconKey[]).map((iconKey) => {
           const Icon = ICON_CATALOG[iconKey];

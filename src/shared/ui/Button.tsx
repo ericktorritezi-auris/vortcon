@@ -32,7 +32,16 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
  * densos de desktop, não para touch primário.
  */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', size = 'md', loading = false, leadingIcon, disabled, className, children, ...props },
+  {
+    variant = 'primary',
+    size = 'md',
+    loading = false,
+    leadingIcon,
+    disabled,
+    className,
+    children,
+    ...props
+  },
   ref,
 ) {
   return (
@@ -51,11 +60,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ].join(' ')}
       {...props}
     >
-      {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-      ) : (
-        leadingIcon
-      )}
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : leadingIcon}
       {children}
     </button>
   );

@@ -25,7 +25,12 @@ export function MetricCard({
     <div className="rounded-lg border border-ink-secondary/15 bg-white p-4">
       <div className="mb-2 flex items-center gap-2">
         {Icon ? (
-          <span className={['flex h-5 w-5 items-center justify-center rounded-sm', iconToneClassName].join(' ')}>
+          <span
+            className={[
+              'flex h-5 w-5 items-center justify-center rounded-sm',
+              iconToneClassName,
+            ].join(' ')}
+          >
             <Icon className="h-3 w-3 text-white" aria-hidden="true" />
           </span>
         ) : null}

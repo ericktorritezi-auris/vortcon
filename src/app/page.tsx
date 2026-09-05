@@ -24,8 +24,8 @@ export default function HomePage(): React.ReactElement {
           </h1>
 
           <p className="max-w-xl text-base text-ink-secondary">
-            A VortCon organiza suas receitas, despesas, contas e compromissos em um só
-            lugar. Com clareza, inteligência e total segurança.
+            A VortCon organiza suas receitas, despesas, contas e compromissos em um só lugar. Com
+            clareza, inteligência e total segurança.
           </p>
 
           <div className="mt-2 flex flex-wrap items-center justify-center gap-3">

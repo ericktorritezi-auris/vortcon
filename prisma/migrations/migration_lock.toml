@@ -1,0 +1,4 @@
+# Este arquivo é usado pelo Prisma Migrate para garantir compatibilidade de provider.
+# Não editar manualmente.
+
+provider = "postgresql"

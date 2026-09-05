@@ -17,7 +17,13 @@ interface DrawerProps {
  * receita/despesa, especialmente em mobile, onde um Modal centralizado
  * ocupa mal a tela. Mesmo contrato de acessibilidade do Modal.
  */
-export function Drawer({ open, onClose, title, children, footer }: DrawerProps): React.ReactElement | null {
+export function Drawer({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+}: DrawerProps): React.ReactElement | null {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -61,7 +67,9 @@ export function Drawer({ open, onClose, title, children, footer }: DrawerProps):
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
         {footer ? (
-          <div className="flex justify-end gap-2 border-t border-ink-secondary/10 px-5 py-4">{footer}</div>
+          <div className="flex justify-end gap-2 border-t border-ink-secondary/10 px-5 py-4">
+            {footer}
+          </div>
         ) : null}
       </div>
     </div>

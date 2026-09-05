@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 2 — Design System ✅ concluído                                                                            |
-| Próximo estágio         | Estágio 3 — Multitenancy                                                                                          |
+| Estágio atual           | Estágio 3 — Multitenancy ✅ concluído                                                                             |
+| Próximo estágio         | Estágio 4 — Auth                                                                                                  |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -87,6 +87,33 @@ Limitação conhecida do ambiente usado para validar esta etapa: `fonts.googleap
   (AccountCard, TransactionRow, InsightCard, OnboardingCard, SubscriptionCard,
   ReportCard, NotificationCenter) foram deliberadamente adiados para o estágio que os
   torna reais — lista completa em `src/shared/ui/README.md`.
+
+### Estágio 3 — o que foi entregue
+
+- Modelo de multitenancy estrutural (Seção 19-24, 30-31): `User`, `Tenant`, `TenantUser`,
+  `TenantAccessBlock`. `GLOBAL_ADMIN` não pertence a nenhum tenant (papel vive em
+  `User.role`); lifecycle (`ACTIVE`/`INACTIVE`) é uma dimensão separada dos bloqueios
+  (`DELINQUENCY`/`ADMINISTRATIVE`/`SECURITY`); tenant nunca é hard deleted.
+- Migration `20260905150000_init_multitenancy` — escrita à mão (engine do Prisma
+  inacessível neste ambiente) e **validada de verdade**: subimos um PostgreSQL 16 local
+  no próprio ambiente de desenvolvimento e aplicamos a migration nele antes de aceitá-la.
+  Esse processo pegou um bug real na primeira versão (a constraint permitia um usuário
+  pertencer a dois tenants ao mesmo tempo) — corrigido e revalidado com 6 cenários
+  (isolamento de leitura entre tenants, unicidade de usuário por tenant, foreign key
+  contra tenant inexistente, username duplicado, proteção contra hard-delete, transição
+  de lifecycle).
+- `src/shared/security/roles.ts` — mapa único de capacidades por papel
+  (`GLOBAL_ADMIN.canAccessFinancialData = false`, Seção 23), com teste unitário.
+- `src/shared/security/tenant-context.ts` — tipo `TenantContext` e `assertOwnedByTenant`,
+  base da defesa em profundidade (Seção 20-21, 210) que os módulos financeiros vão usar
+  a partir do Estágio 7.
+- Repositórios `tenants` e `users` com tenant-scoping explícito, mais
+  `provisionTenantWithOwner` (transação atômica, sem senha temporária — Seção 25).
+- `tests/integration/tenant-isolation.test.ts` — suíte A/B obrigatória (Seção 21, 174),
+  roda contra Postgres real em CI.
+- Correção de reprodutibilidade: `prettier`, `eslint`, `typescript` e os plugins
+  `@typescript-eslint/*` estavam com versão flutuante (`^`) — fixadas em versão exata
+  para eliminar drift de formatação entre sessões de desenvolvimento.
 
 ## Stack
 

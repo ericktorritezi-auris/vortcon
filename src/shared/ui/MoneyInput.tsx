@@ -1,8 +1,10 @@
 import type { InputHTMLAttributes } from 'react';
 import { forwardRef, useId } from 'react';
 
-interface MoneyInputProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
+interface MoneyInputProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange' | 'type'
+> {
   label: string;
   error?: string;
   hideLabel?: boolean;

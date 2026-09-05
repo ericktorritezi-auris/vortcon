@@ -14,7 +14,10 @@ export function Header(): React.ReactElement {
         <span className="text-lg font-extrabold tracking-tight text-brand-deep">VortCon</span>
       </Link>
 
-      <nav aria-label="Navegação principal" className="hidden gap-8 text-sm font-medium text-ink-secondary md:flex">
+      <nav
+        aria-label="Navegação principal"
+        className="hidden gap-8 text-sm font-medium text-ink-secondary md:flex"
+      >
         <Link href="/produto" className="hover:text-brand-deep">
           Produto
         </Link>

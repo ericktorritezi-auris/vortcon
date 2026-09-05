@@ -40,7 +40,9 @@ export function Sidebar(): React.ReactElement {
               aria-current={isActive ? 'page' : undefined}
               className={[
                 'flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
-                isActive ? 'bg-brand-flow text-white' : 'text-white/75 hover:bg-white/10 hover:text-white',
+                isActive
+                  ? 'bg-brand-flow text-white'
+                  : 'text-white/75 hover:bg-white/10 hover:text-white',
               ].join(' ')}
             >
               <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />

@@ -46,11 +46,25 @@ export function VortConMark({
       {variant === 'gradient' ? (
         <>
           <defs>
-            <linearGradient id="vortconMarkLeft" x1="18" y1="8" x2="48" y2="90" gradientUnits="userSpaceOnUse">
+            <linearGradient
+              id="vortconMarkLeft"
+              x1="18"
+              y1="8"
+              x2="48"
+              y2="90"
+              gradientUnits="userSpaceOnUse"
+            >
               <stop offset="0" stopColor="#1EA6D6" />
               <stop offset="1" stopColor="#0B4F82" />
             </linearGradient>
-            <linearGradient id="vortconMarkRight" x1="90" y1="8" x2="58" y2="90" gradientUnits="userSpaceOnUse">
+            <linearGradient
+              id="vortconMarkRight"
+              x1="90"
+              y1="8"
+              x2="58"
+              y2="90"
+              gradientUnits="userSpaceOnUse"
+            >
               <stop offset="0" stopColor="#2FC9CB" />
               <stop offset="1" stopColor="#0C6E93" />
             </linearGradient>

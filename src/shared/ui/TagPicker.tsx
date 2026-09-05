@@ -47,7 +47,9 @@ export function TagPicker({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className={hideLabel ? 'sr-only' : 'text-sm font-medium text-ink-primary'}>{label}</span>
+      <span className={hideLabel ? 'sr-only' : 'text-sm font-medium text-ink-primary'}>
+        {label}
+      </span>
 
       <div className="flex flex-wrap items-center gap-2 rounded-md border border-ink-secondary/30 bg-white p-2">
         {selected.map((tag) => (

@@ -24,3 +24,103 @@ model SystemHealth {
 
   @@map("system_health")
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// ESTÁGIO 3 — MULTITENANCY (Seções 19-24, 30-31, 38)
+//
+// Modelo estrutural: Tenant → TenantUser → User. Mesmo que a V1 tenha
+// essencialmente um OWNER por tenant, User NUNCA é acoplado a Tenant
+// diretamente — TenantUser existe para permitir evolução futura para
+// multiusuário sem migração destrutiva (Seção 19).
+//
+// GLOBAL_ADMIN não é membro de nenhum tenant (Seção 22: "Admin separado dos
+// ambientes financeiros") — por isso o papel vive em User.role, não em
+// TenantUser. GLOBAL_ADMIN.canAccessFinancialData = false é aplicado em
+// código (ver src/shared/security/roles.ts), não no banco.
+// ─────────────────────────────────────────────────────────────────────────
+
+enum Role {
+  GLOBAL_ADMIN
+  TENANT_OWNER
+}
+
+enum TenantLifecycle {
+  ACTIVE
+  INACTIVE
+}
+
+// Bloqueios são uma dimensão separada do lifecycle (Seção 30) — um tenant
+// ACTIVE pode estar bloqueado por inadimplência sem deixar de existir.
+enum TenantBlockType {
+  DELINQUENCY
+  ADMINISTRATIVE
+  SECURITY
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  birthDate    DateTime? @db.Date
+  username     String   @unique
+  timezone     String   @default("America/Sao_Paulo")
+  role         Role     @default(TENANT_OWNER)
+  // Definida pelo próprio usuário no fluxo de ativação (Seção 25-26) — nunca
+  // preenchida pelo Admin. Nula até a ativação. Hashing (Argon2id) é
+  // responsabilidade do módulo `auth` (Estágio 4), não deste modelo.
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenantMemberships TenantUser[]
+
+  @@map("users")
+}
+
+model Tenant {
+  id        String          @id @default(cuid())
+  lifecycle TenantLifecycle @default(ACTIVE)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  memberships TenantUser[]
+  accessBlocks TenantAccessBlock[]
+
+  @@map("tenants")
+}
+
+model TenantUser {
+  id        String   @id @default(cuid())
+  tenantId  String
+  // Único por usuário (não por par tenantId+userId): em V1, um usuário
+  // pertence a no máximo um tenant. A coluna vem antes de tenantId para que
+  // o índice único sirva também como verificação rápida de ownership
+  // (Seção 210) ao resolver "a qual tenant este usuário pertence".
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId])
+  @@map("tenant_users")
+}
+
+// Registro append-only de bloqueios (Seção 30-31, 114). Um bloqueio nunca é
+// apagado ao ser levantado — `active=false` preserva histórico auditável.
+model TenantAccessBlock {
+  id        String          @id @default(cuid())
+  tenantId  String
+  type      TenantBlockType
+  active    Boolean         @default(true)
+  reason    String?
+  createdAt DateTime        @default(now())
+  liftedAt  DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, type, active])
+  @@map("tenant_access_blocks")
+}

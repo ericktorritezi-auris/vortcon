@@ -53,7 +53,9 @@ export function SearchableSelect({
 
   return (
     <div className="relative flex flex-col gap-1.5" ref={containerRef}>
-      <span className={hideLabel ? 'sr-only' : 'text-sm font-medium text-ink-primary'}>{label}</span>
+      <span className={hideLabel ? 'sr-only' : 'text-sm font-medium text-ink-primary'}>
+        {label}
+      </span>
       <button
         type="button"
         aria-haspopup="listbox"
@@ -62,7 +64,9 @@ export function SearchableSelect({
         onClick={() => setOpen((prev) => !prev)}
         className="flex h-11 items-center justify-between rounded-md border border-ink-secondary/30 bg-white px-3 text-left text-sm text-ink-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-intelligence"
       >
-        <span className={selected ? '' : 'text-ink-secondary'}>{selected?.label ?? placeholder}</span>
+        <span className={selected ? '' : 'text-ink-secondary'}>
+          {selected?.label ?? placeholder}
+        </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-ink-secondary" aria-hidden="true" />
       </button>
 

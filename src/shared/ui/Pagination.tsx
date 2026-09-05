@@ -10,7 +10,11 @@ interface PaginationProps {
  * Paginação simples (Seção 80). Botões com alvo de toque ~44px (Seção 10) e
  * `aria-current` na página ativa em vez de depender só de estilo visual.
  */
-export function Pagination({ page, totalPages, onPageChange }: PaginationProps): React.ReactElement | null {
+export function Pagination({
+  page,
+  totalPages,
+  onPageChange,
+}: PaginationProps): React.ReactElement | null {
   if (totalPages <= 1) return null;
 
   return (

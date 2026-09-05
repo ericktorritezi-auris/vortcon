@@ -17,7 +17,13 @@ interface ModalProps {
  * com Escape, foco movido para o container ao abrir (Seção 12: navegação por
  * teclado, foco visível). Overlay fecha ao clicar fora.
  */
-export function Modal({ open, onClose, title, children, footer }: ModalProps): React.ReactElement | null {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+}: ModalProps): React.ReactElement | null {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -64,7 +70,9 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps): R
         </div>
         <div className="px-5 py-4">{children}</div>
         {footer ? (
-          <div className="flex justify-end gap-2 border-t border-ink-secondary/10 px-5 py-4">{footer}</div>
+          <div className="flex justify-end gap-2 border-t border-ink-secondary/10 px-5 py-4">
+            {footer}
+          </div>
         ) : null}
       </div>
     </div>
