@@ -560,6 +560,38 @@ que o deploy sobe, que zera todo dado acumulado durante o desenvolvimento — in
   real dentro da suíte compartilhada de integração derrubaria os outros testes rodando
   em paralelo contra o mesmo banco (documentado em `factory-reset-safe-checks.test.ts`).
 
+## Reestruturação de UX/Navegação (a pedido do cliente, entre Estágios 8 e 9)
+
+Antes do Estágio 9, o cliente pediu uma pausa para reestruturar navegação e
+disposição visual — comparou o estado real (Admin com menu horizontal quebrando
+no mobile, sem tema/hierarquia) contra três imagens de referência de UX (não de
+marca — nome, logo e cores VortCon foram mantidos exatamente como já validados).
+
+- **`AppSidebar`** (novo, `shared/ui`) — sidebar com suporte a agrupamento de
+  seções, usada tanto pelo Admin quanto pela área do tenant. Responsiva por
+  dentro: desktop mostra a sidebar fixa, mobile vira hambúrguer + overlay —
+  antes disso não existia nenhum tratamento de mobile no Admin.
+- **`Topbar`** (novo) — busca e notificação são shells visuais desabilitados de
+  propósito (nada de verdade pra buscar ainda; notificações reais são o
+  Estágio 13) — desabilitados explicitamente para não parecer que funcionam.
+  O menu do avatar é real: mostra nome/papel e faz logout de verdade.
+- **`AdminShell`** reescrito: menu horizontal → sidebar agrupada (Visão geral /
+  Tenants e assinaturas / Conteúdo), com Dashboard ganhando dois painéis com
+  **dado real** (não estático): Atividade recente (via `audit_events`, já
+  existente desde o Estágio 6) e Alertas (mensalidades vencidas + bloqueios
+  ativos, com nome do tenant já resolvido).
+- **`MetricCard`** ganhou suporte opcional a variação (`trend`, já existia) e
+  mini-gráfico (`sparklineData`, novo) — compatível com todo uso anterior que
+  não passa esses dados.
+- **Área do tenant** (`AppShell`, novo) recebeu o mesmo tratamento visual —
+  sidebar + topbar consistentes com o Admin.
+- **Corrigido de brinde**: o `Header` público (landing page) nunca tinha
+  tratamento de mobile — os links simplesmente somiam sem hambúrguer nenhum no
+  lugar; o `MobileMenu` já existia desde o Estágio 2 mas nunca tinha sido
+  conectado a nada. Conectado agora.
+- **Tema escuro**: adiado para um estágio futuro formal, por decisão do
+  cliente — nenhum toggle "de mentira" foi adicionado agora.
+
 ## Escopo e não escopo da V1
 
 **Dentro do escopo:** contas financeiras, categorias e tags transversais, receitas/despesas, transferências, recorrências, Financial Engine, Dashboard, Cockpit, Insight Engine determinístico (sem IA generativa), relatórios (mensal/anual/categoria/tag, PDF/Excel), planos e assinatura (PIX manual, inadimplência automatizada), notificações (push + e-mail + central), documentos legais versionados com gate de aceite, PWA, backup/export por tenant, painel Admin operacional.

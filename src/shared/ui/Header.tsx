@@ -1,10 +1,21 @@
 import Link from 'next/link';
 import { VortConMark } from '@/shared/design-system/Logo';
 import { Button } from './Button';
+import { MobileMenu } from './MobileMenu';
+
+const NAV_ITEMS = [
+  { href: '/produto', label: 'Produto' },
+  { href: '/funcionalidades', label: 'Funcionalidades' },
+  { href: '/planos', label: 'Planos' },
+  { href: '/ajuda', label: 'Ajuda' },
+] as const;
 
 /**
  * Header da área pública (Seção 17). O Header da área autenticada vive
- * dentro do shell do Dashboard (Sidebar + top bar), não este componente.
+ * dentro do shell do Dashboard/Admin (AppSidebar + Topbar), não este
+ * componente. `MobileMenu` estava construído desde o Estágio 2 mas nunca
+ * conectado — os links simplesmente somiam no mobile, sem substituto
+ * nenhum; conectado agora.
  */
 export function Header(): React.ReactElement {
   return (
@@ -22,23 +33,19 @@ export function Header(): React.ReactElement {
         aria-label="Navegação principal"
         className="hidden shrink-0 gap-8 text-sm font-medium text-ink-secondary md:flex"
       >
-        <Link href="/produto" className="hover:text-brand-deep">
-          Produto
-        </Link>
-        <Link href="/funcionalidades" className="hover:text-brand-deep">
-          Funcionalidades
-        </Link>
-        <Link href="/planos" className="hover:text-brand-deep">
-          Planos
-        </Link>
-        <Link href="/ajuda" className="hover:text-brand-deep">
-          Ajuda
-        </Link>
+        {NAV_ITEMS.map((item) => (
+          <Link key={item.href} href={item.href} className="hover:text-brand-deep">
+            {item.label}
+          </Link>
+        ))}
       </nav>
 
-      <Link href="/entrar" className="shrink-0">
-        <Button>Entrar</Button>
-      </Link>
+      <div className="flex shrink-0 items-center gap-2">
+        <MobileMenu items={NAV_ITEMS} />
+        <Link href="/entrar">
+          <Button>Entrar</Button>
+        </Link>
+      </div>
     </header>
   );
 }

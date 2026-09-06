@@ -1,6 +1,8 @@
-export { Badge } from './Badge';
 export { AcceptanceContextBanner } from './AcceptanceContextBanner';
+export type { AppNavGroup, AppNavItem } from './AppSidebar';
+export { AppSidebar } from './AppSidebar';
 export { AuthCardLayout } from './AuthCardLayout';
+export { Badge } from './Badge';
 export { Button } from './Button';
 export { Checkbox } from './Checkbox';
 export { DateInput } from './DateInput';
@@ -24,3 +26,4 @@ export { Skeleton } from './Skeleton';
 export { TagPicker } from './TagPicker';
 export { ToastProvider, useToast } from './Toast';
 export { Toggle } from './Toggle';
+export { Topbar } from './Topbar';

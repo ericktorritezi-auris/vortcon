@@ -1,60 +1,45 @@
-'use client';
+import { FileText, LayoutDashboard, Receipt, Users } from 'lucide-react';
+import { getCurrentSession } from '@/modules/auth/session.service';
+import { AppSidebar, Topbar } from '@/shared/ui';
+import type { AppNavGroup } from '@/shared/ui';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { LogOut } from 'lucide-react';
-import { VortConMark } from '@/shared/design-system/Logo';
-
-const NAV_ITEMS = [
-  { href: '/admin', label: 'Dashboard' },
-  { href: '/admin/tenants', label: 'Tenants' },
-  { href: '/admin/plans', label: 'Planos' },
-  { href: '/admin/legal', label: 'Legal' },
+const NAV_GROUPS: AppNavGroup[] = [
+  {
+    label: 'Visão geral',
+    items: [{ href: '/admin', label: 'Dashboard', icon: LayoutDashboard }],
+  },
+  {
+    label: 'Tenants e assinaturas',
+    items: [
+      { href: '/admin/tenants', label: 'Tenants', icon: Users },
+      { href: '/admin/plans', label: 'Planos', icon: Receipt },
+    ],
+  },
+  {
+    label: 'Conteúdo',
+    items: [{ href: '/admin/legal', label: 'Legal', icon: FileText }],
+  },
 ];
 
-export function AdminShell({ children }: { children: React.ReactNode }): React.ReactElement {
-  const pathname = usePathname();
-  const router = useRouter();
-
-  async function handleLogout(): Promise<void> {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/entrar');
-    router.refresh();
-  }
+/**
+ * Shell do Admin — sidebar agrupada + topbar, substituindo o menu
+ * horizontal original (reestruturação de UX pedida pelo cliente,
+ * comparando com o padrão de referência fornecido).
+ */
+export async function AdminShell({
+  children,
+}: {
+  children: React.ReactNode;
+}): Promise<React.ReactElement> {
+  const session = await getCurrentSession();
 
   return (
-    <div className="min-h-screen bg-surface-page">
-      <header className="border-b border-ink-secondary/10 bg-white px-6 py-3">
-        <div className="mx-auto flex max-w-5xl items-center gap-8">
-          <div className="flex items-center gap-2">
-            <VortConMark size={22} />
-            <span className="text-sm font-bold text-brand-deep">Admin</span>
-          </div>
-          <nav className="flex flex-1 gap-5 text-sm text-ink-secondary">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={pathname === item.href ? 'page' : undefined}
-                className={
-                  pathname === item.href ? 'font-medium text-brand-deep' : 'hover:text-brand-deep'
-                }
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 text-sm text-ink-secondary hover:text-financial-danger"
-          >
-            <LogOut className="h-4 w-4" aria-hidden="true" />
-            Sair
-          </button>
-        </div>
-      </header>
-      <div className="mx-auto max-w-5xl px-6 py-8">{children}</div>
+    <div className="flex min-h-screen flex-col md:flex-row">
+      <AppSidebar groups={NAV_GROUPS} homeHref="/admin" brandLabel="Admin" />
+      <div className="flex flex-1 flex-col">
+        <Topbar userName={session?.user.name ?? 'Administrador'} userSubtitle="Administrador" />
+        <main className="flex-1 px-6 py-8">{children}</main>
+      </div>
     </div>
   );
 }
