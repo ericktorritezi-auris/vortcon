@@ -1,20 +1,30 @@
 import { FileWarning } from 'lucide-react';
 import { findPublishedVersion } from '@/modules/legal/legal-document.repository';
-import { Footer, Header } from '@/shared/ui';
+import { AcceptanceContextBanner, Footer, Header } from '@/shared/ui';
 
 export const dynamic = 'force-dynamic';
+
+interface PrivacyPolicyPageProps {
+  searchParams: { from?: string };
+}
 
 /**
  * Página pública (Seção 136) — conteúdo vem do banco (versão PUBLISHED),
  * nunca hardcoded no componente.
  */
-export default async function PrivacyPolicyPage(): Promise<React.ReactElement> {
+export default async function PrivacyPolicyPage({
+  searchParams,
+}: PrivacyPolicyPageProps): Promise<React.ReactElement> {
   const version = await findPublishedVersion('PRIVACY_POLICY');
+  const fromAcceptance = searchParams.from === 'aceitar-termos';
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
+        {fromAcceptance ? (
+          <AcceptanceContextBanner otherDocumentLabel="Termos de Uso" otherDocumentHref="/termos" />
+        ) : null}
         <h1 className="mb-6 text-2xl font-bold text-ink-primary">Política de Privacidade</h1>
         {version ? (
           <article

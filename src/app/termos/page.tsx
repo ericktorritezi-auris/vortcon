@@ -1,16 +1,29 @@
 import { FileWarning } from 'lucide-react';
 import { findPublishedVersion } from '@/modules/legal/legal-document.repository';
-import { Footer, Header } from '@/shared/ui';
+import { AcceptanceContextBanner, Footer, Header } from '@/shared/ui';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TermsOfUsePage(): Promise<React.ReactElement> {
+interface TermsOfUsePageProps {
+  searchParams: { from?: string };
+}
+
+export default async function TermsOfUsePage({
+  searchParams,
+}: TermsOfUsePageProps): Promise<React.ReactElement> {
   const version = await findPublishedVersion('TERMS_OF_USE');
+  const fromAcceptance = searchParams.from === 'aceitar-termos';
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
+        {fromAcceptance ? (
+          <AcceptanceContextBanner
+            otherDocumentLabel="Política de Privacidade"
+            otherDocumentHref="/privacidade"
+          />
+        ) : null}
         <h1 className="mb-6 text-2xl font-bold text-ink-primary">Termos de Uso</h1>
         {version ? (
           <article

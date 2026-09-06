@@ -40,7 +40,7 @@ export default async function AcceptLegalPage(): Promise<React.ReactElement> {
           return (
             <li key={item.versionId}>
               <Link
-                href={meta?.href ?? '#'}
+                href={`${meta?.href ?? '#'}?from=aceitar-termos`}
                 className="text-sm text-brand-intelligence hover:underline"
               >
                 {meta?.label ?? item.type} (versão {item.version})

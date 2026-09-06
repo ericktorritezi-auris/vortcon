@@ -1,4 +1,5 @@
 export { Badge } from './Badge';
+export { AcceptanceContextBanner } from './AcceptanceContextBanner';
 export { AuthCardLayout } from './AuthCardLayout';
 export { Button } from './Button';
 export { Checkbox } from './Checkbox';
