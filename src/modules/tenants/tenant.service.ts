@@ -73,8 +73,20 @@ export async function provisionTenantWithOwner(input: ProvisionTenantInput) {
 
   // Fora da transação de propósito: falha no envio do e-mail não deve
   // desfazer a criação do tenant — o Admin pode reenviar o convite
-  // (Seção 25: "Reenvio possível") sem precisar recriar nada.
-  await createAndSendInvitation(user.id, user.email, user.name, user.username);
+  // (Seção 25: "Reenvio possível") sem precisar recriar nada. Envolvido em
+  // try/catch: sem isso, uma falha do Resend fazia esta função inteira
+  // lançar DEPOIS que tenant/user/assinatura já existiam de verdade —
+  // o Admin via "erro ao criar tenant" para um tenant que já tinha sido
+  // criado, tendo que descobrir isso manualmente (mesmo problema, resolvido
+  // de outro jeito, do bootstrap do admin no Estágio 6).
+  try {
+    await createAndSendInvitation(user.id, user.email, user.name, user.username);
+  } catch (error) {
+    console.error(
+      `[tenant] Falha ao enviar convite para o tenant ${tenant.id} (usuário ${user.id}) — tenant já foi criado normalmente, reenvie o convite pelo painel Admin:`,
+      error,
+    );
+  }
   await ensureCurrentMonthCharge(tenant.id);
   await recordAuditEvent({
     actorType: 'GLOBAL_ADMIN',

@@ -259,6 +259,52 @@ Limitação conhecida do ambiente usado para validar esta etapa: `fonts.googleap
   outubro R$ 1.500/dia 15 → novembro permanece R$ 1.000/dia 14) e o último item,
   antes pendente, da suíte financeira obrigatória da Seção 170.
 
+### Varredura de conformidade (Estágios 1-8)
+
+A pedido explícito, revisamos seção por seção do Master Document contra o código já
+entregue, em vez de confiar na memória de quando cada trecho foi escrito. Lacunas reais
+encontradas e corrigidas nesta varredura:
+
+- **Seção 24** — formulário de criação de tenant no Admin não coletava telefone,
+  nascimento, timezone editável nem dia de vencimento, mesmo o backend já suportando
+  tudo desde o Estágio 3/6. Corrigido nos dois lados (rota + formulário).
+- **Seção 63** — `getTagBreakdown()` estava inteiramente ausente do Financial Engine
+  (12 das 13 funções do contrato existiam). Implementado, agregando via
+  `financial_transaction_tags` (relação N:N, sem `groupBy` direto possível).
+- **Seção 66** — `transfers` não tinha a coluna `recurrence_series_id` exigida
+  explicitamente na especificação. Adicionada via migration, com a ressalva registrada
+  no código de que a materialização automática de transferências recorrentes ainda não
+  está implementada (só o vínculo estrutural) — abrir quando houver especificação mais
+  clara de como isso deve se comportar.
+- **Seção 148** — Admin Dashboard mostrava 9 das 10 métricas exigidas; faltava
+  "mensalidades" como contagem própria, distinta de pendentes/inadimplentes.
+- **Seção 150** (regra absoluta: nunca devolver modelo ORM cru) — as rotas de criar/
+  editar plano devolviam o objeto Prisma direto. Corrigido para DTOs explícitos.
+- **Seção 153** — zero rate limiting em login, forgot-password, reset-password,
+  accept-invite e admin/bootstrap, apesar de exigido explicitamente "especialmente"
+  nessas rotas. Implementado rate limiter em memória (`shared/security/rate-limit.ts`,
+  documentado como solução de instância única — migrar para Redis se houver
+  escalonamento horizontal), aplicado nas 5 rotas, com 4 testes unitários reais.
+- **Seção 155** — faltavam os índices compostos `tenant_id+category_id+due_date`,
+  `tenant_id+account_id` e `tenant_id+created_at` explicitamente listados como exemplo.
+  Adicionados via migration.
+- **Seção 157** — não existia nenhuma função para alterar o saldo inicial de uma conta
+  com auditoria, apesar de exigido explicitamente. Implementada, registrando evento de
+  auditoria (sem incluir o valor em si, por privacidade — Seção 147).
+- **Observabilidade** (Seção 158) — falha no envio do convite por e-mail em
+  `provisionTenantWithOwner` propagava como exceção mesmo após tenant/usuário/assinatura
+  já terem sido criados com sucesso, fazendo o Admin ver "erro ao criar tenant" para um
+  tenant que já existia. Envolvido em try/catch com log, mesmo padrão já usado no
+  bootstrap do admin.
+
+Decisões revisadas e **mantidas conscientemente** (não são lacunas): uso de `cuid()` em
+vez de UUID (Seção 152 aceita "ou equivalente"); ausência de Content-Security-Policy
+completo (a seção de Security Headers enquadra isso como "compatível com PWA", e PWA só
+chega no Estágio 14); e as métricas de "participação %" e "evolução temporal" por
+categoria (Seção 44) ficam para o Estágio 12 (Relatórios), que é onde a própria seção as
+enquadra — o Financial Engine do Estágio 7 já expõe os primitivos (`getCategoryBreakdown`,
+`getMonthlyEvolution`) que os relatórios vão compor.
+
 ## Stack
 
 - **Frontend/Full-stack:** Next.js + React + TypeScript
@@ -492,6 +538,17 @@ entrada aqui, para nunca precisar ser resolvido "de cabeça" duas vezes._
 - Lançamentos **cancelados** e **ignorados** são excluídos integralmente de saldo, resultado, categorias, tags, Dashboard, Cockpit, relatórios e insights.
 - Categoria de crédito ("Cartão de Crédito") é **apenas uma categoria global** — não existe entidade de cartão, limite, fatura ou parcelamento automático.
 - Tenant nunca é hard deleted; passa para `INACTIVE` preservando dados.
+
+## Decisões técnicas registradas
+
+- **IDs: `cuid()`, não UUID** (Seção 152 prefere "UUID/UUIDv7 ou equivalente"). `cuid()`
+  é o padrão nativo do Prisma, globalmente único e não sequencial — um equivalente
+  aceito pela própria redação da seção. Mudar isso agora exigiria uma migration de
+  chave primária em toda tabela do sistema; decisão consciente de manter `cuid()`.
+- **Rate limiting em memória, não distribuído** (Seção 153) — `src/shared/security/rate-limit.ts`.
+  Correto para uma instância única (situação atual). Se o serviço Web escalar para mais
+  de uma instância, isso precisa migrar para um store compartilhado (Redis) — o comentário
+  no próprio arquivo já registra isso para não ser esquecido.
 
 ---
 

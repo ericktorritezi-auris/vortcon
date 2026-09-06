@@ -1,10 +1,21 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { bootstrapGlobalAdmin } from '@/modules/admin/admin-bootstrap.service';
+import { checkRateLimit, getClientIp } from '@/shared/security/rate-limit';
 
 const bootstrapSchema = z.object({ token: z.string().min(1) });
 
 export async function POST(request: Request): Promise<NextResponse> {
+  // Seção 153: rate limit — protegido só por token, mesmo tratamento de
+  // força bruta que login/reset merecem.
+  const rateLimit = checkRateLimit(`admin-bootstrap:${getClientIp(request)}`, 5, 60);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'RATE_LIMITED', message: 'Muitas tentativas. Tente novamente em instantes.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+    );
+  }
+
   const parsed = bootstrapSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: 'VALIDATION_ERROR' }, { status: 400 });

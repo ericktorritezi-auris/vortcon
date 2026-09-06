@@ -514,8 +514,9 @@ model FinancialTransaction {
   @@unique([recurrenceSeriesId, recurrenceOccurrenceKey])
   @@index([tenantId, status])
   @@index([tenantId, dueDate])
-  @@index([accountId])
-  @@index([categoryId])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, accountId])
+  @@index([tenantId, categoryId, dueDate])
   @@map("financial_transactions")
 }
 
@@ -552,12 +553,17 @@ model Transfer {
   status               TransferStatus @default(PENDING)
   note                 String?
   cancelledAt          DateTime?
+  // Seção 66 — transferência recorrente (ex.: aporte mensal automático entre
+  // contas). Nulo para transferências avulsas. Adicionado só agora porque
+  // `recurrence_series` não existia antes do Estágio 8.
+  recurrenceSeriesId   String?
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
-  tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  sourceAccount      FinancialAccount @relation("TransferSource", fields: [sourceAccountId], references: [id], onDelete: Restrict)
-  destinationAccount FinancialAccount @relation("TransferDestination", fields: [destinationAccountId], references: [id], onDelete: Restrict)
+  tenant             Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  sourceAccount      FinancialAccount  @relation("TransferSource", fields: [sourceAccountId], references: [id], onDelete: Restrict)
+  destinationAccount FinancialAccount  @relation("TransferDestination", fields: [destinationAccountId], references: [id], onDelete: Restrict)
+  recurrenceSeries   RecurrenceSeries? @relation(fields: [recurrenceSeriesId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, status])
   @@map("transfers")
@@ -608,6 +614,7 @@ model RecurrenceSeries {
 
   tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   occurrences  FinancialTransaction[]
+  transfers    Transfer[]
 
   @@index([tenantId, active])
   @@map("recurrence_series")

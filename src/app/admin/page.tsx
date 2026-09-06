@@ -53,6 +53,12 @@ export default async function AdminDashboardPage(): Promise<React.ReactElement> 
           iconToneClassName="bg-financial-info"
         />
         <MetricCard
+          label="Mensalidades"
+          value={metrics.chargesTotal}
+          icon={Receipt}
+          iconToneClassName="bg-ink-secondary"
+        />
+        <MetricCard
           label="Mensalidades pendentes"
           value={metrics.chargesPending}
           icon={AlertTriangle}

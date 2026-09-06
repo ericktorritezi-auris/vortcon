@@ -7,8 +7,12 @@ const createTenantSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
   username: z.string().min(3),
+  phone: z.string().optional(),
+  birthDate: z.coerce.date().optional(),
+  timezone: z.string().min(1).default('America/Sao_Paulo'),
   planId: z.string().min(1),
   condition: z.enum(['PAID', 'EXEMPT']).default('PAID'),
+  dueDay: z.number().int().min(1).max(28).default(10),
 });
 
 export async function POST(request: Request): Promise<NextResponse> {

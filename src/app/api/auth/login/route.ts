@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { login } from '@/modules/auth/login.service';
+import { checkRateLimit, getClientIp } from '@/shared/security/rate-limit';
 
 const loginSchema = z.object({
   username: z.string().min(1),
@@ -10,6 +11,15 @@ const loginSchema = z.object({
 const GENERIC_ERROR_MESSAGE = 'Usuário ou senha inválidos.';
 
 export async function POST(request: Request): Promise<NextResponse> {
+  // Seção 153: rate limit especialmente em login (alvo comum de força bruta).
+  const rateLimit = checkRateLimit(`login:${getClientIp(request)}`, 10, 60);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'RATE_LIMITED', message: 'Muitas tentativas. Tente novamente em instantes.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+    );
+  }
+
   const parsed = loginSchema.safeParse(await request.json().catch(() => null));
 
   if (!parsed.success) {

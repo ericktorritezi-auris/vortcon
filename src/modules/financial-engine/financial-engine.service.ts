@@ -216,6 +216,71 @@ export async function getCategoryBreakdown(
   return Array.from(rows.values());
 }
 
+export interface TagBreakdownRow {
+  tagId: string;
+  incomeTotalCents: number;
+  expenseTotalCents: number;
+  netResultCents: number;
+  movementCount: number;
+}
+
+interface TagLinkForBreakdown {
+  tagId: string;
+  transaction: { type: 'INCOME' | 'EXPENSE'; amountCents: number };
+}
+
+/**
+ * getTagBreakdown (Seção 63, 65) — mesmo princípio de getCategoryBreakdown,
+ * mas agregado via `financial_transaction_tags` (relação N:N, não um campo
+ * escalar) — por isso não dá pra usar `groupBy` direto do Prisma aqui; a
+ * agregação acontece em JS, volume esperado por tenant é baixo o bastante
+ * para isso ser seguro (mesmo padrão já usado em `getDailyTotals`).
+ */
+export async function getTagBreakdown(
+  tenantId: string,
+  period: Period,
+  view: BreakdownView = 'ALL_MOVEMENT',
+): Promise<TagBreakdownRow[]> {
+  const links: TagLinkForBreakdown[] = await prisma.financialTransactionTag.findMany({
+    where: {
+      transaction: activeTransactionWhere(tenantId, {
+        dueDate: { gte: period.from, lte: period.to },
+      }),
+    },
+    select: {
+      tagId: true,
+      transaction: { select: { type: true, amountCents: true } },
+    },
+  });
+
+  const rows = new Map<string, TagBreakdownRow>();
+
+  for (const link of links) {
+    if (view === 'INCOME_ONLY' && link.transaction.type !== 'INCOME') continue;
+    if (view === 'EXPENSE_ONLY' && link.transaction.type !== 'EXPENSE') continue;
+
+    const row = rows.get(link.tagId) ?? {
+      tagId: link.tagId,
+      incomeTotalCents: 0,
+      expenseTotalCents: 0,
+      netResultCents: 0,
+      movementCount: 0,
+    };
+
+    if (link.transaction.type === 'INCOME') {
+      row.incomeTotalCents += link.transaction.amountCents;
+    } else {
+      row.expenseTotalCents += link.transaction.amountCents;
+    }
+    row.netResultCents = row.incomeTotalCents - row.expenseTotalCents;
+    row.movementCount += 1;
+
+    rows.set(link.tagId, row);
+  }
+
+  return Array.from(rows.values());
+}
+
 export interface EntityFlow {
   incomeTotalCents: number;
   expenseTotalCents: number;

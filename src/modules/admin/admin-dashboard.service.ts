@@ -9,13 +9,14 @@ export interface AdminDashboardMetrics {
   subscriptionsExempt: number;
   chargesPending: number;
   chargesOverdue: number;
+  /** "mensalidades" (Seção 148) — total de cobranças geradas, qualquer status. Distinto de pendentes/inadimplentes. */
+  chargesTotal: number;
   legalAcceptancesTotal: number;
 }
 
 /**
  * Métricas do painel Admin (Seção 148). Nunca inclui patrimônio privado —
- * só contagens agregadas, nenhum valor de saldo/receita/despesa de tenant
- * (que, aliás, ainda nem existem até o Estágio 7).
+ * só contagens agregadas, nenhum valor de saldo/receita/despesa de tenant.
  */
 export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics> {
   const [
@@ -26,6 +27,7 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
     subscriptionsPaid,
     subscriptionsExempt,
     chargesPending,
+    chargesTotal,
     legalAcceptancesTotal,
   ] = await Promise.all([
     prisma.tenant.count(),
@@ -39,6 +41,7 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
     prisma.tenantSubscription.count({ where: { condition: 'PAID' } }),
     prisma.tenantSubscription.count({ where: { condition: 'EXEMPT' } }),
     prisma.subscriptionCharge.count({ where: { status: 'PENDING' } }),
+    prisma.subscriptionCharge.count(),
     prisma.legalAcceptance.count(),
   ]);
 
@@ -55,6 +58,7 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
     subscriptionsExempt,
     chargesPending,
     chargesOverdue: overdueCharges,
+    chargesTotal,
     legalAcceptancesTotal,
   };
 }

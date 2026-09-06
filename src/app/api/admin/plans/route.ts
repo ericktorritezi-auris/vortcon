@@ -23,5 +23,9 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const plan = await createPlan(parsed.data);
-  return NextResponse.json({ status: 'ok', plan });
+  // Nunca devolver o modelo ORM cru (Seção 150) — DTO explícito.
+  return NextResponse.json({
+    status: 'ok',
+    plan: { id: plan.id, name: plan.name, priceCents: plan.priceCents, active: plan.active },
+  });
 }
