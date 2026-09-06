@@ -91,7 +91,7 @@ export function AppSidebar({
 
   return (
     <>
-      <aside className="hidden h-full w-60 shrink-0 flex-col gap-1 overflow-y-auto bg-brand-deep px-3 py-5 text-white/90 md:flex">
+      <aside className="hidden w-60 shrink-0 flex-col gap-1 self-stretch overflow-y-auto bg-brand-deep px-3 py-5 text-white/90 md:flex">
         <Link
           href={homeHref}
           className="mb-2 flex items-center gap-2 px-2"
