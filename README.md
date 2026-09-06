@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 7 — Domínio Financeiro ✅ concluído                                                                       |
-| Próximo estágio         | Estágio 8 — Recorrências                                                                                          |
+| Estágio atual           | Estágio 8 — Recorrências ✅ concluído                                                                             |
+| Próximo estágio         | Estágio 9 — Transações (UX)                                                                                       |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -238,6 +238,26 @@ Limitação conhecida do ambiente usado para validar esta etapa: `fonts.googleap
 - Por decisão de escopo do próprio roadmap (Seção 181): este estágio é só modelo de
   dados + Financial Engine + serviços de domínio — a UI de transações (formulários,
   drawer, filtros, mobile) é construída no Estágio 9, propositalmente depois.
+
+### Estágio 8 — o que foi entregue
+
+- `RecurrenceSeries` (Seção 70) + vínculo `recurrenceSeriesId`/`recurrenceOccurrenceKey`
+  em `FinancialTransaction` (Seção 71) — migration validada contra PostgreSQL 16 local,
+  incluindo a constraint anti-duplicação de ocorrência (uma série não pode gerar a
+  mesma competência duas vezes) e a confirmação de que transações avulsas continuam
+  livres mesmo com múltiplos `NULL/NULL`.
+- Cálculo puro de datas de ocorrência para as 5 frequências (DAILY/WEEKLY/MONTHLY/
+  YEARLY/CUSTOM_DAYS), com 7 testes unitários reais cobrindo o caso mais traiçoeiro:
+  dia 31 caindo em fevereiro (clampa para 28, sem `Invalid Date`).
+- Materialização idempotente dentro de uma janela futura de 90 dias (Seção 75: "não
+  gerar anos infinitamente") — mesmo padrão reativo (sem job agendado ainda, Estágio 13) já usado para mensalidades comerciais no Estágio 6.
+- "Alterar recorrência" (Seção 73) como ação explícita e distinta de editar uma
+  ocorrência isolada (Seção 72): muda a série e as ocorrências futuras `PENDING`,
+  nunca as liquidadas/canceladas/históricas. Encerrar a série (Seção 74) para novas
+  ocorrências sem apagar as já materializadas.
+- Teste de integração reproduzindo o exemplo exato da Seção 72 (base R$ 1.000/dia 14 →
+  outubro R$ 1.500/dia 15 → novembro permanece R$ 1.000/dia 14) e o último item,
+  antes pendente, da suíte financeira obrigatória da Seção 170.
 
 ## Stack
 

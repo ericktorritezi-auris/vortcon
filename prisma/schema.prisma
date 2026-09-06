@@ -97,6 +97,7 @@ model Tenant {
   tags                 Tag[]
   financialTransactions FinancialTransaction[]
   transfers            Transfer[]
+  recurrenceSeries     RecurrenceSeries[]
 
   @@map("tenants")
 }
@@ -496,14 +497,21 @@ model FinancialTransaction {
   note                String?
   cancelledAt         DateTime?
   cancelledFromStatus FinancialTransactionStatus?
+  // Vínculo com a série (Seção 71) — ambos nulos para lançamentos avulsos.
+  // A unicidade em [recurrenceSeriesId, recurrenceOccurrenceKey] impede
+  // duplicação de ocorrência (Seção 71: "Impedir duplicação").
+  recurrenceSeriesId       String?
+  recurrenceOccurrenceKey  String?
   createdAt           DateTime                    @default(now())
   updatedAt           DateTime                    @updatedAt
 
-  tenant   Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  account  FinancialAccount          @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  category Category?                 @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  tags     FinancialTransactionTag[]
+  tenant           Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  account          FinancialAccount          @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category         Category?                 @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags             FinancialTransactionTag[]
+  recurrenceSeries RecurrenceSeries?         @relation(fields: [recurrenceSeriesId], references: [id], onDelete: SetNull)
 
+  @@unique([recurrenceSeriesId, recurrenceOccurrenceKey])
   @@index([tenantId, status])
   @@index([tenantId, dueDate])
   @@index([accountId])
@@ -553,4 +561,54 @@ model Transfer {
 
   @@index([tenantId, status])
   @@map("transfers")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ESTÁGIO 8 — RECORRÊNCIAS (Seções 69-75)
+//
+// "Fixa" significa obrigação/receita recorrente — NÃO significa valor
+// imutável (Seção 69). Três conceitos sempre separados: série (o padrão),
+// ocorrência (uma instância materializada como FinancialTransaction) e
+// liquidação (o pagamento/recebimento daquela ocorrência).
+// ─────────────────────────────────────────────────────────────────────────
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM_DAYS
+}
+
+// A série é só o padrão gerador (Seção 70) — nunca a fonte de verdade do
+// valor/vencimento de uma ocorrência já materializada e editada
+// individualmente (Seção 72). `defaultCategoryId` referencia categoria
+// global, sem tipo (Seção 70) — mesma regra estrutural do Estágio 7.
+model RecurrenceSeries {
+  id                      String                   @id @default(cuid())
+  tenantId                String
+  transactionType         FinancialTransactionType
+  frequency               RecurrenceFrequency
+  interval                Int                      @default(1)
+  startDate               DateTime                 @db.Date
+  endDate                 DateTime?                @db.Date
+  maxOccurrences          Int?
+  baseAmountCents         Int
+  // Reservado para regras de vencimento mais elaboradas no futuro (ex.:
+  // "último dia útil do mês"). Na V1, a materialização deriva a data de
+  // cada ocorrência a partir de `startDate` + `frequency` + `interval` —
+  // a solução mais simples que preserva o requisito (Seção 0).
+  baseDueRule             Json?
+  defaultAccountId        String
+  defaultCategoryId       String?
+  defaultReminderEnabled  Boolean                  @default(false)
+  active                  Boolean                  @default(true)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  occurrences  FinancialTransaction[]
+
+  @@index([tenantId, active])
+  @@map("recurrence_series")
 }
