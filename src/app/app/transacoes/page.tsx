@@ -5,6 +5,7 @@ import { listAccounts } from '@/modules/accounts/account.service';
 import { listCategories } from '@/modules/categories/category.service';
 import { listTags } from '@/modules/tags/tag.service';
 import { listTransactions } from '@/modules/transactions/transaction.service';
+import { getPeriodResult } from '@/modules/financial-engine/financial-engine.service';
 import { AppShell } from '../AppShell';
 import { TransactionsView } from './TransactionsView';
 
@@ -74,11 +75,12 @@ export default async function TransacoesPage({
         : undefined;
   const page = searchParams.pagina ? Number(searchParams.pagina) : 1;
 
-  const [accounts, categories, tags, transactionsPage] = await Promise.all([
+  const [accounts, categories, tags, transactionsPage, periodResultCents] = await Promise.all([
     listAccounts(tenantId),
     listCategories(tenantId),
     listTags(tenantId),
     listTransactions(tenantId, { from: period.from, to: period.to, type, page }),
+    getPeriodResult(tenantId, period),
   ]);
 
   return (
@@ -96,6 +98,7 @@ export default async function TransacoesPage({
         }))}
         tags={tags.map((tag: Tag) => ({ id: tag.id, name: tag.name }))}
         period={{ from: period.from.toISOString(), to: period.to.toISOString() }}
+        periodResultCents={periodResultCents}
       />
     </AppShell>
   );

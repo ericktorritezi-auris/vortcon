@@ -7,6 +7,7 @@ import { resolveIcon } from '@/shared/design-system/icons';
 import { Badge, Button, FinancialValue, Pagination } from '@/shared/ui';
 import { TransactionDetailDrawer } from './TransactionDetailDrawer';
 import { TransactionFormDrawer } from './TransactionFormDrawer';
+import { TransferFormDrawer } from './TransferFormDrawer';
 import { groupByDay } from './transaction-grouping';
 
 export interface TransactionItemView {
@@ -47,6 +48,8 @@ interface TransactionsViewProps {
   categories: CategoryOption[];
   tags: SimpleOption[];
   period: { from: string; to: string };
+  /** Balanço do mês inteiro (entradas − saídas), independente de paginação — vem do Financial Engine, não é somado a partir da página atual. */
+  periodResultCents: number;
 }
 
 const STATUS_LABEL: Record<TransactionItemView['status'], string> = {
@@ -71,11 +74,13 @@ export function TransactionsView({
   categories,
   tags,
   period,
+  periodResultCents,
 }: TransactionsViewProps): React.ReactElement {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState<'INCOME' | 'EXPENSE' | null>(null);
+  const [transferring, setTransferring] = useState(false);
 
   const activeType = searchParams.get('tipo') ?? 'todas';
   const dayGroups = useMemo(() => groupByDay(initialData.items), [initialData.items]);
@@ -110,6 +115,9 @@ export function TransactionsView({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-ink-primary">Transações</h1>
         <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setTransferring(true)}>
+            Transferência
+          </Button>
           <Button variant="secondary" onClick={() => setCreating('INCOME')}>
             Nova receita
           </Button>
@@ -149,26 +157,32 @@ export function TransactionsView({
           ))}
         </div>
 
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => navigateMonth(-1)}
-            aria-label="Mês anterior"
-            className="flex h-9 w-9 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <span className="min-w-32 text-center text-sm font-medium capitalize text-ink-primary">
-            {monthLabel}
-          </span>
-          <button
-            type="button"
-            onClick={() => navigateMonth(1)}
-            aria-label="Próximo mês"
-            className="flex h-9 w-9 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
-          >
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 rounded-md border border-ink-secondary/15 bg-white px-3 py-1.5">
+            <span className="text-xs text-ink-secondary">Balanço do mês</span>
+            <FinancialValue cents={periodResultCents} showSign />
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => navigateMonth(-1)}
+              aria-label="Mês anterior"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <span className="min-w-32 text-center text-sm font-medium capitalize text-ink-primary">
+              {monthLabel}
+            </span>
+            <button
+              type="button"
+              onClick={() => navigateMonth(1)}
+              aria-label="Próximo mês"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -257,6 +271,10 @@ export function TransactionsView({
           tags={tags}
           onClose={() => setCreating(null)}
         />
+      ) : null}
+
+      {transferring ? (
+        <TransferFormDrawer accounts={accounts} onClose={() => setTransferring(false)} />
       ) : null}
     </div>
   );

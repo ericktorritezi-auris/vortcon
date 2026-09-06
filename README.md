@@ -619,6 +619,19 @@ componente não tinha nenhum teste desde que foi criado no Estágio 2, e é exat
 assim que esse bug passou despercebido por 8 estágios. 7 testes unitários novos,
 reproduzindo o cenário exato reportado (300 − 960 = −660).
 
+### Correção pós-Estágio 10 — balanço do mês e transferência ausentes na UI
+
+Dois pontos do cliente: (1) a listagem de Transações mostrava o mês e o total por dia,
+mas não o balanço do mês inteiro (entradas − saídas) — adicionado como um card ao lado
+do navegador de mês, usando `getPeriodResult` do Financial Engine (Estágio 7), então o
+valor reflete o mês inteiro, não só a página atual de 15 registros. (2) Não existia
+nenhuma forma de criar uma transferência entre contas — mesmo padrão do incidente
+anterior: o backend (`transfer.service.ts`) existe desde o Estágio 7, a UI nunca foi
+construída. Adicionado o botão "Transferência" ao lado de "Nova receita"/"Nova
+despesa", com formulário (valor, conta de origem, conta de destino, data, observação)
+que já nasce concluída ao confirmar — validado via SQL direto (100.000 → 700,00 na
+origem, 300,00 no destino, mesma fórmula que `getAccountBalances` já usa).
+
 ## Estágio 10 — o que foi entregue
 
 - `OnboardingProgress` (Seção 38 já previa esta entidade) — migration validada contra
