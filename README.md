@@ -600,6 +600,25 @@ só uma mensagem clara de que a área ainda está em construção.
 Conferido explicitamente: todos os 4 links do menu do Admin já apontavam para páginas
 reais, sem incidente ali.
 
+### Correção pós-Estágio 10 — saldo negativo exibido sem sinal (bug crítico)
+
+O cliente reportou: saldo inicial de R$ 300,00, despesa paga de R$ 960,00 — o Dashboard
+mostrava "Saldo real: R$ 660,00" (positivo), quando deveria ser **-R$ 660,00**. O cálculo
+interno sempre esteve correto; o bug era só na exibição: `FinancialValue` usava
+`Math.abs()` no valor incondicionalmente e só mostrava o sinal de menos quando a prop
+`showSign` era passada explicitamente — que não era o caso em `Saldo real`/`Saldo por
+conta` no Dashboard. Ou seja: **qualquer saldo negativo em qualquer lugar do app que
+não passasse `showSign` aparecia como se fosse positivo**, sem nenhuma indicação visual.
+
+Corrigido na raiz: o sinal de menos em valor negativo agora é **sempre** exibido,
+nunca condicionado a uma prop — `showSign` passou a controlar só o "+" explícito em
+positivos. A cor também deixou de exigir que quem chama lembre de passar
+`tone="negative"`: sem `tone` explícito, ela é derivada automaticamente do sinal.
+Lógica extraída para `financial-value-format.ts`, testável isoladamente — este
+componente não tinha nenhum teste desde que foi criado no Estágio 2, e é exatamente
+assim que esse bug passou despercebido por 8 estágios. 7 testes unitários novos,
+reproduzindo o cenário exato reportado (300 − 960 = −660).
+
 ## Estágio 10 — o que foi entregue
 
 - `OnboardingProgress` (Seção 38 já previa esta entidade) — migration validada contra

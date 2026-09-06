@@ -1,18 +1,15 @@
-type FinancialValueTone = 'neutral' | 'positive' | 'negative';
+import type { FinancialValueTone } from './financial-value-format';
+import { formatFinancialValue } from './financial-value-format';
 
 interface FinancialValueProps {
   /** Valor em centavos (inteiro) — nunca float (Seção 36). */
   cents: number;
+  /** Sem isso, a cor é derivada automaticamente do sinal (negativo = vermelho) — nunca fica neutro "por esquecimento". */
   tone?: FinancialValueTone;
-  /** Mostra +/- explícito além da cor (Seção 12: nunca só cor). */
+  /** Mostra "+" explícito em valores positivos (o "−" em negativos já é sempre mostrado, nunca opcional). */
   showSign?: boolean;
   className?: string;
 }
-
-const currencyFormatter = new Intl.NumberFormat('pt-BR', {
-  style: 'currency',
-  currency: 'BRL',
-});
 
 const TONE_CLASSES: Record<FinancialValueTone, string> = {
   neutral: 'text-ink-primary',
@@ -24,19 +21,24 @@ const TONE_CLASSES: Record<FinancialValueTone, string> = {
  * Formatação monetária única do app — `R$ 12.485,72`, números tabulares
  * (Seção 8). Todo lugar que exibe dinheiro usa este componente, nunca
  * `toFixed`/template string solto, para manter formatação consistente.
+ *
+ * A lógica de sinal/cor vive em `financial-value-format.ts` (testável
+ * isoladamente) — corrigiu um bug real relatado pelo cliente: saldo
+ * negativo aparecendo sem o sinal de menos, como se fosse positivo.
  */
 export function FinancialValue({
   cents,
-  tone = 'neutral',
+  tone,
   showSign = false,
   className,
 }: FinancialValueProps): React.ReactElement {
-  const formatted = currencyFormatter.format(Math.abs(cents) / 100);
-  const sign = cents > 0 ? '+' : cents < 0 ? '−' : '';
+  const { formatted, sign, tone: effectiveTone } = formatFinancialValue(cents, { tone, showSign });
 
   return (
-    <span className={['money font-semibold', TONE_CLASSES[tone], className ?? ''].join(' ')}>
-      {showSign ? `${sign} ` : ''}
+    <span
+      className={['money font-semibold', TONE_CLASSES[effectiveTone], className ?? ''].join(' ')}
+    >
+      {sign ? `${sign} ` : ''}
       {formatted}
     </span>
   );
