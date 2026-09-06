@@ -581,6 +581,25 @@ que o deploy sobe, que zera todo dado acumulado durante o desenvolvimento — in
 - 5 rotas de API (`criar`, `editar`, `liquidar`, `cancelar`, `reativar`), todas com
   validação de ownership e gate de acesso completo.
 
+### Correção pós-Estágio 10 — links mortos no menu do tenant
+
+O cliente reportou 404 em `/app/contas` e `/app/categorias`, e ausência de tela para
+tags. Na varredura completa do menu, achei **5 links mortos**, não só os 3 reportados —
+`/app/planejamento` e `/app/relatorios` também apontavam para páginas inexistentes.
+Causa: os links foram adicionados à sidebar durante a reestruturação de UX, mas as
+páginas nunca foram construídas atrás deles.
+
+Corrigido: `/app/contas` (CRUD completo — criar, alterar saldo inicial com confirmação
+explícita e auditoria já existente desde a Seção 157, inativar), `/app/categorias`
+(criar com seletor de ícone do catálogo controlado, inativar), `/app/tags` (criar,
+inativar — item de menu que nem existia antes). `/app/planejamento` e `/app/relatorios`
+ganharam uma tela "em breve" honesta em vez de 404, já que essas duas são estágios
+futuros de verdade (Relatórios é o Estágio 12) — nenhum dado fictício é mostrado ali,
+só uma mensagem clara de que a área ainda está em construção.
+
+Conferido explicitamente: todos os 4 links do menu do Admin já apontavam para páginas
+reais, sem incidente ali.
+
 ## Estágio 10 — o que foi entregue
 
 - `OnboardingProgress` (Seção 38 já previa esta entidade) — migration validada contra
