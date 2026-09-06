@@ -98,6 +98,7 @@ model Tenant {
   financialTransactions FinancialTransaction[]
   transfers            Transfer[]
   recurrenceSeries     RecurrenceSeries[]
+  onboardingProgress   OnboardingProgress?
 
   @@map("tenants")
 }
@@ -618,6 +619,31 @@ model RecurrenceSeries {
 
   @@index([tenantId, active])
   @@map("recurrence_series")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ESTÁGIO 10 — DASHBOARD / ONBOARDING (Seções 81-85)
+// ─────────────────────────────────────────────────────────────────────────
+
+// Onboarding (Seção 84-85): os 4 passos (conta, categoria, primeira
+// despesa, primeira receita) são sempre DERIVADOS dos dados reais do
+// tenant, nunca armazenados aqui como flags separadas — isso evitaria uma
+// segunda fonte de verdade podendo dessincronizar. O que precisa de
+// persistência é só o estado de dispensa: uma vez confirmado/fechado
+// permanentemente, nunca mais reaparece (Seção 85: "depois desaparece
+// permanentemente"), mesmo que o tenant depois apague a única conta/
+// categoria que tinha criado.
+model OnboardingProgress {
+  id                   String    @id @default(cuid())
+  tenantId             String    @unique
+  tourDismissedAt      DateTime?
+  checklistConfirmedAt DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@map("onboarding_progress")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 9 — Transações (UX) ✅ concluído                                                                          |
-| Próximo estágio         | Estágio 10 — Dashboard                                                                                            |
+| Estágio atual           | Estágio 10 — Dashboard ✅ concluído                                                                               |
+| Próximo estágio         | Estágio 11 — Cockpit                                                                                              |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -580,6 +580,31 @@ que o deploy sobe, que zera todo dado acumulado durante o desenvolvimento — in
   `FinancialValue` com `showSign`, nunca só a cor vermelha/verde.
 - 5 rotas de API (`criar`, `editar`, `liquidar`, `cancelar`, `reativar`), todas com
   validação de ownership e gate de acesso completo.
+
+## Estágio 10 — o que foi entregue
+
+- `OnboardingProgress` (Seção 38 já previa esta entidade) — migration validada contra
+  PostgreSQL 16 local. Os 4 passos do checklist (conta, categoria, primeira despesa,
+  primeira receita) são sempre **derivados dos dados reais** do tenant, nunca
+  armazenados como flags próprias — evita uma segunda fonte de verdade dessincronizando
+  (ex.: usuário cria e depois apaga a única conta). Só o estado de dispensa é
+  persistido, e nunca reaparece depois de confirmado (Seção 85).
+- Dashboard real (Seção 81-82) substituindo o placeholder do Estágio 4: saudação com
+  primeiro nome + data de hoje, mês atual como default, todas as métricas exigidas —
+  saldo real, receitas, despesas, resultado, pendente a pagar/receber, saldo projetado
+  "quando apropriado" (só aparece quando há algo pendente), saldo por conta,
+  movimentação por categoria (Seção 83: visão geral com entrada/saída/resultado
+  líquido, categoria continua única).
+- "Novo usuário" (Seção 84): nenhum dado fictício é criado — um tenant vazio mostra
+  zeros reais, com o checklist de Primeiros Passos em destaque.
+- Tour (modal, pode ser pulado) e card de Primeiros Passos (só confirma com os 4
+  passos completos; depois de confirmado, some permanentemente) — Seção 85.
+- Insights: placeholder honesto informando que o Insight Engine é um estágio futuro —
+  nenhum insight fabricado.
+- `factory-reset.service.ts` (Estágio 19) atualizado para incluir `onboarding_progress`
+  na limpeza — é dado de teste, some junto com o resto do tenant.
+- Teste de integração completo do fluxo de onboarding (5 cenários: passos derivados um
+  a um, confirmação rejeitada antes de 100%, dispensa do tour persistida).
 
 ## Backlog registrado (não são lacunas — adiamento deliberado, confirmado pelo cliente)
 
