@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { FinancialTransactionType, Prisma } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
 
 export async function findTransactionById(tenantId: string, transactionId: string) {
@@ -8,20 +8,52 @@ export async function findTransactionById(tenantId: string, transactionId: strin
   });
 }
 
-export async function listTransactions(
-  tenantId: string,
-  filters: { from?: Date; to?: Date; accountId?: string; categoryId?: string } = {},
-) {
-  return prisma.financialTransaction.findMany({
-    where: {
-      tenantId,
-      ...(filters.from || filters.to ? { dueDate: { gte: filters.from, lte: filters.to } } : {}),
-      ...(filters.accountId ? { accountId: filters.accountId } : {}),
-      ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
-    },
-    orderBy: { dueDate: 'desc' },
-    include: { category: true, tags: { include: { tag: true } } },
-  });
+export const TRANSACTIONS_PAGE_SIZE = 15; // Seção 80 — máximo, nunca infinite scroll.
+
+interface ListTransactionsFilters {
+  from?: Date;
+  to?: Date;
+  type?: FinancialTransactionType;
+  accountId?: string;
+  categoryId?: string;
+  page?: number;
+}
+
+/**
+ * Listagem paginada (Seção 76-80). Inclui canceladas de propósito — a
+ * ação "reativar" (Seção 78) só faz sentido se a transação ainda aparece
+ * em algum lugar da listagem. Isso é diferente do Financial Engine, que
+ * sempre exclui canceladas/ignoradas dos cálculos (Seção 59) — listar e
+ * calcular são responsabilidades diferentes.
+ */
+export async function listTransactions(tenantId: string, filters: ListTransactionsFilters = {}) {
+  const page = filters.page && filters.page > 0 ? filters.page : 1;
+
+  const where: Prisma.FinancialTransactionWhereInput = {
+    tenantId,
+    ...(filters.from || filters.to ? { dueDate: { gte: filters.from, lte: filters.to } } : {}),
+    ...(filters.type ? { type: filters.type } : {}),
+    ...(filters.accountId ? { accountId: filters.accountId } : {}),
+    ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
+  };
+
+  const [items, total] = await Promise.all([
+    prisma.financialTransaction.findMany({
+      where,
+      orderBy: { dueDate: 'desc' },
+      include: { category: true, tags: { include: { tag: true } } },
+      skip: (page - 1) * TRANSACTIONS_PAGE_SIZE,
+      take: TRANSACTIONS_PAGE_SIZE,
+    }),
+    prisma.financialTransaction.count({ where }),
+  ]);
+
+  return {
+    items,
+    total,
+    page,
+    totalPages: Math.max(1, Math.ceil(total / TRANSACTIONS_PAGE_SIZE)),
+  };
 }
 
 interface CreateTransactionData {
@@ -56,6 +88,60 @@ export async function createTransaction(tenantId: string, data: CreateTransactio
       tags: data.tagIds ? { create: data.tagIds.map((tagId) => ({ tagId })) } : undefined,
     },
     include: { tags: true },
+  });
+}
+
+interface UpdateTransactionData {
+  description?: string;
+  amountCents?: number;
+  dueDate?: Date;
+  accountId?: string;
+  categoryId?: string | null;
+  note?: string | null;
+  reminderEnabled?: boolean;
+  tagIds?: string[];
+}
+
+/**
+ * Editar (Seção 78: ação "editar"). Nunca toca em status/settlementDate ou
+ * cancelamento — isso é liquidar/cancelar, ações separadas e explícitas.
+ */
+export async function updateTransaction(
+  tenantId: string,
+  transactionId: string,
+  data: UpdateTransactionData,
+) {
+  const transaction = await prisma.financialTransaction.findFirst({
+    where: { id: transactionId, tenantId },
+  });
+  if (!transaction) {
+    throw new Error(`Transação ${transactionId} não encontrada neste tenant.`);
+  }
+
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const updated = await tx.financialTransaction.update({
+      where: { id: transactionId },
+      data: {
+        description: data.description,
+        amountCents: data.amountCents,
+        dueDate: data.dueDate,
+        accountId: data.accountId,
+        categoryId: data.categoryId,
+        note: data.note,
+        reminderEnabled: data.reminderEnabled,
+      },
+    });
+
+    if (data.tagIds) {
+      await tx.financialTransactionTag.deleteMany({ where: { transactionId } });
+      if (data.tagIds.length > 0) {
+        await tx.financialTransactionTag.createMany({
+          data: data.tagIds.map((tagId) => ({ transactionId, tagId })),
+        });
+      }
+    }
+
+    return updated;
   });
 }
 

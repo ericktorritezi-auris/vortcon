@@ -19,21 +19,23 @@ interface CreateTransactionInput {
  * recebidos precisam pertencer ao MESMO tenant do usuário autenticado antes
  * de qualquer leitura/escrita — conhecer o ID não concede acesso (Seção 151).
  */
-async function assertBelongsToTenant(
+async function assertOwnership(
   tenantId: string,
-  input: CreateTransactionInput,
+  refs: { accountId?: string; categoryId?: string | null; tagIds?: string[] },
 ): Promise<void> {
-  const account = await prisma.financialAccount.findFirst({
-    where: { id: input.accountId, tenantId },
-    select: { id: true },
-  });
-  if (!account) {
-    throw new Error('Conta não encontrada neste tenant.');
+  if (refs.accountId) {
+    const account = await prisma.financialAccount.findFirst({
+      where: { id: refs.accountId, tenantId },
+      select: { id: true },
+    });
+    if (!account) {
+      throw new Error('Conta não encontrada neste tenant.');
+    }
   }
 
-  if (input.categoryId) {
+  if (refs.categoryId) {
     const category = await prisma.category.findFirst({
-      where: { id: input.categoryId, tenantId },
+      where: { id: refs.categoryId, tenantId },
       select: { id: true },
     });
     if (!category) {
@@ -41,17 +43,41 @@ async function assertBelongsToTenant(
     }
   }
 
-  if (input.tagIds && input.tagIds.length > 0) {
-    const tagCount = await prisma.tag.count({ where: { id: { in: input.tagIds }, tenantId } });
-    if (tagCount !== input.tagIds.length) {
+  if (refs.tagIds && refs.tagIds.length > 0) {
+    const tagCount = await prisma.tag.count({ where: { id: { in: refs.tagIds }, tenantId } });
+    if (tagCount !== refs.tagIds.length) {
       throw new Error('Uma ou mais tags não pertencem a este tenant.');
     }
   }
 }
 
 export async function createIncomeOrExpense(tenantId: string, input: CreateTransactionInput) {
-  await assertBelongsToTenant(tenantId, input);
+  await assertOwnership(tenantId, input);
   return transactionRepository.createTransaction(tenantId, input);
+}
+
+interface UpdateTransactionInput {
+  description?: string;
+  amountCents?: number;
+  dueDate?: Date;
+  accountId?: string;
+  categoryId?: string | null;
+  note?: string | null;
+  reminderEnabled?: boolean;
+  tagIds?: string[];
+}
+
+export async function updateTransaction(
+  tenantId: string,
+  transactionId: string,
+  input: UpdateTransactionInput,
+) {
+  await assertOwnership(tenantId, {
+    accountId: input.accountId,
+    categoryId: input.categoryId,
+    tagIds: input.tagIds,
+  });
+  return transactionRepository.updateTransaction(tenantId, transactionId, input);
 }
 
 export async function settleTransaction(

@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 8 — Recorrências ✅ concluído                                                                             |
-| Próximo estágio         | Estágio 9 — Transações (UX)                                                                                       |
+| Estágio atual           | Estágio 9 — Transações (UX) ✅ concluído                                                                          |
+| Próximo estágio         | Estágio 10 — Dashboard                                                                                            |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -559,6 +559,44 @@ que o deploy sobe, que zera todo dado acumulado durante o desenvolvimento — in
   em CI cobre só os caminhos que não tocam dados (token/confirmação inválidos) — um wipe
   real dentro da suíte compartilhada de integração derrubaria os outros testes rodando
   em paralelo contra o mesmo banco (documentado em `factory-reset-safe-checks.test.ts`).
+
+## Estágio 9 — o que foi entregue
+
+- Paginação real (Seção 80: máximo 15 por página, nunca infinite scroll) — validada
+  contra Postgres real com 17 registros (15 na página 1, 2 na página 2). Filtro por
+  tipo (Despesas/Receitas) e por período, default mês atual (Seção 76).
+- **Editar** (Seção 78) como ação própria, nunca tocando status/liquidação/cancelamento
+  — validado com teste de integração, incluindo rejeição de categoria de outro tenant
+  (Seção 210).
+- Listagem agrupada por dia com total do dia (Seção 77) — lógica extraída para
+  `transaction-grouping.ts`, pura e testável isoladamente (5 testes unitários reais,
+  reproduzindo o exemplo exato da especificação).
+- Drawer de detalhe (Seção 78) com todos os campos exigidos e as 4 ações; editar
+  acontece dentro do mesmo drawer, preservando o fluxo rápido mobile "abrir → marcar
+  pago → editar se necessário → retornar" (Seção 79) sem empilhar um segundo drawer.
+- Cancelar → reativar preserva e restaura o status anterior (Seção 61) — validado com
+  teste de integração real.
+- Cor nunca é único indicador (Seção 12) — todo valor financeiro na listagem usa
+  `FinancialValue` com `showSign`, nunca só a cor vermelha/verde.
+- 5 rotas de API (`criar`, `editar`, `liquidar`, `cancelar`, `reativar`), todas com
+  validação de ownership e gate de acesso completo.
+
+## Backlog registrado (não são lacunas — adiamento deliberado, confirmado pelo cliente)
+
+Itens identificados e conscientemente adiados para um estágio futuro a definir:
+
+- **Busca global do Admin não é funcional ainda** — a `Topbar` tem o campo de busca
+  desabilitado de propósito (Seção "Reestruturação de UX" abaixo). Buscar de verdade
+  entre usuários/tenants/pagamentos/logs cruza vários módulos e precisa de um desenho
+  próprio (índice de busca, escopo por papel) — não é trivial o bastante pra encaixar
+  em qualquer estágio já planejado sem definir isso explicitamente antes.
+- **Editor de Política de Privacidade/Termos de Uso não é WYSIWYG de verdade** — hoje
+  o Admin vê o HTML bruto no campo de texto (`<h2>`, `<strong>` etc.), com uma toolbar
+  que insere essas tags manualmente. O esperado: o que for digitado e formatado no
+  campo aparecer **idêntico** — sem código visível — tanto na prévia quanto na página
+  pública do usuário. Isso exige trocar o `<textarea>` atual por um editor rich-text de
+  verdade (ex.: TipTap ou Slate) que edita visualmente e só serializa para HTML por
+  baixo dos panos, nunca expondo a marcação para quem está digitando.
 
 ## Reestruturação de UX/Navegação (a pedido do cliente, entre Estágios 8 e 9)
 
