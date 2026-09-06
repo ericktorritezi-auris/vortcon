@@ -44,4 +44,29 @@ describe('sanitização de conteúdo legal (Seção 130)', () => {
     expect(result).not.toContain('<iframe');
     expect(result).not.toContain('<table');
   });
+
+  it('converte parágrafos separados por linha em branco em <p> reais (bug relatado: tudo virava um bloco só)', () => {
+    const result = sanitizeLegalContent(
+      'Primeiro parágrafo.\n\nSegundo parágrafo.\n\nTerceiro parágrafo.',
+    );
+
+    expect(result).toBe(
+      '<p>Primeiro parágrafo.</p>\n<p>Segundo parágrafo.</p>\n<p>Terceiro parágrafo.</p>',
+    );
+  });
+
+  it('quebra de linha simples dentro do mesmo parágrafo vira <br>, não separa em outro parágrafo', () => {
+    const result = sanitizeLegalContent('Linha um\nLinha dois');
+    expect(result).toBe('<p>Linha um<br />Linha dois</p>');
+  });
+
+  it('um bloco que já começa com tag de bloco (ex.: título inserido pela toolbar) não é envolvido em <p> de novo', () => {
+    const result = sanitizeLegalContent('<h2>Título</h2>\n\nTexto normal do parágrafo.');
+    expect(result).toBe('<h2>Título</h2>\n<p>Texto normal do parágrafo.</p>');
+  });
+
+  it('ignora linhas em branco extras e espaços nas pontas de cada parágrafo', () => {
+    const result = sanitizeLegalContent('  Primeiro.  \n\n\n\n   Segundo.   ');
+    expect(result).toBe('<p>Primeiro.</p>\n<p>Segundo.</p>');
+  });
 });

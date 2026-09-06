@@ -135,6 +135,10 @@ export function LegalEditor({
         rows={16}
         className="w-full rounded-md border border-ink-secondary/30 bg-white p-3 font-mono text-sm text-ink-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-intelligence"
       />
+      <p className="-mt-2 text-xs text-ink-secondary">
+        Deixe uma linha em branco entre parágrafos — cada bloco separado por linha em branco vira um
+        parágrafo com espaçamento próprio ao publicar.
+      </p>
 
       <Checkbox
         label="Exigir novo aceite dos usuários ao publicar esta versão"
