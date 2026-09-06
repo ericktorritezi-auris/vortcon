@@ -33,6 +33,10 @@ const envSchema = z.object({
   // ADMIN_BOOTSTRAP_* — criação segura do primeiro GLOBAL_ADMIN (Seção 162)
   ADMIN_BOOTSTRAP_EMAIL: z.string().email().optional(),
   ADMIN_BOOTSTRAP_TOKEN: z.string().min(16).optional(),
+
+  // FACTORY_RESET_TOKEN — Estágio 19 (uso único, zera todo dado de teste
+  // antes do início do uso real). Sem esta variável, a rota fica inativa.
+  FACTORY_RESET_TOKEN: z.string().min(16).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -619,3 +619,20 @@ model RecurrenceSeries {
   @@index([tenantId, active])
   @@map("recurrence_series")
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// ESTÁGIO 19 — FACTORY RESET (adicionado à especificação a pedido do
+// cliente, fora da numeração original do Master Document)
+//
+// Link de uso único, disponível logo após o deploy, para zerar todo dado
+// de teste acumulado durante o desenvolvimento antes do início do uso real
+// — inclusive o próprio GLOBAL_ADMIN. Esta tabela nunca é apagada pela
+// própria operação de reset: é o marcador permanente que impede uma
+// segunda execução. Sem isso, o reset poderia ser rodado repetidas vezes.
+// ─────────────────────────────────────────────────────────────────────────
+model FactoryResetLog {
+  id     String   @id @default(cuid())
+  usedAt DateTime @default(now())
+
+  @@map("factory_reset_log")
+}

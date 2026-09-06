@@ -524,6 +524,42 @@ conflito — nunca edite uma migration já aplicada em produção (Seção 160);
 _Este runbook cresce conforme o projeto avança — cada incidente real resolvido vira uma
 entrada aqui, para nunca precisar ser resolvido "de cabeça" duas vezes._
 
+## Processo de desenvolvimento — gate de qualidade entre estágios
+
+A partir do Estágio 8, nenhum estágio novo começa sem que **todos os pontos do estágio
+anterior estejam completos** em relação à especificação do Master Document — não apenas
+"o que eu lembrava ter lido", mas uma reconferência seção por seção contra o código
+real antes de seguir. Uma varredura retroativa nos Estágios 1-8 já encontrou e corrigiu
+9 lacunas reais (registradas no bloco "Varredura de conformidade" abaixo); a partir de
+agora essa conferência acontece **dentro** da entrega de cada estágio, não depois.
+
+## Estágio 19 — Factory Reset (adicionado à especificação a pedido do cliente)
+
+Fora da numeração original do Master Document. Um link de uso único, disponível assim
+que o deploy sobe, que zera todo dado acumulado durante o desenvolvimento — inclusive o
+`GLOBAL_ADMIN` — para que o produto comece 100% limpo para uso real.
+
+- Rota: `/admin/factory-reset` — protegida por `FACTORY_RESET_TOKEN` (variável de
+  ambiente) **e** por uma frase de confirmação digitada (`RESETAR`), dado o caráter
+  irreversível da ação.
+- **Apagado:** tenants, usuários (inclusive admin), sessões, convites, contas
+  financeiras, categorias, tags, transações, transferências, recorrências, assinaturas,
+  mensalidades, bloqueios, aceites legais, auditoria.
+- **Preservado** (decisão explícita do cliente — não são "dados de teste"): o plano
+  comercial (`subscription_plans`) e o conteúdo real de Política de Privacidade/Termos
+  de Uso (`legal_documents`/`legal_document_versions`).
+- **Uso único de verdade:** um marcador (`factory_reset_log`) é gravado dentro da mesma
+  transação da limpeza — a própria operação nunca apaga essa tabela, e qualquer
+  tentativa seguinte (mesmo com token e confirmação corretos) é rejeitada.
+- Depois do reset, `/admin/bootstrap` volta a funcionar normalmente (nenhum
+  `GLOBAL_ADMIN` mais existe), permitindo criar o administrador real de produção.
+- Validado manualmente e de forma exaustiva contra PostgreSQL 16 local: populado um
+  cenário completo (tenant, usuário, admin, transação, categoria, aceite legal,
+  auditoria) e conferida linha a linha a preservação/exclusão exata. O teste automatizado
+  em CI cobre só os caminhos que não tocam dados (token/confirmação inválidos) — um wipe
+  real dentro da suíte compartilhada de integração derrubaria os outros testes rodando
+  em paralelo contra o mesmo banco (documentado em `factory-reset-safe-checks.test.ts`).
+
 ## Escopo e não escopo da V1
 
 **Dentro do escopo:** contas financeiras, categorias e tags transversais, receitas/despesas, transferências, recorrências, Financial Engine, Dashboard, Cockpit, Insight Engine determinístico (sem IA generativa), relatórios (mensal/anual/categoria/tag, PDF/Excel), planos e assinatura (PIX manual, inadimplência automatizada), notificações (push + e-mail + central), documentos legais versionados com gate de aceite, PWA, backup/export por tenant, painel Admin operacional.
