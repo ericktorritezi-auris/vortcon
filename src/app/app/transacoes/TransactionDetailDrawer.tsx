@@ -32,7 +32,11 @@ const STATUS_LABEL: Record<TransactionItemView['status'], string> = {
   CANCELLED: 'Cancelada',
 };
 
-const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' });
+// timeZone: 'UTC' — dueDate/settlementDate são datas-calendário (meia-noite
+// UTC), não instantes. Sem isso, o navegador do usuário reinterpretaria a
+// meia-noite UTC no fuso local e mostraria o dia anterior (mesma causa raiz
+// do bug de mês relatado em TransactionsView.tsx).
+const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'UTC' });
 
 function toDateInputValue(value: string | Date | null): string {
   if (!value) return '';

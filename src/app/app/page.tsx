@@ -28,11 +28,14 @@ import { TourModal } from './TourModal';
 
 export const dynamic = 'force-dynamic';
 
-const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-});
+function buildDateFormatter(timeZone: string): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone,
+  });
+}
 
 function currentMonthPeriod(): { from: Date; to: Date } {
   const now = new Date();
@@ -71,6 +74,11 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
   const session = await getCurrentSession();
   const period = currentMonthPeriod();
   const firstName = (session?.user.name ?? 'você').split(' ')[0];
+  // Seção 24: timezone é cadastrado por usuário (default America/Sao_Paulo,
+  // alterável) — "hoje" na saudação usa o fuso do próprio usuário, nunca o
+  // do servidor (Railway roda em UTC; sem isso, entre 21h-24h no horário de
+  // Brasília a saudação mostraria erroneamente o dia seguinte).
+  const dateFormatter = buildDateFormatter(session?.user.timezone ?? 'America/Sao_Paulo');
 
   const [
     realBalanceCents,

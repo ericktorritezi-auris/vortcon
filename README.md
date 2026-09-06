@@ -632,6 +632,28 @@ despesa", com formulário (valor, conta de origem, conta de destino, data, obser
 que já nasce concluída ao confirmar — validado via SQL direto (100.000 → 700,00 na
 origem, 300,00 no destino, mesma fórmula que `getAccountBalances` já usa).
 
+### Correção pós-Estágio 10 — mês/dia errado na exibição (bug de fuso horário) + menu de Transferências
+
+Cliente reportou: transações lançadas em setembro apareciam sob o rótulo "Agosto de
+2026". Causa raiz: datas-calendário (`dueDate`, `settlementDate`, `scheduledDate` —
+todas `@db.Date`, meia-noite UTC) sendo formatadas com `Intl.DateTimeFormat` sem
+`timeZone: 'UTC'` explícito em componentes que rodam no **navegador** do usuário
+(`TransactionsView.tsx`, `TransactionDetailDrawer.tsx`). O navegador reinterpreta a
+meia-noite UTC no fuso local (Brasil, UTC-3), voltando um dia — e, perto da virada do
+mês, o mês inteiro. Os dados em si sempre estiveram corretos no banco e na consulta;
+o bug era só de exibição. Corrigido nos dois formatadores, mais a saudação do
+Dashboard ("Hoje estamos no dia X"), que passou a usar o timezone cadastrado do
+próprio usuário (`User.timezone`, Seção 24) em vez do fuso do servidor — evita que a
+saudação erre o dia entre 21h-24h no horário de Brasília (Railway roda em UTC). 3
+testes unitários novos reproduzindo o mecanismo exato do bug de forma determinística.
+
+Também a pedido do cliente: **Transferências ganhou menu próprio**, separado de
+Transações — antes só existia um botão de criar dentro de Transações; agora
+`/app/transferencias` lista o histórico (agrupado por dia, mesmo padrão visual) e
+permite criar novas. Justificativa do próprio cliente, que faz sentido
+arquiteturalmente: transferência não é receita nem despesa (Seção 68), misturar as
+duas listagens confundia mais do que ajudava.
+
 ## Estágio 10 — o que foi entregue
 
 - `OnboardingProgress` (Seção 38 já previa esta entidade) — migration validada contra

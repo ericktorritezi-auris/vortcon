@@ -1,6 +1,15 @@
 'use client';
 
-import { CreditCard, Home, LayoutGrid, ListChecks, PieChart, Tag, Target } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  CreditCard,
+  Home,
+  LayoutGrid,
+  ListChecks,
+  PieChart,
+  Tag,
+  Target,
+} from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 
 const NAV_GROUPS = [
@@ -8,6 +17,7 @@ const NAV_GROUPS = [
     items: [
       { href: '/app', label: 'Início', icon: Home },
       { href: '/app/transacoes', label: 'Transações', icon: ListChecks },
+      { href: '/app/transferencias', label: 'Transferências', icon: ArrowLeftRight },
       { href: '/app/contas', label: 'Contas', icon: CreditCard },
       { href: '/app/categorias', label: 'Categorias', icon: LayoutGrid },
       { href: '/app/tags', label: 'Tags', icon: Tag },

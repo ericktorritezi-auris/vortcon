@@ -7,7 +7,6 @@ import { resolveIcon } from '@/shared/design-system/icons';
 import { Badge, Button, FinancialValue, Pagination } from '@/shared/ui';
 import { TransactionDetailDrawer } from './TransactionDetailDrawer';
 import { TransactionFormDrawer } from './TransactionFormDrawer';
-import { TransferFormDrawer } from './TransferFormDrawer';
 import { groupByDay } from './transaction-grouping';
 
 export interface TransactionItemView {
@@ -59,7 +58,17 @@ const STATUS_LABEL: Record<TransactionItemView['status'], string> = {
   CANCELLED: 'Cancelada',
 };
 
-const monthFormatter = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' });
+// `timeZone: 'UTC'` é essencial aqui — `period.from` é meia-noite UTC do dia
+// 1º do mês. Sem isso, o navegador (rodando no fuso do usuário, ex.:
+// Brasil UTC-3) reinterpreta a meia-noite UTC como 21h do dia 31 do mês
+// anterior, fazendo o rótulo mostrar o mês errado (bug real relatado:
+// "Setembro" aparecia como "Agosto"). A data em si nunca esteve incorreta
+// no banco/na consulta — só a exibição do rótulo do mês.
+const monthFormatter = new Intl.DateTimeFormat('pt-BR', {
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
 
 /**
  * Transações — UX (Seção 76-80): abas Despesas/Receitas, filtro de mês
@@ -80,7 +89,6 @@ export function TransactionsView({
   const searchParams = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState<'INCOME' | 'EXPENSE' | null>(null);
-  const [transferring, setTransferring] = useState(false);
 
   const activeType = searchParams.get('tipo') ?? 'todas';
   const dayGroups = useMemo(() => groupByDay(initialData.items), [initialData.items]);
@@ -115,9 +123,6 @@ export function TransactionsView({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-ink-primary">Transações</h1>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setTransferring(true)}>
-            Transferência
-          </Button>
           <Button variant="secondary" onClick={() => setCreating('INCOME')}>
             Nova receita
           </Button>
@@ -271,10 +276,6 @@ export function TransactionsView({
           tags={tags}
           onClose={() => setCreating(null)}
         />
-      ) : null}
-
-      {transferring ? (
-        <TransferFormDrawer accounts={accounts} onClose={() => setTransferring(false)} />
       ) : null}
     </div>
   );

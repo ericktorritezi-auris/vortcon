@@ -17,7 +17,11 @@ function toDate(value: string | Date): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
-const dayFormatter = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: '2-digit' });
+const dayFormatter = new Intl.DateTimeFormat('pt-BR', {
+  weekday: 'long',
+  day: '2-digit',
+  timeZone: 'UTC',
+});
 
 /**
  * Agrupamento por dia (Seção 77) — dias mais recentes primeiro, com o total
