@@ -1,3 +1,5 @@
+'use client';
+
 import { CreditCard, Home, LayoutGrid, ListChecks, PieChart, Target } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 
