@@ -1,4 +1,4 @@
-import type { LegalDocumentType, LegalDocumentVersion } from '@prisma/client';
+import type { LegalDocumentType, LegalDocumentVersion, User } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
 
 const REQUIRED_DOCUMENT_TYPES: LegalDocumentType[] = ['PRIVACY_POLICY', 'TERMS_OF_USE'];
@@ -98,4 +98,96 @@ export async function findPendingAcceptances(userId: string): Promise<PendingAcc
 export async function hasAcceptedAllRequiredDocuments(userId: string): Promise<boolean> {
   const pending = await findPendingAcceptances(userId);
   return pending.length === 0;
+}
+
+export interface AcceptanceOverviewRow {
+  tenantId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  status: 'REGULARIZADO' | 'PENDENTE';
+  acceptedVersion: number | null;
+  acceptedAt: Date | null;
+}
+
+/**
+ * Consulta de aceites para o Admin (Seção 137): regularizados, pendentes,
+ * com timestamp. Somente leitura — "Não editar aceite registrado" (Seção
+ * 137) é satisfeito por não existir nenhuma mutação aqui, de propósito.
+ */
+export async function listAcceptanceOverview(
+  type: LegalDocumentType,
+): Promise<AcceptanceOverviewRow[]> {
+  const document = await prisma.legalDocument.findUnique({
+    where: { type },
+    include: { versions: { where: { status: 'PUBLISHED' } } },
+  });
+
+  const publishedVersion = document?.versions[0];
+
+  const owners = await prisma.user.findMany({
+    where: { role: 'TENANT_OWNER' },
+    include: { tenantMemberships: true },
+  });
+
+  const rows: AcceptanceOverviewRow[] = [];
+
+  for (const owner of owners) {
+    const tenantId = owner.tenantMemberships[0]?.tenantId;
+    if (!tenantId) continue;
+
+    const acceptance = publishedVersion
+      ? await prisma.legalAcceptance.findUnique({
+          where: {
+            userId_documentVersionId: { userId: owner.id, documentVersionId: publishedVersion.id },
+          },
+        })
+      : null;
+
+    rows.push({
+      tenantId,
+      userId: owner.id,
+      userName: owner.name,
+      userEmail: owner.email,
+      status: acceptance ? 'REGULARIZADO' : 'PENDENTE',
+      acceptedVersion: acceptance ? (publishedVersion?.version ?? null) : null,
+      acceptedAt: acceptance?.acceptedAt ?? null,
+    });
+  }
+
+  return rows;
+}
+
+export interface AcceptanceHistoryRow {
+  userName: string;
+  userEmail: string;
+  version: number;
+  acceptedAt: Date;
+  ipAddress: string | null;
+}
+
+/** Histórico completo de aceites de um documento, todas as versões (Seção 137: "histórico; timestamps"). */
+export async function listAcceptanceHistory(
+  type: LegalDocumentType,
+): Promise<AcceptanceHistoryRow[]> {
+  const acceptances = await prisma.legalAcceptance.findMany({
+    where: { documentVersion: { document: { type } } },
+    include: { user: true, documentVersion: true },
+    orderBy: { acceptedAt: 'desc' },
+  });
+
+  return acceptances.map(
+    (acceptance: {
+      acceptedAt: Date;
+      ipAddress: string | null;
+      user: User;
+      documentVersion: LegalDocumentVersion;
+    }) => ({
+      userName: acceptance.user.name,
+      userEmail: acceptance.user.email,
+      version: acceptance.documentVersion.version,
+      acceptedAt: acceptance.acceptedAt,
+      ipAddress: acceptance.ipAddress,
+    }),
+  );
 }

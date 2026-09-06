@@ -1,7 +1,12 @@
 import { notFound, redirect } from 'next/navigation';
 import { evaluateAdminAccess } from '@/modules/admin/admin-access.service';
 import { findLatestDraft, findPublishedVersion } from '@/modules/legal/legal-document.repository';
+import {
+  listAcceptanceHistory,
+  listAcceptanceOverview,
+} from '@/modules/legal/legal-acceptance.service';
 import { AdminShell } from '../../AdminShell';
+import { AcceptanceOverviewSection } from './AcceptanceOverviewSection';
 import { LegalEditor } from './LegalEditor';
 
 export const dynamic = 'force-dynamic';
@@ -25,9 +30,11 @@ export default async function AdminLegalEditorPage({
   const meta = SLUG_TO_TYPE[params.type as keyof typeof SLUG_TO_TYPE];
   if (!meta) notFound();
 
-  const [published, draft] = await Promise.all([
+  const [published, draft, overview, history] = await Promise.all([
     findPublishedVersion(meta.type),
     findLatestDraft(meta.type),
+    listAcceptanceOverview(meta.type),
+    listAcceptanceHistory(meta.type),
   ]);
 
   return (
@@ -38,6 +45,7 @@ export default async function AdminLegalEditorPage({
         initialContent={draft?.contentHtml ?? published?.contentHtml ?? ''}
         publishedVersion={published?.version ?? null}
       />
+      <AcceptanceOverviewSection overview={overview} history={history} />
     </AdminShell>
   );
 }
