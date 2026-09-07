@@ -234,7 +234,7 @@ export async function runTokenCleanupJob(): Promise<void> {
     const now = new Date();
     const [resetTokens, invitations] = await Promise.all([
       prisma.passwordResetToken.deleteMany({ where: { expiresAt: { lt: now } } }),
-      prisma.userInvitation.deleteMany({ where: { expiresAt: { lt: now }, acceptedAt: null } }),
+      prisma.userInvitation.deleteMany({ where: { expiresAt: { lt: now }, usedAt: null } }),
     ]);
     return { resetTokensRemoved: resetTokens.count, invitationsRemoved: invitations.count };
   });
