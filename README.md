@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 11 — Cockpit ✅ concluído                                                                                 |
-| Próximo estágio         | Estágio 12 — Relatórios                                                                                           |
+| Estágio atual           | Estágio 12 — Relatórios ✅ concluído                                                                              |
+| Próximo estágio         | Estágio 13 — Notificações                                                                                         |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -708,6 +708,29 @@ desfazer restaura saldo original, desfazer rejeitado se não concluída, cancela
 rejeitado se já concluída, cancelar pendente funciona, filtro de período). Mais 2
 cenários novos em `transactions-flow.test.ts` para `unsettleTransaction`.
 
+## Estágio 12 — o que foi entregue
+
+- Filtros completos (Seção 94): mês/período, categoria, conta, tag, status, natureza.
+  Sempre agrupado por mês — pedido explícito do cliente: "se o cara faz um filtro de
+  mais de dois meses, tem que vir dividido por mês". Validado contra Postgres real
+  com dados em agosto e setembro simultaneamente.
+- Relatório por categoria (Seção 96): receitas, despesas, resultado líquido,
+  quantidade de entradas/saídas, evolução mensal — testado reproduzindo o formato
+  exato do exemplo da especificação (Categoria: Empréstimo).
+- Exportação em **Excel server-side** (Seção 101), protegida contra formula
+  injection — todo texto do usuário passa por sanitização antes de virar célula;
+  testado com um exploit real (`=cmd|"/c calc"!A1`), tanto na função pura quanto na
+  geração do arquivo de verdade (assinatura ZIP/XLSX verificada nos bytes).
+- Exportação em **PDF com template dedicado** (Seção 100 — nunca captura de tela),
+  construído com `@react-pdf/renderer`: cabeçalho, cards de resumo, tabela por mês.
+  Validado contra bytes reais (assinatura `%PDF-`).
+- Duas dependências novas (`exceljs`, `@react-pdf/renderer`) — build completo
+  confirmado compilando limpo com as duas dentro do bundler do Next.js.
+- Mobile é só visualização (Seção 99) — os botões de exportação só aparecem em
+  telas sm+.
+- Saldo geral no relatório (pedido do cliente) — saldo real atual, dá contexto ao
+  período analisado.
+
 ## Estágio 11 — o que foi entregue
 
 - `getBalanceAsOf(tenantId, asOfDate)` no Financial Engine — generalização de
@@ -759,6 +782,42 @@ cenários novos em `transactions-flow.test.ts` para `unsettleTransaction`.
 ## Backlog registrado (não são lacunas — adiamento deliberado, confirmado pelo cliente)
 
 Itens identificados e conscientemente adiados para um estágio futuro a definir:
+
+- **Páginas públicas de venda: `/produto`, `/funcionalidades`, `/planos` — hoje 404,
+  link morto no `Header.tsx`.** Mesmo padrão do incidente das páginas de
+  contas/categorias/tags (Estágio 10): o link existe no menu, a página nunca foi
+  construída. Diferente daquele incidente, aqui a construção em si é conscientemente
+  adiada — não é pra ser corrigida com uma tela simples, é um trabalho de conteúdo e
+  design de verdade. Especificação exata dada pelo cliente:
+  - **`/produto`**: página de vendas completa, como se estivesse vendendo o produto.
+    Precisa explicar o que o VortCon faz, os pontos em que ele ajuda no dia a dia,
+    **com imagens reais** (não só texto) — o objetivo é estimular a pessoa a querer
+    usar, não é uma tela institucional genérica.
+  - **`/funcionalidades`**: cobre as funcionalidades de ponta a ponta do lado do
+    **tenant** (lançamentos, contas, categorias, tags, transferências, Cockpit etc.)
+    — nunca as funcionalidades do Admin. Também com imagens e texto persuasivo,
+    pontos que estimulem a conversão, não uma lista seca de features.
+  - **`/planos`**: página de planos **alimentada pelo banco** (`subscription_plans`)
+    — nunca hardcoded. Hoje só existe o VortCon Pro (R$ 49,90), então só ele aparece;
+    se um novo plano for cadastrado depois, aparece automaticamente, sem precisar
+    mexer na página. Precisa destacar o pagamento via PIX, de forma facilitada. O
+    dado vem do banco, mas o layout/design em cima disso é customizado e bonito —
+    não é uma lista de tabela crua, é uma página pensada pra conversão, assim como
+    as outras duas.
+  - As três precisam ser bem feitas — o cliente foi explícito: "tem que fazer
+    bonito, tem que fazer direito, principalmente com imagens" (exceto `/planos`,
+    que não foi pedido com imagens, só design customizado sobre o dado do banco).
+- **`/ajuda` pública (pré-login) — decisão tomada: remover.** Confirmado pelo
+  cliente: não vai ficar. Só permanece o menu "Ajuda" dentro do painel do tenant
+  (abaixo). Quando as páginas de venda acima forem construídas, remover também o
+  link "Ajuda" de `Header.tsx`.
+- **Novo menu "Ajuda" dentro do painel do tenant (pós-login).** Diferente da ajuda
+  pública acima — o cliente gostou desta ideia especificamente: um manual de uso do
+  próprio sistema, passo a passo por funcionalidade (ex.: "para lançar uma categoria,
+  clique em Categorias, depois em Adicionar categoria..."). Cobre o mesmo escopo de
+  `/funcionalidades` mas em formato de manual, não de venda. **Sem imagem** — só
+  descrição em texto, ao contrário das páginas públicas acima. Vira um item de menu
+  na sidebar do tenant (`Sidebar.tsx`), ao lado dos já existentes.
 
 - **Busca global do Admin não é funcional ainda** — a `Topbar` tem o campo de busca
   desabilitado de propósito (Seção "Reestruturação de UX" abaixo). Buscar de verdade
