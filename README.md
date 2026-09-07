@@ -708,6 +708,17 @@ desfazer restaura saldo original, desfazer rejeitado se não concluída, cancela
 rejeitado se já concluída, cancelar pendente funciona, filtro de período). Mais 2
 cenários novos em `transactions-flow.test.ts` para `unsettleTransaction`.
 
+### Correção pós-Estágio 12 — filtro de período personalizado ausente na UI
+
+O cliente relatou: elogiou a tela, PDF e Excel, mas não encontrou como filtrar por
+um período de tempo (só o navegador de mês existia visualmente). O backend já
+suportava `?de=&ate=` desde a construção do módulo (`resolveMonthPeriod`,
+reaproveitado de Transações/Transferências), mas nunca havia controle nenhum na tela
+para isso — só o navegador `‹ Mês ›`. Adicionado um seletor de modo "Mês / Período"
+acima da lista: no modo Mês, comportamento igual a antes; no modo Período, dois
+campos de data (De/Até) com botão "Aplicar", usando exatamente o mesmo parâmetro que
+o backend já esperava.
+
 ## Estágio 12 — o que foi entregue
 
 - Filtros completos (Seção 94): mês/período, categoria, conta, tag, status, natureza.

@@ -74,6 +74,8 @@ export default async function RelatoriosPage({
           tag: searchParams.tag,
           status: searchParams.status,
           natureza: searchParams.natureza,
+          de: searchParams.de,
+          ate: searchParams.ate,
         }}
       />
     </AppShell>

@@ -2,8 +2,9 @@
 
 import { ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import { formatMonthLabel, shiftMonthParam } from '@/shared/period';
-import { Badge, Button, FinancialValue, Select } from '@/shared/ui';
+import { Badge, Button, DateInput, FinancialValue, Select } from '@/shared/ui';
 import type { ReportFilterSummary, ReportResult } from '@/modules/reports/report.service';
 
 interface SimpleOption {
@@ -24,6 +25,8 @@ interface ReportsViewProps {
     tag?: string;
     status?: string;
     natureza?: string;
+    de?: string;
+    ate?: string;
   };
 }
 
@@ -51,6 +54,12 @@ export function ReportsView({
 }: ReportsViewProps): React.ReactElement {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isCustomPeriod = Boolean(selected.de && selected.ate);
+  const [periodMode, setPeriodMode] = useState<'mes' | 'periodo'>(
+    isCustomPeriod ? 'periodo' : 'mes',
+  );
+  const [customFrom, setCustomFrom] = useState(selected.de ?? period.from.slice(0, 10));
+  const [customTo, setCustomTo] = useState(selected.ate ?? period.to.slice(0, 10));
   const monthLabel = formatMonthLabel(new Date(period.from));
 
   function updateParam(key: string, value: string): void {
@@ -66,6 +75,22 @@ export function ReportsView({
     params.set('mes', monthValue);
     params.delete('de');
     params.delete('ate');
+    router.push(`/app/relatorios?${params.toString()}`);
+  }
+
+  function switchToMonthMode(): void {
+    setPeriodMode('mes');
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('de');
+    params.delete('ate');
+    router.push(`/app/relatorios?${params.toString()}`);
+  }
+
+  function applyCustomPeriod(): void {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('de', customFrom);
+    params.set('ate', customTo);
+    params.delete('mes');
     router.push(`/app/relatorios?${params.toString()}`);
   }
 
@@ -91,26 +116,79 @@ export function ReportsView({
         </div>
       </div>
 
-      <div className="flex items-center gap-1 self-start">
-        <button
-          type="button"
-          onClick={() => navigateMonth(-1)}
-          aria-label="Mês anterior"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
+      <div className="flex flex-wrap items-center gap-3">
+        <div
+          role="tablist"
+          aria-label="Modo de período"
+          className="flex gap-1 rounded-md bg-surface-page p-1"
         >
-          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-        </button>
-        <span className="min-w-24 text-center text-sm font-medium text-ink-primary">
-          {monthLabel}
-        </span>
-        <button
-          type="button"
-          onClick={() => navigateMonth(1)}
-          aria-label="Próximo mês"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
-        >
-          <ChevronRight className="h-4 w-4" aria-hidden="true" />
-        </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={periodMode === 'mes'}
+            onClick={switchToMonthMode}
+            className={[
+              'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+              periodMode === 'mes' ? 'bg-white text-brand-deep shadow-sm' : 'text-ink-secondary',
+            ].join(' ')}
+          >
+            Mês
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={periodMode === 'periodo'}
+            onClick={() => setPeriodMode('periodo')}
+            className={[
+              'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+              periodMode === 'periodo'
+                ? 'bg-white text-brand-deep shadow-sm'
+                : 'text-ink-secondary',
+            ].join(' ')}
+          >
+            Período
+          </button>
+        </div>
+
+        {periodMode === 'mes' ? (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => navigateMonth(-1)}
+              aria-label="Mês anterior"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <span className="min-w-24 text-center text-sm font-medium text-ink-primary">
+              {monthLabel}
+            </span>
+            <button
+              type="button"
+              onClick={() => navigateMonth(1)}
+              aria-label="Próximo mês"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-end gap-2">
+            <DateInput
+              label="De"
+              value={customFrom}
+              onChange={(event) => setCustomFrom(event.target.value)}
+            />
+            <DateInput
+              label="Até"
+              value={customTo}
+              onChange={(event) => setCustomTo(event.target.value)}
+            />
+            <Button size="sm" onClick={applyCustomPeriod}>
+              Aplicar
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 rounded-lg border border-ink-secondary/15 bg-white p-4 sm:grid-cols-3 lg:grid-cols-5">
