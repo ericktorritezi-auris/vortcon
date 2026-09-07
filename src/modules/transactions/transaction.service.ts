@@ -92,6 +92,10 @@ export async function cancelTransaction(tenantId: string, transactionId: string)
   return transactionRepository.cancelTransaction(tenantId, transactionId);
 }
 
+export async function unsettleTransaction(tenantId: string, transactionId: string) {
+  return transactionRepository.unsettleTransaction(tenantId, transactionId);
+}
+
 export async function reactivateTransaction(tenantId: string, transactionId: string) {
   return transactionRepository.reactivateTransaction(tenantId, transactionId);
 }

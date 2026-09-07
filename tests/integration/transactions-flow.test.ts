@@ -12,6 +12,7 @@ import {
   listTransactions,
   reactivateTransaction,
   settleTransaction,
+  unsettleTransaction,
   updateTransaction,
 } from '@/modules/transactions/transaction.service';
 import { cleanupTenant, createTestPlan, deleteTestPlan } from '../helpers/commercial';
@@ -143,6 +144,37 @@ describe('fluxo de transações', () => {
     const settled = await findTransactionById(tenantId, transaction.id);
     expect(settled?.status).toBe('RECEIVED');
     expect(settled?.settlementDate).not.toBeNull();
+  });
+
+  it('desfazer liquidação (pedido do cliente) volta pago/recebido -> pendente e limpa a data', async () => {
+    const transaction = await createIncomeOrExpense(tenantId, {
+      type: 'EXPENSE',
+      description: 'Marcada como paga por engano',
+      amountCents: 8000,
+      dueDate: new Date('2026-09-06'),
+      accountId,
+    });
+
+    await settleTransaction(tenantId, transaction.id);
+    const settled = await findTransactionById(tenantId, transaction.id);
+    expect(settled?.status).toBe('PAID');
+
+    await unsettleTransaction(tenantId, transaction.id);
+    const reverted = await findTransactionById(tenantId, transaction.id);
+    expect(reverted?.status).toBe('PENDING');
+    expect(reverted?.settlementDate).toBeNull();
+  });
+
+  it('desfazer liquidação de uma transação que nunca foi paga é rejeitado', async () => {
+    const transaction = await createIncomeOrExpense(tenantId, {
+      type: 'EXPENSE',
+      description: 'Nunca foi paga',
+      amountCents: 1000,
+      dueDate: new Date('2026-09-06'),
+      accountId,
+    });
+
+    await expect(unsettleTransaction(tenantId, transaction.id)).rejects.toThrow();
   });
 
   it('cancelar -> reativar (Seção 78) preserva e restaura o status anterior', async () => {

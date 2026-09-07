@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { resolveIcon } from '@/shared/design-system/icons';
-import { Badge, Button, Drawer, FinancialValue } from '@/shared/ui';
+import { Badge, Button, Drawer, FinancialValue, Toggle } from '@/shared/ui';
 import { TransactionFormFields } from './TransactionFormFields';
 import type { TransactionFormValues } from './TransactionFormFields';
 import type { TransactionItemView } from './TransactionsView';
@@ -100,6 +100,20 @@ export function TransactionDetailDrawer({
     await runAction(() => fetch(`/api/transactions/${transaction.id}/settle`, { method: 'POST' }));
   }
 
+  async function handleUnsettle(): Promise<void> {
+    await runAction(() =>
+      fetch(`/api/transactions/${transaction.id}/unsettle`, { method: 'POST' }),
+    );
+  }
+
+  function handleToggleSettled(nextChecked: boolean): void {
+    if (nextChecked) {
+      void handleSettle();
+    } else {
+      void handleUnsettle();
+    }
+  }
+
   async function handleCancel(): Promise<void> {
     await runAction(() => fetch(`/api/transactions/${transaction.id}/cancel`, { method: 'POST' }));
   }
@@ -169,11 +183,6 @@ export function TransactionDetailDrawer({
       title={transaction.type === 'INCOME' ? 'Detalhe da receita' : 'Detalhe da despesa'}
       footer={
         <div className="flex flex-wrap gap-2">
-          {!isCancelled && !isSettled ? (
-            <Button onClick={handleSettle} loading={loading} className="flex-1">
-              {transaction.type === 'INCOME' ? 'Marcar como recebida' : 'Marcar como paga'}
-            </Button>
-          ) : null}
           {!isCancelled ? (
             <Button variant="secondary" onClick={() => setEditing(true)} className="flex-1">
               Editar
@@ -208,6 +217,21 @@ export function TransactionDetailDrawer({
             </Badge>
           </div>
         </div>
+
+        {!isCancelled ? (
+          <div className="flex items-center justify-between rounded-md border border-ink-secondary/15 bg-surface-page px-3 py-2.5">
+            <span className="text-sm font-medium text-ink-primary">
+              {transaction.type === 'INCOME' ? 'Recebida' : 'Paga'}
+            </span>
+            <Toggle
+              label={transaction.type === 'INCOME' ? 'Marcar como recebida' : 'Marcar como paga'}
+              hideLabel
+              checked={isSettled}
+              onChange={handleToggleSettled}
+              disabled={loading}
+            />
+          </div>
+        ) : null}
 
         <FinancialValue
           cents={transaction.type === 'INCOME' ? transaction.amountCents : -transaction.amountCents}

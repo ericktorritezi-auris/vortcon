@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { formatMonthLabel, shiftMonthParam } from '@/shared/period';
 import { Badge, Button, FinancialValue } from '@/shared/ui';
+import { TransferDetailDrawer } from './TransferDetailDrawer';
 import { TransferFormDrawer } from './TransferFormDrawer';
 
 export interface TransferItemView {
@@ -82,12 +83,14 @@ export function TransfersView({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [creating, setCreating] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const accountsById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
     [accounts],
   );
   const dayGroups = useMemo(() => groupTransfersByDay(transfers), [transfers]);
   const monthLabel = formatMonthLabel(new Date(period.from));
+  const selectedTransfer = transfers.find((transfer) => transfer.id === selectedId) ?? null;
 
   function navigateMonth(direction: 1 | -1): void {
     const monthValue = shiftMonthParam(period.from, direction);
@@ -138,9 +141,11 @@ export function TransfersView({
             </div>
             <div className="flex flex-col divide-y divide-ink-secondary/10">
               {group.items.map((transfer) => (
-                <div
+                <button
                   key={transfer.id}
-                  className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  type="button"
+                  onClick={() => setSelectedId(transfer.id)}
+                  className="flex w-full flex-col gap-2 px-4 py-3 text-left hover:bg-surface-page sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="flex min-w-0 items-center gap-2 text-sm text-ink-primary">
                     <span className="truncate">
@@ -155,12 +160,20 @@ export function TransfersView({
                     </span>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <Badge tone={transfer.status === 'CANCELLED' ? 'neutral' : 'success'}>
+                    <Badge
+                      tone={
+                        transfer.status === 'CANCELLED'
+                          ? 'neutral'
+                          : transfer.status === 'COMPLETED'
+                            ? 'success'
+                            : 'warning'
+                      }
+                    >
                       {STATUS_LABEL[transfer.status]}
                     </Badge>
                     <FinancialValue cents={transfer.amountCents} />
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -174,6 +187,14 @@ export function TransfersView({
 
       {creating ? (
         <TransferFormDrawer accounts={accounts} onClose={() => setCreating(false)} />
+      ) : null}
+
+      {selectedTransfer ? (
+        <TransferDetailDrawer
+          transfer={selectedTransfer}
+          accounts={accounts}
+          onClose={() => setSelectedId(null)}
+        />
       ) : null}
     </div>
   );

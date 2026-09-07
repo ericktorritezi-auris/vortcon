@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { formatMonthLabel, shiftMonthParam } from '@/shared/period';
 import { Button, FinancialValue, MetricCard } from '@/shared/ui';
 import type { CockpitSummary } from '@/modules/cockpit/cockpit.service';
+import { CategoryPieChart } from './CategoryPieChart';
 
 interface SimpleOption {
   id: string;
@@ -251,6 +252,34 @@ export function CockpitView({
           </div>
         </section>
       </div>
+
+      <section className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+        <h2 className="mb-4 text-sm font-semibold text-ink-primary">
+          Categorias em percentual do mês
+        </h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <CategoryPieChart
+            title="Despesas por categoria"
+            emptyMessage="Nenhuma despesa neste mês ainda."
+            data={summary.categoryBreakdown
+              .filter((row) => row.expenseTotalCents > 0)
+              .map((row) => ({
+                label: categoriesById.get(row.categoryId)?.name ?? '—',
+                valueCents: row.expenseTotalCents,
+              }))}
+          />
+          <CategoryPieChart
+            title="Receitas por categoria"
+            emptyMessage="Nenhuma receita neste mês ainda."
+            data={summary.categoryBreakdown
+              .filter((row) => row.incomeTotalCents > 0)
+              .map((row) => ({
+                label: categoriesById.get(row.categoryId)?.name ?? '—',
+                valueCents: row.incomeTotalCents,
+              }))}
+          />
+        </div>
+      </section>
 
       <section className="rounded-lg border border-dashed border-ink-secondary/25 p-4">
         <div className="flex items-center gap-2 text-sm font-semibold text-ink-primary">

@@ -5,6 +5,7 @@ import {
   getPeriodExpenses,
   getPeriodIncome,
 } from '@/modules/financial-engine/financial-engine.service';
+import type { CategoryBreakdownRow } from '@/modules/financial-engine/financial-engine.service';
 import { selectCategoryHighlights } from './cockpit-highlights';
 import type { CategoryHighlights } from './cockpit-highlights';
 
@@ -39,6 +40,8 @@ export interface CockpitSummary {
     resultCents: number;
   };
   categoryHighlights: CategoryHighlights;
+  /** Movimentação do mês por categoria — base para o gráfico de pizza (despesas/receitas por categoria, a pedido do cliente). */
+  categoryBreakdown: CategoryBreakdownRow[];
 }
 
 /**
@@ -103,6 +106,7 @@ export async function getCockpitSummary(
       resultCents: previousIncomeCents - previousExpenseCents,
     },
     categoryHighlights,
+    categoryBreakdown: currentCategoryBreakdown,
   };
 }
 

@@ -680,6 +680,34 @@ Continuação da correção anterior — 4 pontos reportados juntos pelo cliente
   Transações e Transferências — evita duas implementações divergindo com o tempo.
   10 testes unitários novos, incluindo casos de borda (fevereiro, virada de ano).
 
+### Correção pós-Estágio 11 — pizza de categorias no Cockpit + reverter pago/transferido
+
+Dois pedidos do cliente:
+
+1. **Gráfico de pizza por categoria no Cockpit** — os destaques de categoria (maior
+   saída, maior entrada etc.) ganharam companhia: dois gráficos de pizza (Despesas por
+   categoria, Receitas por categoria) mostrando o percentual de cada categoria dentro
+   do total do mês. Construído sem dependência externa (`conic-gradient` do CSS), com
+   legenda mostrando nome + valor + percentual em texto — cor nunca é único indicador
+   (Seção 12). Nada foi removido, só somado.
+2. **Reverter pago/transferido antes de editar** — o cliente foi explícito: "às vezes
+   eu dou como pago e não entrou, aí eu tiro o pago". Antes só existia marcar como
+   pago, nunca desfazer. Adicionado `unsettleTransaction`/`unsettleTransfer`
+   (PAID/RECEIVED/COMPLETED → PENDING, limpando a data de liquidação) e troquei o
+   botão de mão única por um **toggle bidirecional**, posicionado no topo do drawer de
+   detalhe — antes de "Editar", nunca dentro dele. Mesma coisa em Transferências, que
+   nem tinha detalhe clicável ainda — criado do zero (`TransferDetailDrawer.tsx`), e
+   corrigido de brinde um badge que mostrava "sucesso" (verde) para transferências
+   pendentes.
+
+De brinde: nunca existia um teste de integração dedicado para o módulo de
+transferências — a matemática de saldo tinha sido validada só via SQL direto durante o
+desenvolvimento. Fechado agora (`transfers-flow.test.ts`, 9 cenários: rejeição de
+mesma conta, pendente não altera saldo, concluir move saldo, criação já concluída,
+desfazer restaura saldo original, desfazer rejeitado se não concluída, cancelar
+rejeitado se já concluída, cancelar pendente funciona, filtro de período). Mais 2
+cenários novos em `transactions-flow.test.ts` para `unsettleTransaction`.
+
 ## Estágio 11 — o que foi entregue
 
 - `getBalanceAsOf(tenantId, asOfDate)` no Financial Engine — generalização de

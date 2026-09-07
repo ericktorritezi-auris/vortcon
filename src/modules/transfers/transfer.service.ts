@@ -62,6 +62,25 @@ export async function completeTransfer(
   });
 }
 
+/**
+ * Reverte concluída → pendente — mesmo pedido do cliente que motivou
+ * `unsettleTransaction`: "transferido ou não transferido" precisa poder
+ * voltar atrás antes de qualquer edição. Diferente de cancelar (que é
+ * definitivo e nunca permitido em cima de uma já concluída).
+ */
+export async function unsettleTransfer(tenantId: string, transferId: string) {
+  const transfer = await prisma.transfer.findFirstOrThrow({ where: { id: transferId, tenantId } });
+
+  if (transfer.status !== 'COMPLETED') {
+    throw new Error('Só é possível reverter uma transferência concluída.');
+  }
+
+  return prisma.transfer.update({
+    where: { id: transfer.id },
+    data: { status: 'PENDING', settlementDate: null },
+  });
+}
+
 export async function cancelTransfer(tenantId: string, transferId: string) {
   const transfer = await prisma.transfer.findFirstOrThrow({ where: { id: transferId, tenantId } });
 

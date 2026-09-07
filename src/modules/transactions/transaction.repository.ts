@@ -163,6 +163,27 @@ export async function settleTransaction(
   });
 }
 
+/**
+ * Reverte a liquidação (volta PAID/RECEIVED → PENDING) — o cliente foi
+ * explícito: "às vezes eu dou como pago e não entrou, aí eu tiro o pago".
+ * Diferente de cancelar: a transação continua ativa e cobrando/aguardando,
+ * só deixa de estar liquidada. Nunca em CANCELLED (isso é reativar).
+ */
+export async function unsettleTransaction(tenantId: string, transactionId: string) {
+  const transaction = await prisma.financialTransaction.findFirstOrThrow({
+    where: { id: transactionId, tenantId },
+  });
+
+  if (transaction.status !== 'PAID' && transaction.status !== 'RECEIVED') {
+    throw new Error('Só é possível desfazer a liquidação de uma transação paga/recebida.');
+  }
+
+  return prisma.financialTransaction.update({
+    where: { id: transaction.id },
+    data: { status: 'PENDING', settlementDate: null },
+  });
+}
+
 export async function cancelTransaction(tenantId: string, transactionId: string) {
   const transaction = await prisma.financialTransaction.findFirstOrThrow({
     where: { id: transactionId, tenantId },
