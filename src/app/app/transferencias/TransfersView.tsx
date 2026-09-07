@@ -1,7 +1,9 @@
 'use client';
 
-import { ArrowRight, Plus } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { formatMonthLabel, shiftMonthParam } from '@/shared/period';
 import { Badge, Button, FinancialValue } from '@/shared/ui';
 import { TransferFormDrawer } from './TransferFormDrawer';
 
@@ -23,6 +25,7 @@ interface SimpleOption {
 interface TransfersViewProps {
   transfers: TransferItemView[];
   accounts: SimpleOption[];
+  period: { from: string; to: string };
 }
 
 const STATUS_LABEL: Record<TransferItemView['status'], string> = {
@@ -67,17 +70,33 @@ function groupTransfersByDay(transfers: TransferItemView[]): TransferDayGroup[] 
 
 /**
  * Transferências entre contas (Seção 66-68) — menu próprio, separado de
- * Transações, a pedido explícito do cliente: transferir dinheiro entre as
- * próprias contas não é receita nem despesa, e misturar os dois na mesma
- * listagem confundia mais do que ajudava.
+ * Transações a pedido do cliente. Mesma navegação de mês de Transações
+ * (Setembro/2026, default mês atual) — sem isso, uma data como "Domingo,
+ * 06" não dava pra saber de qual mês.
  */
-export function TransfersView({ transfers, accounts }: TransfersViewProps): React.ReactElement {
+export function TransfersView({
+  transfers,
+  accounts,
+  period,
+}: TransfersViewProps): React.ReactElement {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [creating, setCreating] = useState(false);
   const accountsById = useMemo(
     () => new Map(accounts.map((account) => [account.id, account])),
     [accounts],
   );
   const dayGroups = useMemo(() => groupTransfersByDay(transfers), [transfers]);
+  const monthLabel = formatMonthLabel(new Date(period.from));
+
+  function navigateMonth(direction: 1 | -1): void {
+    const monthValue = shiftMonthParam(period.from, direction);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('mes', monthValue);
+    params.delete('de');
+    params.delete('ate');
+    router.push(`/app/transferencias?${params.toString()}`);
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -87,6 +106,28 @@ export function TransfersView({ transfers, accounts }: TransfersViewProps): Reac
           <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
           Nova transferência
         </Button>
+      </div>
+
+      <div className="flex items-center gap-1 self-start">
+        <button
+          type="button"
+          onClick={() => navigateMonth(-1)}
+          aria-label="Mês anterior"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <span className="min-w-24 text-center text-sm font-medium text-ink-primary">
+          {monthLabel}
+        </span>
+        <button
+          type="button"
+          onClick={() => navigateMonth(1)}
+          aria-label="Próximo mês"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
+        >
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </button>
       </div>
 
       <div className="flex flex-col gap-4">
@@ -99,14 +140,21 @@ export function TransfersView({ transfers, accounts }: TransfersViewProps): Reac
               {group.items.map((transfer) => (
                 <div
                   key={transfer.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3"
+                  className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div className="flex items-center gap-2 text-sm text-ink-primary">
-                    <span>{accountsById.get(transfer.sourceAccountId)?.name ?? '—'}</span>
-                    <ArrowRight className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
-                    <span>{accountsById.get(transfer.destinationAccountId)?.name ?? '—'}</span>
+                  <div className="flex min-w-0 items-center gap-2 text-sm text-ink-primary">
+                    <span className="truncate">
+                      {accountsById.get(transfer.sourceAccountId)?.name ?? '—'}
+                    </span>
+                    <ArrowRight
+                      className="h-4 w-4 shrink-0 text-ink-secondary"
+                      aria-hidden="true"
+                    />
+                    <span className="truncate">
+                      {accountsById.get(transfer.destinationAccountId)?.name ?? '—'}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <Badge tone={transfer.status === 'CANCELLED' ? 'neutral' : 'success'}>
                       {STATUS_LABEL[transfer.status]}
                     </Badge>
@@ -119,7 +167,7 @@ export function TransfersView({ transfers, accounts }: TransfersViewProps): Reac
         ))}
         {dayGroups.length === 0 ? (
           <div className="rounded-lg border border-dashed border-ink-secondary/25 py-16 text-center text-sm text-ink-secondary">
-            Nenhuma transferência ainda.
+            Nenhuma transferência neste período.
           </div>
         ) : null}
       </div>

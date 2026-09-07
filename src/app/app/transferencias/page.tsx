@@ -3,12 +3,28 @@ import type { FinancialAccount, Transfer } from '@prisma/client';
 import { evaluateAccessPolicy } from '@/modules/auth/access-policy.service';
 import { listAccounts } from '@/modules/accounts/account.service';
 import { listTransfers } from '@/modules/transfers/transfer.service';
+import { resolveMonthPeriod } from '@/shared/period';
 import { AppShell } from '../AppShell';
 import { TransfersView } from './TransfersView';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TransferenciasPage(): Promise<React.ReactElement> {
+interface TransferenciasPageProps {
+  searchParams: {
+    mes?: string;
+    de?: string;
+    ate?: string;
+  };
+}
+
+/**
+ * Transferências (Seção 66-68) — menu próprio, a pedido do cliente. Mesma
+ * navegação de mês de Transações (default mês atual), reaproveitando
+ * `resolveMonthPeriod` compartilhado.
+ */
+export default async function TransferenciasPage({
+  searchParams,
+}: TransferenciasPageProps): Promise<React.ReactElement> {
   const access = await evaluateAccessPolicy();
 
   switch (access.kind) {
@@ -29,10 +45,11 @@ export default async function TransferenciasPage(): Promise<React.ReactElement> 
   }
 
   const { tenantId } = access.context;
+  const period = resolveMonthPeriod(searchParams);
 
   const [accounts, transfers] = await Promise.all([
     listAccounts(tenantId),
-    listTransfers(tenantId),
+    listTransfers(tenantId, { from: period.from, to: period.to }),
   ]);
 
   return (
@@ -51,6 +68,7 @@ export default async function TransferenciasPage(): Promise<React.ReactElement> 
           id: account.id,
           name: account.name,
         }))}
+        period={{ from: period.from.toISOString(), to: period.to.toISOString() }}
       />
     </AppShell>
   );

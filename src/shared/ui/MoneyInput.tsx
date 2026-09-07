@@ -59,7 +59,7 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
         value={formatCents(valueInCents)}
         onChange={(event) => onValueChange(digitsToCents(event.target.value))}
         className={[
-          'money h-11 rounded-md border bg-white px-3 text-right text-sm text-ink-primary',
+          'money h-11 w-full rounded-md border bg-white px-3 text-right text-sm text-ink-primary',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-intelligence',
           error ? 'border-financial-danger' : 'border-ink-secondary/30',
           className ?? '',

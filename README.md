@@ -654,6 +654,32 @@ permite criar novas. Justificativa do próprio cliente, que faz sentido
 arquiteturalmente: transferência não é receita nem despesa (Seção 68), misturar as
 duas listagens confundia mais do que ajudava.
 
+### Correção pós-Estágio 10 — quebra de layout no mobile, mês em Transferências, formato do rótulo
+
+Continuação da correção anterior — 4 pontos reportados juntos pelo cliente com prints:
+
+- **Quebra no mobile em Contas, Transferências e Transações** — causa confirmada: as
+  linhas de lista (`AccountsManager.tsx`, `TransfersView.tsx`, item de
+  `TransactionsView.tsx`) usavam `flex items-center justify-between` sem nenhum
+  breakpoint de empilhamento; nome/badge/valor competiam pelo mesmo espaço horizontal
+  e estouravam a tela. Corrigido com `flex-col sm:flex-row` nas três, `min-w-0` +
+  `truncate` nos textos (nomes longos não empurram mais o layout), e `flex-wrap` nos
+  grupos de ação/badge. De brinde: achei que `Input` e `MoneyInput` (Design System)
+  não tinham `w-full` no `<input>` — `DateInput` e `Select` já tinham, inconsistência
+  real que explicava o campo "Saldo inicial" cortado no formulário de Nova conta;
+  corrigido nos dois. `CategoriesManager.tsx` reforçado por precaução (nomes longos);
+  `TagsManager.tsx` conferido e já estava seguro (já usava `flex-wrap`).
+- **Transferências ganhou navegador de mês** — mesma UX de Transações agora
+  (`‹ Setembro/2026 ›`), filtrando `scheduledDate` no período. `listTransfers` no
+  service ganhou filtro `from`/`to` opcional para isso.
+- **Rótulo "Setembro/2026"** em vez de "Setembro De 2026" — o "De" maiúsculo vinha da
+  classe CSS `capitalize` do Tailwind (capitaliza cada palavra, não só a primeira),
+  não de um bug de código. Formato novo escrito manualmente, sem essa classe.
+- Toda essa lógica de período (`resolveMonthPeriod`, `formatMonthLabel`,
+  `shiftMonthParam`) foi extraída para `shared/period.ts`, reaproveitada por
+  Transações e Transferências — evita duas implementações divergindo com o tempo.
+  10 testes unitários novos, incluindo casos de borda (fevereiro, virada de ano).
+
 ## Estágio 10 — o que foi entregue
 
 - `OnboardingProgress` (Seção 38 já previa esta entidade) — migration validada contra

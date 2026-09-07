@@ -36,7 +36,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         aria-invalid={Boolean(error)}
         aria-describedby={[hintId, errorId].filter(Boolean).join(' ') || undefined}
         className={[
-          'h-11 rounded-md border bg-white px-3 text-sm text-ink-primary placeholder:text-ink-secondary',
+          'h-11 w-full rounded-md border bg-white px-3 text-sm text-ink-primary placeholder:text-ink-secondary',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-intelligence',
           error ? 'border-financial-danger' : 'border-ink-secondary/30',
           'disabled:cursor-not-allowed disabled:bg-surface-page disabled:opacity-70',

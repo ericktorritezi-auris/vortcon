@@ -63,11 +63,11 @@ export function CategoriesManager({
           const Icon = resolveIcon(category.iconKey);
           return (
             <div key={category.id} className="flex items-center justify-between gap-3 px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-page text-ink-secondary">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-page text-ink-secondary">
                   <Icon className="h-4 w-4" aria-hidden="true" />
                 </span>
-                <p className="text-sm font-medium text-ink-primary">{category.name}</p>
+                <p className="truncate text-sm font-medium text-ink-primary">{category.name}</p>
               </div>
               <Button size="sm" variant="danger" onClick={() => handleDeactivate(category.id)}>
                 Inativar

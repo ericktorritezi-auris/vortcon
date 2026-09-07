@@ -85,19 +85,22 @@ export function AccountsManager({ accounts }: { accounts: AccountView[] }): Reac
     <div className="flex flex-col gap-6">
       <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-white">
         {accounts.map((account) => (
-          <div key={account.id} className="flex items-center justify-between gap-3 px-4 py-3">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-page text-ink-secondary">
+          <div
+            key={account.id}
+            className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-page text-ink-secondary">
                 <CreditCard className="h-4 w-4" aria-hidden="true" />
               </span>
-              <div>
-                <p className="text-sm font-medium text-ink-primary">{account.name}</p>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-ink-primary">{account.name}</p>
                 <p className="text-xs text-ink-secondary">{TYPE_LABEL[account.type]}</p>
               </div>
             </div>
 
             {editingBalanceId === account.id ? (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <MoneyInput
                   label="Novo saldo inicial"
                   hideLabel
@@ -112,7 +115,7 @@ export function AccountsManager({ accounts }: { accounts: AccountView[] }): Reac
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <FinancialValue cents={account.initialBalanceCents} />
                 <Button
                   size="sm"

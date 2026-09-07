@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { resolveIcon } from '@/shared/design-system/icons';
+import { formatMonthLabel, shiftMonthParam } from '@/shared/period';
 import { Badge, Button, FinancialValue, Pagination } from '@/shared/ui';
 import { TransactionDetailDrawer } from './TransactionDetailDrawer';
 import { TransactionFormDrawer } from './TransactionFormDrawer';
@@ -58,17 +59,9 @@ const STATUS_LABEL: Record<TransactionItemView['status'], string> = {
   CANCELLED: 'Cancelada',
 };
 
-// `timeZone: 'UTC'` é essencial aqui — `period.from` é meia-noite UTC do dia
-// 1º do mês. Sem isso, o navegador (rodando no fuso do usuário, ex.:
-// Brasil UTC-3) reinterpreta a meia-noite UTC como 21h do dia 31 do mês
-// anterior, fazendo o rótulo mostrar o mês errado (bug real relatado:
-// "Setembro" aparecia como "Agosto"). A data em si nunca esteve incorreta
-// no banco/na consulta — só a exibição do rótulo do mês.
-const monthFormatter = new Intl.DateTimeFormat('pt-BR', {
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
+// Formatação e navegação de mês (Seção compartilhada com Transferências —
+// mesma UX nas duas telas, a pedido do cliente). "Setembro/2026", nunca
+// "Setembro De 2026" — ver shared/period.ts.
 
 /**
  * Transações — UX (Seção 76-80): abas Despesas/Receitas, filtro de mês
@@ -103,11 +96,7 @@ export function TransactionsView({
   }
 
   function navigateMonth(direction: 1 | -1): void {
-    const currentFrom = new Date(period.from);
-    const nextMonth = new Date(
-      Date.UTC(currentFrom.getUTCFullYear(), currentFrom.getUTCMonth() + direction, 1),
-    );
-    const monthValue = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, '0')}`;
+    const monthValue = shiftMonthParam(period.from, direction);
     const params = new URLSearchParams(searchParams.toString());
     params.set('mes', monthValue);
     params.delete('de');
@@ -116,7 +105,7 @@ export function TransactionsView({
     router.push(`/app/transacoes?${params.toString()}`);
   }
 
-  const monthLabel = monthFormatter.format(new Date(period.from));
+  const monthLabel = formatMonthLabel(new Date(period.from));
 
   return (
     <div className="flex flex-col gap-5">
@@ -133,7 +122,7 @@ export function TransactionsView({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div
           role="tablist"
           aria-label="Filtrar por natureza"
@@ -162,7 +151,7 @@ export function TransactionsView({
           ))}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2 rounded-md border border-ink-secondary/15 bg-white px-3 py-1.5">
             <span className="text-xs text-ink-secondary">Balanço do mês</span>
             <FinancialValue cents={periodResultCents} showSign />
@@ -172,18 +161,18 @@ export function TransactionsView({
               type="button"
               onClick={() => navigateMonth(-1)}
               aria-label="Mês anterior"
-              className="flex h-9 w-9 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
-            <span className="min-w-32 text-center text-sm font-medium capitalize text-ink-primary">
+            <span className="min-w-24 text-center text-sm font-medium text-ink-primary">
               {monthLabel}
             </span>
             <button
               type="button"
               onClick={() => navigateMonth(1)}
               aria-label="Próximo mês"
-              className="flex h-9 w-9 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-secondary hover:bg-surface-page"
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -194,7 +183,7 @@ export function TransactionsView({
       <div className="flex flex-col gap-4">
         {dayGroups.map((group) => (
           <div key={group.key} className="rounded-lg border border-ink-secondary/15 bg-white">
-            <div className="flex items-center justify-between border-b border-ink-secondary/10 px-4 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-1 border-b border-ink-secondary/10 px-4 py-2.5">
               <span className="text-sm font-semibold text-ink-primary">{group.label}</span>
               <span className="text-xs text-ink-secondary">
                 Total do dia:{' '}
@@ -213,21 +202,23 @@ export function TransactionsView({
                     key={item.id}
                     type="button"
                     onClick={() => setSelectedId(item.id)}
-                    className="flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-surface-page"
+                    className="flex w-full flex-col gap-2 px-4 py-3 text-left hover:bg-surface-page sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-page text-ink-secondary">
                         <CategoryIcon className="h-4 w-4" aria-hidden="true" />
                       </span>
-                      <div>
-                        <p className="text-sm font-medium text-ink-primary">{item.description}</p>
-                        <p className="text-xs text-ink-secondary">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-ink-primary">
+                          {item.description}
+                        </p>
+                        <p className="truncate text-xs text-ink-secondary">
                           {item.type === 'INCOME' ? 'Receita' : 'Despesa'}
                           {item.category ? ` · ${item.category.name}` : ''}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2 pl-11 sm:pl-0">
                       {item.status !== 'PENDING' ? (
                         <Badge tone={item.status === 'CANCELLED' ? 'neutral' : 'success'}>
                           {STATUS_LABEL[item.status]}

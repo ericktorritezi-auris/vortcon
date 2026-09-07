@@ -75,6 +75,20 @@ export async function cancelTransfer(tenantId: string, transferId: string) {
   });
 }
 
-export async function listTransfers(tenantId: string) {
-  return prisma.transfer.findMany({ where: { tenantId }, orderBy: { scheduledDate: 'desc' } });
+interface ListTransfersFilters {
+  from?: Date;
+  to?: Date;
+}
+
+/** Listagem com filtro de período (Seção 66) — mesma navegação de mês de Transações, a pedido do cliente. */
+export async function listTransfers(tenantId: string, filters: ListTransfersFilters = {}) {
+  return prisma.transfer.findMany({
+    where: {
+      tenantId,
+      ...(filters.from || filters.to
+        ? { scheduledDate: { gte: filters.from, lte: filters.to } }
+        : {}),
+    },
+    orderBy: { scheduledDate: 'desc' },
+  });
 }

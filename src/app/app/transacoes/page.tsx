@@ -6,6 +6,7 @@ import { listCategories } from '@/modules/categories/category.service';
 import { listTags } from '@/modules/tags/tag.service';
 import { listTransactions } from '@/modules/transactions/transaction.service';
 import { getPeriodResult } from '@/modules/financial-engine/financial-engine.service';
+import { resolveMonthPeriod } from '@/shared/period';
 import { AppShell } from '../AppShell';
 import { TransactionsView } from './TransactionsView';
 
@@ -19,27 +20,6 @@ interface TransacoesPageProps {
     de?: string;
     ate?: string;
   };
-}
-
-function resolvePeriod(searchParams: TransacoesPageProps['searchParams']): {
-  from: Date;
-  to: Date;
-} {
-  if (searchParams.de && searchParams.ate) {
-    return {
-      from: new Date(`${searchParams.de}T00:00:00.000Z`),
-      to: new Date(`${searchParams.ate}T23:59:59.999Z`),
-    };
-  }
-
-  const monthParam = searchParams.mes;
-  const now = new Date();
-  const year = monthParam ? Number(monthParam.split('-')[0]) : now.getUTCFullYear();
-  const month = monthParam ? Number(monthParam.split('-')[1]) : now.getUTCMonth() + 1;
-
-  const from = new Date(Date.UTC(year, month - 1, 1));
-  const to = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
-  return { from, to };
 }
 
 /**
@@ -66,7 +46,7 @@ export default async function TransacoesPage({
   if (access.kind === 'LEGAL_ACCEPTANCE_REQUIRED') redirect('/aceitar-termos');
 
   const { tenantId } = access.context;
-  const period = resolvePeriod(searchParams);
+  const period = resolveMonthPeriod(searchParams);
   const type =
     searchParams.tipo === 'despesas'
       ? 'EXPENSE'
