@@ -58,3 +58,61 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string): Prom
      <p>Este link expira em 1 hora e só pode ser usado uma vez. Se você não solicitou isso, ignore este e-mail.</p>`,
   );
 }
+
+/** Assinatura próxima (Seção 123) — 3 dias antes do vencimento. */
+export async function sendSubscriptionReminderEmail(
+  to: string,
+  planName: string,
+  amountFormatted: string,
+  dueDateFormatted: string,
+): Promise<void> {
+  await sendEmail(
+    to,
+    'VortCon — Sua mensalidade vence em breve',
+    `<p>Sua mensalidade do plano <strong>${planName}</strong> (${amountFormatted}) vence em <strong>${dueDateFormatted}</strong>.</p>
+     <p>Acesse o app para conferir os detalhes de pagamento.</p>`,
+  );
+}
+
+/** Pendência (Seção 123) — aviso pós-vencimento, único, nunca cobrança diária (Seção 123). */
+export async function sendSubscriptionOverdueEmail(to: string, planName: string): Promise<void> {
+  await sendEmail(
+    to,
+    'VortCon — Mensalidade em atraso',
+    `<p>Identificamos que sua mensalidade do plano <strong>${planName}</strong> está em atraso.</p>
+     <p>Regularize o quanto antes para evitar o bloqueio da sua conta.</p>`,
+  );
+}
+
+/** Confirmação (Seção 124) — pagamento confirmado. Falha de envio aqui nunca desfaz o pagamento já registrado. */
+export async function sendPaymentConfirmedEmail(
+  to: string,
+  planName: string,
+  amountFormatted: string,
+): Promise<void> {
+  await sendEmail(
+    to,
+    'VortCon — Pagamento confirmado',
+    `<p>Recebemos a confirmação do pagamento da sua mensalidade do plano <strong>${planName}</strong> (${amountFormatted}).</p>
+     <p>Obrigado por continuar com a gente!</p>`,
+  );
+}
+
+/** Bloqueio (Seção 125) — conta bloqueada. */
+export async function sendAccountBlockedEmail(to: string, reason: string): Promise<void> {
+  await sendEmail(
+    to,
+    'VortCon — Sua conta foi bloqueada',
+    `<p>Sua conta foi bloqueada: ${reason}.</p>
+     <p>Entre em contato ou regularize a pendência para restaurar o acesso.</p>`,
+  );
+}
+
+/** Desbloqueio (Seção 125) — conta desbloqueada. */
+export async function sendAccountUnblockedEmail(to: string): Promise<void> {
+  await sendEmail(
+    to,
+    'VortCon — Sua conta foi desbloqueada',
+    `<p>Boa notícia: sua conta foi desbloqueada e o acesso já está normalizado.</p>`,
+  );
+}

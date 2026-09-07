@@ -93,6 +93,9 @@ export async function evaluateAndApplyDelinquency(tenantId: string): Promise<voi
  * Registra pagamento (Secao 110: sempre pelo Admin, PIX externo - o tenant
  * nunca marca a propria mensalidade como paga). Desbloqueio automatico
  * (Secao 114): so levanta bloqueio DELINQUENCY, nunca ADMINISTRATIVE/SECURITY.
+ * Evento de outbox (Secao 126) registrado na mesma transacao do UPDATE -
+ * o e-mail de confirmacao e enviado depois, de forma assincrona, sem
+ * nunca poder desfazer o pagamento se o envio falhar (Secao 124).
  */
 export async function registerPayment(chargeId: string, adminUserId: string): Promise<void> {
   const charge = await subscriptionRepository.findChargeById(chargeId);
@@ -100,7 +103,20 @@ export async function registerPayment(chargeId: string, adminUserId: string): Pr
     throw new Error(`Cobranca ${chargeId} nao encontrada.`);
   }
 
-  await subscriptionRepository.markChargePaid(chargeId);
+  const [subscription, membership] = await Promise.all([
+    subscriptionRepository.findSubscriptionByTenantId(charge.tenantId),
+    prisma.tenantUser.findFirst({ where: { tenantId: charge.tenantId }, include: { user: true } }),
+  ]);
+
+  const amountFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  await subscriptionRepository.markChargePaid(chargeId, {
+    tenantId: charge.tenantId,
+    userId: membership?.user.id ?? '',
+    userEmail: membership?.user.email ?? '',
+    planName: subscription?.plan.name ?? 'VortCon',
+    amountFormatted: amountFormatter.format(charge.amountCents / 100),
+  });
 
   const activeBlocks = await tenantRepository.findActiveBlocks(charge.tenantId);
   const delinquencyBlock = activeBlocks.find((block) => block.type === 'DELINQUENCY');

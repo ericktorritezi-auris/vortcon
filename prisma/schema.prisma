@@ -78,6 +78,8 @@ model User {
   invitations         UserInvitation[]
   passwordResetTokens PasswordResetToken[]
   legalAcceptances    LegalAcceptance[]
+  notifications       Notification[]
+  pushSubscriptions   PushSubscription[]
 
   @@map("users")
 }
@@ -100,6 +102,8 @@ model Tenant {
   recurrenceSeries     RecurrenceSeries[]
   onboardingProgress   OnboardingProgress?
   cockpitAcknowledgements CockpitAcknowledgement[]
+  notifications           Notification[]
+  pushSubscriptions       PushSubscription[]
 
   @@map("tenants")
 }
@@ -345,6 +349,8 @@ model SubscriptionCharge {
   dueDate        DateTime     @db.Date
   status         ChargeStatus @default(PENDING)
   paidAt         DateTime?
+  // Estágio 13 — idempotência do aviso "3 dias antes" (Seção 123/128).
+  reminderSentAt DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -495,6 +501,10 @@ model FinancialTransaction {
   accountId           String
   categoryId          String?
   reminderEnabled     Boolean                     @default(false)
+  // Estágio 13 — idempotência do lembrete de vencimento (Seção 117/128):
+  // marca que o lembrete das 08h já foi enviado para esta transação, pra
+  // nunca duplicar mesmo se o job rodar mais de uma vez no mesmo dia.
+  reminderSentAt      DateTime?
   ignored             Boolean                     @default(false)
   note                String?
   cancelledAt         DateTime?
@@ -665,6 +675,112 @@ model CockpitAcknowledgement {
 
   @@unique([tenantId, month])
   @@map("cockpit_acknowledgements")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ESTÁGIO 13 — NOTIFICAÇÕES (Seções 116-128)
+// ─────────────────────────────────────────────────────────────────────────
+
+enum NotificationType {
+  DUE_REMINDER
+  SUBSCRIPTION_REMINDER
+  SUBSCRIPTION_OVERDUE
+  PAYMENT_CONFIRMED
+  TENANT_BLOCKED
+  TENANT_UNBLOCKED
+  MONTH_SUMMARY_READY
+}
+
+/// Central de Notificações (Seção 120) — canal "interna". Uma por usuário
+/// (nunca por tenant só: em V2, com múltiplos usuários por tenant, cada um
+/// precisa do próprio read/unread). `deepLink` é sempre um caminho relativo
+/// interno (nunca URL externa) — nunca aberto sem validação de rota.
+model Notification {
+  id        String           @id @default(cuid())
+  tenantId  String
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  deepLink  String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, readAt])
+  @@index([tenantId, createdAt])
+  @@map("notifications")
+}
+
+/// Push (Seção 121) — opt-in, multi-dispositivo (um usuário pode ter várias
+/// linhas, uma por navegador/aparelho onde ativou). `p256dh`/`auth` são as
+/// chaves de criptografia do Web Push, nunca reutilizáveis entre inscrições.
+model PushSubscription {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+/// Transactional Outbox simplificado (Seção 126) — nunca Kafka/RabbitMQ.
+/// Escrito na MESMA transação que o evento de negócio que o originou (ex.:
+/// mensalidade vira PAID → outbox recebe SubscriptionChargePaid na mesma
+/// transação), garantindo que o evento nunca se perde mesmo se o envio de
+/// e-mail/push falhar depois. Um worker processa de forma assíncrona.
+model OutboxEvent {
+  id          String       @id @default(cuid())
+  eventType   String
+  payload     Json
+  status      OutboxStatus @default(PENDING)
+  attempts    Int          @default(0)
+  lastError   String?
+  createdAt   DateTime     @default(now())
+  processedAt DateTime?
+
+  @@index([status, createdAt])
+  @@map("outbox_events")
+}
+
+enum JobStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+/// Idempotência de jobs (Seção 127-128) — `idempotencyKey` é a chave
+/// natural de "esta execução específica já aconteceu" (ex.: nome do job +
+/// data, ou nome do job + id da entidade processada). A constraint única
+/// é a proteção real contra double-click/retry/worker duplicado — nunca
+/// apenas uma checagem em memória.
+model JobExecution {
+  id             String    @id @default(cuid())
+  jobName        String
+  idempotencyKey String
+  status         JobStatus @default(RUNNING)
+  startedAt      DateTime  @default(now())
+  finishedAt     DateTime?
+  details        Json?
+
+  @@unique([jobName, idempotencyKey])
+  @@map("job_executions")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

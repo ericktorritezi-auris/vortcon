@@ -1,8 +1,9 @@
 'use client';
 
-import { Bell, ChevronDown, LogOut, Search } from 'lucide-react';
+import { ChevronDown, LogOut, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { NotificationBell } from './NotificationBell';
 
 interface TopbarProps {
   userName: string;
@@ -11,13 +12,10 @@ interface TopbarProps {
 }
 
 /**
- * Topbar compartilhada entre Admin e área do tenant. Busca e notificação
- * são propositalmente "shells visuais" por enquanto — não têm nada de
- * verdade pra buscar ou notificar ainda (busca cruza vários módulos que
- * ainda não existem; notificações reais são o Estágio 13). Desabilitadas
- * de propósito, para não parecer que funcionam e não funcionar. O menu do
- * avatar é o único elemento realmente funcional aqui: mostra quem está
- * logado e faz logout de verdade.
+ * Topbar compartilhada entre Admin e área do tenant. Busca continua sendo
+ * um "shell visual" de propósito — cruza vários módulos que ainda não
+ * existem. Notificações (Seção 120, Estágio 13) e o menu do avatar são os
+ * dois elementos realmente funcionais.
  */
 export function Topbar({
   userName,
@@ -48,14 +46,7 @@ export function Topbar({
         />
       </div>
 
-      <button
-        type="button"
-        disabled
-        aria-label="Notificações — em breve"
-        className="flex h-10 w-10 shrink-0 cursor-not-allowed items-center justify-center rounded-md text-ink-secondary/50"
-      >
-        <Bell className="h-5 w-5" aria-hidden="true" />
-      </button>
+      <NotificationBell />
 
       <div className="relative shrink-0">
         <button

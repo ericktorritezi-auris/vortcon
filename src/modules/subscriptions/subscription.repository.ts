@@ -1,5 +1,6 @@
 import { prisma } from '@/shared/database/client';
 import type { Prisma } from '@prisma/client';
+import { appendOutboxEvent } from '@/modules/notifications/outbox.service';
 
 export async function findSubscriptionByTenantId(tenantId: string) {
   return prisma.tenantSubscription.findUnique({
@@ -45,9 +46,35 @@ export async function createCharge(input: {
   return prisma.subscriptionCharge.create({ data: input });
 }
 
-export async function markChargePaid(chargeId: string) {
-  return prisma.subscriptionCharge.update({
-    where: { id: chargeId },
-    data: { status: 'PAID', paidAt: new Date() },
+interface MarkChargePaidContext {
+  tenantId: string;
+  userId: string;
+  userEmail: string;
+  planName: string;
+  amountFormatted: string;
+}
+
+/**
+ * Marca a mensalidade como paga e registra o evento de outbox (Seção 126)
+ * na MESMA transação — se o processo cair logo após o commit, o evento já
+ * está gravado e será processado pelo worker depois; nunca perdido.
+ */
+export async function markChargePaid(chargeId: string, context: MarkChargePaidContext) {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const charge = await tx.subscriptionCharge.update({
+      where: { id: chargeId },
+      data: { status: 'PAID', paidAt: new Date() },
+    });
+
+    await appendOutboxEvent(tx, 'SubscriptionChargePaid', {
+      tenantId: context.tenantId,
+      chargeId,
+      userId: context.userId,
+      userEmail: context.userEmail,
+      planName: context.planName,
+      amountFormatted: context.amountFormatted,
+    });
+
+    return charge;
   });
 }

@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 12 — Relatórios ✅ concluído                                                                              |
-| Próximo estágio         | Estágio 13 — Notificações                                                                                         |
+| Estágio atual           | Estágio 13 — Notificações ✅ concluído                                                                            |
+| Próximo estágio         | Estágio 14 — PWA                                                                                                  |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -719,6 +719,34 @@ acima da lista: no modo Mês, comportamento igual a antes; no modo Período, doi
 campos de data (De/Até) com botão "Aplicar", usando exatamente o mesmo parâmetro que
 o backend já esperava.
 
+## Estágio 13 — o que foi entregue
+
+- 4 tabelas novas (`Notification`, `PushSubscription`, `OutboxEvent`, `JobExecution`
+  — a Seção 38 já previa todas), mais `reminderSentAt` em transações e mensalidades
+  para a idempotência dos lembretes.
+- **Motor de idempotência de jobs** (Seção 128): a proteção real é uma constraint
+  única no banco, nunca uma checagem em memória — validado com 3 tentativas
+  concorrentes da mesma chave via SQL direto (só 1 linha criada) e com teste de
+  integração rodando 3 chamadas em paralelo de verdade.
+- **Relógio por fuso horário** (Seção 117: "às 08:00 no timezone do tenant") — testado
+  provando que o mesmo instante UTC dá horas diferentes em fusos diferentes, essencial
+  já que o servidor roda em UTC mas cada usuário tem seu próprio fuso.
+- **Supressão de lembrete** (Seção 118) — testada isoladamente e de novo com Postgres
+  real: uma transação paga antes do job rodar nunca gera notificação.
+- **Transactional Outbox** (Seção 126) conectado à transação real de "marcar
+  mensalidade como paga" — o evento nunca se perde mesmo se o processo cair logo após
+  o commit. Falha de e-mail nunca desfaz o pagamento (Seção 124).
+- **Os 8 jobs da Seção 127** implementados — 2 reaproveitando lógica já existente
+  desde os Estágios 6 e 8 (agora agendáveis via cron), 1 stub documentado aguardando
+  o Estágio 15 (Backup), e 5 novos.
+- 5 templates de e-mail novos (assinatura próxima, pendência, confirmação, bloqueio,
+  desbloqueio).
+- **Central de Notificações** ligada de verdade na UI — o sino do Topbar estava
+  desabilitado desde a reestruturação de UX; agora tem badge, dropdown, read/unread,
+  deep links contextuais e opt-in de push.
+- Service worker mínimo, só o necessário para push funcionar — sem estratégia de
+  cache (Seção 139), preparado para o Estágio 14 expandir para PWA completo.
+
 ## Estágio 12 — o que foi entregue
 
 - Filtros completos (Seção 94): mês/período, categoria, conta, tag, status, natureza.
@@ -793,6 +821,30 @@ o backend já esperava.
 ## Backlog registrado (não são lacunas — adiamento deliberado, confirmado pelo cliente)
 
 Itens identificados e conscientemente adiados para um estágio futuro a definir:
+
+- **Login por biometria após instalar o PWA — acrescentado ao escopo do Estágio 14
+  (PWA).** Pedido do cliente: assim que o app for instalado (Android ou iOS), toda
+  vez que a pessoa chegar na tela de login **sem** ter aceitado biometria antes, o
+  app sugere ativar. A partir do momento que a pessoa aceita, essa sugestão nunca
+  mais aparece. Abordagem técnica confirmada como viável — **WebAuthn/Passkeys**, a
+  API padrão dos navegadores para biometria (nunca reimplementar autenticação
+  biométrica na mão):
+  - Funciona nos dois: Android via Chrome (impressão digital/desbloqueio facial do
+    aparelho) e iOS via Safari com Face ID/Touch ID — **iOS precisa de 16.4+** para
+    funcionar dentro do PWA em modo standalone (fora do Safari normal); versões
+    antigas não suportam, então a sugestão só deve aparecer quando o navegador
+    realmente suporta (detecção de capability antes de sugerir, nunca assumir).
+  - Detectar "app instalado" via `display-mode: standalone` (Android/padrão) e
+    `navigator.standalone` (específico do iOS Safari) — a sugestão só aparece nesse
+    contexto, nunca no navegador comum, conforme pedido ("assim que o app for
+    instalado").
+  - Precisa de registro (`WebAuthnCredential` — tabela própria, já que uma pessoa
+    pode cadastrar biometria em mais de um aparelho) e de um campo simples pra saber
+    se a pessoa já _decidiu_ sobre a sugestão (aceitou OU dispensou) — mesmo padrão
+    já usado em `OnboardingProgress`/`CockpitAcknowledgement`: nunca mostrar de novo
+    depois de uma decisão explícita.
+  - Servidor gera o desafio (challenge) e verifica a assinatura — a biometria em si
+    nunca sai do aparelho da pessoa, só a prova de que ela passou.
 
 - **Páginas públicas de venda: `/produto`, `/funcionalidades`, `/planos` — hoje 404,
   link morto no `Header.tsx`.** Mesmo padrão do incidente das páginas de

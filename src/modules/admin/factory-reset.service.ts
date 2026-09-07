@@ -82,6 +82,13 @@ export async function executeFactoryReset(
     await tx.auditEvent.deleteMany({});
     await tx.onboardingProgress.deleteMany({}); // Estágio 10 — estado de dispensa é dado de teste, some com o tenant
     await tx.cockpitAcknowledgement.deleteMany({}); // Estágio 11 — idem
+    await tx.notification.deleteMany({}); // Estágio 13 — idem
+    await tx.pushSubscription.deleteMany({}); // Estágio 13 — idem
+    // outbox_events e job_executions não têm tenantId (são infraestrutura,
+    // não dado de tenant) — mas ainda são dado de teste acumulado antes do
+    // reset, então limpos aqui também, por completude.
+    await tx.outboxEvent.deleteMany({});
+    await tx.jobExecution.deleteMany({});
 
     await tx.tenant.deleteMany({});
     await tx.user.deleteMany({}); // inclui o GLOBAL_ADMIN — a pedido explícito do cliente
