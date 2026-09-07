@@ -1,9 +1,17 @@
 'use client';
 
+import { Fingerprint } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { AuthCardLayout, Button, Input } from '@/shared/ui';
+import {
+  isBiometricEnabledOnThisDevice,
+  isRunningStandalone,
+  loginWithBiometric,
+  registerBiometric,
+  supportsBiometricLogin,
+} from '@/modules/webauthn/webauthn-client';
 
 /**
  * `useSearchParams()` exige um limite de Suspense ao redor de quem o usa —
@@ -18,6 +26,30 @@ function LoginForm(): React.ReactElement {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [offerBiometricSetup, setOfferBiometricSetup] = useState(true);
+
+  // Seção 138/121 estendida — só sugere biometria dentro do app instalado
+  // (Android: display-mode; iOS: navigator.standalone), nunca no navegador
+  // comum, e só quando o próprio navegador confirma suportar.
+  useEffect(() => {
+    const available = supportsBiometricLogin() && isRunningStandalone();
+    setBiometricAvailable(available);
+    setBiometricEnabled(available && isBiometricEnabledOnThisDevice());
+  }, []);
+
+  function redirectAfterLogin(role: 'GLOBAL_ADMIN' | 'TENANT_OWNER' | undefined): void {
+    if (role === 'GLOBAL_ADMIN') {
+      router.push('/admin');
+    } else {
+      const redirectTo = searchParams.get('redirect') ?? '/app';
+      router.push(redirectTo);
+    }
+    router.refresh();
+  }
 
   async function handleSubmit(event: React.FormEvent): Promise<void> {
     event.preventDefault();
@@ -40,17 +72,19 @@ function LoginForm(): React.ReactElement {
         return;
       }
 
-      // GLOBAL_ADMIN nunca vai para /app — chamar o AccessPolicyService do
-      // tenant para um admin é erro de propósito (Seção 22, Estágio 6). O
-      // parâmetro `redirect` (usado pelo middleware ao proteger /app/*)
-      // nunca se aplica a um admin, então é ignorado nesse caso.
-      if (body.role === 'GLOBAL_ADMIN') {
-        router.push('/admin');
-      } else {
-        const redirectTo = searchParams.get('redirect') ?? '/app';
-        router.push(redirectTo);
+      // Ativação de biometria (pedido do cliente) — só faz sentido pra
+      // TENANT_OWNER, e só quando a pessoa marcou a caixa. Nunca bloqueia
+      // o login se der errado: a conta continua acessível por senha.
+      if (
+        biometricAvailable &&
+        !biometricEnabled &&
+        offerBiometricSetup &&
+        body.role !== 'GLOBAL_ADMIN'
+      ) {
+        await registerBiometric();
       }
-      router.refresh();
+
+      redirectAfterLogin(body.role);
     } catch {
       setError('Não foi possível entrar agora. Tente novamente.');
     } finally {
@@ -58,43 +92,86 @@ function LoginForm(): React.ReactElement {
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <Input
-        label="Usuário ou e-mail"
-        name="username"
-        autoComplete="username"
-        value={username}
-        onChange={(event) => setUsername(event.target.value)}
-        required
-      />
-      <Input
-        label="Senha"
-        name="password"
-        type="password"
-        autoComplete="current-password"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        required
-      />
+  async function handleBiometricLogin(): Promise<void> {
+    setError(null);
+    setBiometricLoading(true);
+    try {
+      const result = await loginWithBiometric();
+      if (!result.success) {
+        setError(result.error ?? 'Não foi possível entrar com biometria.');
+        return;
+      }
+      redirectAfterLogin(undefined);
+    } finally {
+      setBiometricLoading(false);
+    }
+  }
 
-      {error ? (
-        <p role="alert" className="text-sm font-medium text-financial-danger">
-          {error}
-        </p>
+  return (
+    <div className="flex flex-col gap-4">
+      {biometricEnabled ? (
+        <>
+          <Button onClick={handleBiometricLogin} loading={biometricLoading} className="w-full">
+            <Fingerprint className="mr-1.5 h-4 w-4" aria-hidden="true" />
+            Entrar com biometria
+          </Button>
+          <div className="flex items-center gap-2 text-xs text-ink-secondary">
+            <span className="h-px flex-1 bg-ink-secondary/15" />
+            ou entre com sua senha
+            <span className="h-px flex-1 bg-ink-secondary/15" />
+          </div>
+        </>
       ) : null}
 
-      <Button type="submit" loading={loading} className="mt-1 w-full">
-        Entrar
-      </Button>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Input
+          label="Usuário ou e-mail"
+          name="username"
+          autoComplete="username"
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          required
+        />
+        <Input
+          label="Senha"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+        />
 
-      <Link
-        href="/esqueci-senha"
-        className="text-center text-sm text-brand-intelligence hover:underline"
-      >
-        Esqueci minha senha
-      </Link>
-    </form>
+        {biometricAvailable && !biometricEnabled ? (
+          <label className="flex items-center gap-2 text-sm text-ink-secondary">
+            <input
+              type="checkbox"
+              checked={offerBiometricSetup}
+              onChange={(event) => setOfferBiometricSetup(event.target.checked)}
+              className="h-4 w-4 rounded border-ink-secondary/30"
+            />
+            Ativar login por biometria neste aparelho
+          </label>
+        ) : null}
+
+        {error ? (
+          <p role="alert" className="text-sm font-medium text-financial-danger">
+            {error}
+          </p>
+        ) : null}
+
+        <Button type="submit" loading={loading} className="mt-1 w-full">
+          Entrar
+        </Button>
+
+        <Link
+          href="/esqueci-senha"
+          className="text-center text-sm text-brand-intelligence hover:underline"
+        >
+          Esqueci minha senha
+        </Link>
+      </form>
+    </div>
   );
 }
 

@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 13 — Notificações ✅ concluído                                                                            |
-| Próximo estágio         | Estágio 14 — PWA                                                                                                  |
+| Estágio atual           | Estágio 14 — PWA ✅ concluído                                                                                     |
+| Próximo estágio         | Estágio 15 — Backup                                                                                               |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -719,6 +719,31 @@ acima da lista: no modo Mês, comportamento igual a antes; no modo Período, doi
 campos de data (De/Até) com botão "Aplicar", usando exatamente o mesmo parâmetro que
 o backend já esperava.
 
+## Estágio 14 — o que foi entregue
+
+- **Login biométrico (WebAuthn/Passkeys)** — pedido explícito do cliente, acrescentado
+  ao escopo do PWA. Motivo do cuidado extra: o cliente relatou uma experiência ruim
+  com biometria em outro produto (mesma biblioteca, resultado "Não autorizado"). A API
+  real da versão instalada foi conferida no código-fonte (`node_modules/@simplewebauthn`),
+  nunca por memória — já achei uma diferença real de assinatura na v11
+  (`startRegistration({ optionsJSON })`, não os parâmetros direto) que teria causado
+  erro se eu tivesse confiado em documentação antiga. A causa mais comum desse erro
+  — `rpID`/`expectedOrigin` vindos de fontes diferentes — foi eliminada de propósito:
+  os dois são sempre derivados da mesma variável (`APP_URL`), validado com 5 testes
+  reais. Login biométrico cria a mesma sessão que o login por senha, sem caminho
+  paralelo de autenticação.
+- **Bug real herdado do Estágio 2 corrigido**: os ícones do PWA não eram quadrados
+  (192×178, 512×474 em vez de 192×192, 512×512) — regenerados a partir do SVG da
+  marca, incluindo as variantes maskable corretas (zona segura de 55% do canvas,
+  fundo sólido na cor da marca).
+- `manifest.json`, metadados específicos de iOS (`appleWebApp`, já que iOS não lê a
+  maioria das configurações do manifest), `theme-color`.
+- Service worker expandido (Estágio 13 tinha só o mínimo pra push): agora com
+  instalabilidade real, cache seguro restrito a ícones/manifest — nunca dado
+  financeiro, nunca offline-first (Seção 139).
+- Service worker agora registrado no carregamento do app, não só quando a pessoa
+  ativa push — sem isso, o navegador não considera o site instalável.
+
 ## Estágio 13 — o que foi entregue
 
 - 4 tabelas novas (`Notification`, `PushSubscription`, `OutboxEvent`, `JobExecution`
@@ -821,6 +846,14 @@ o backend já esperava.
 ## Backlog registrado (não são lacunas — adiamento deliberado, confirmado pelo cliente)
 
 Itens identificados e conscientemente adiados para um estágio futuro a definir:
+
+- **Tela de gerenciamento de credenciais biométricas** — o backend já suporta remover
+  um dispositivo (`DELETE /api/webauthn/credentials/[id]`, Estágio 14), mas não existe
+  ainda nenhuma UI de perfil/configurações no painel do tenant pra listar os
+  dispositivos com biometria ativada e remover algum. Não foi pedido explicitamente
+  além da sugestão na tela de login — registrado aqui em vez de construído sem pedido,
+  já que exigiria criar uma área nova (Perfil/Configurações) que ainda não existe no
+  painel do tenant.
 
 - **Login por biometria após instalar o PWA — acrescentado ao escopo do Estágio 14
   (PWA).** Pedido do cliente: assim que o app for instalado (Android ou iOS), toda

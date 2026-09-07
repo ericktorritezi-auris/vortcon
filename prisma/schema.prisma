@@ -80,6 +80,7 @@ model User {
   legalAcceptances    LegalAcceptance[]
   notifications       Notification[]
   pushSubscriptions   PushSubscription[]
+  webAuthnCredentials WebAuthnCredential[]
 
   @@map("users")
 }
@@ -781,6 +782,34 @@ model JobExecution {
 
   @@unique([jobName, idempotencyKey])
   @@map("job_executions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ESTÁGIO 14 — PWA / LOGIN BIOMÉTRICO (Seção 138-139, pedido do cliente)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Login biométrico via WebAuthn/Passkeys — pedido explícito do cliente,
+/// acrescentado ao escopo do PWA. O formato dos campos (`credentialId`,
+/// `publicKey` como bytes, `counter`, `transports`) é um espelho EXATO do
+/// tipo `WebAuthnCredential` da biblioteca `@simplewebauthn/server` — nunca
+/// uma transformação própria, para eliminar a classe de bug mais comum
+/// nesse tipo de integração (erro de codificação entre o que o navegador
+/// manda e o que vai pro banco).
+model WebAuthnCredential {
+  id           String   @id @default(cuid())
+  userId       String
+  credentialId String   @unique
+  publicKey    Bytes
+  counter      Int      @default(0)
+  transports   String[]
+  deviceName   String?
+  createdAt    DateTime @default(now())
+  lastUsedAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("webauthn_credentials")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

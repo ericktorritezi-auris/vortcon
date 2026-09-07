@@ -84,6 +84,7 @@ export async function executeFactoryReset(
     await tx.cockpitAcknowledgement.deleteMany({}); // Estágio 11 — idem
     await tx.notification.deleteMany({}); // Estágio 13 — idem
     await tx.pushSubscription.deleteMany({}); // Estágio 13 — idem
+    await tx.webAuthnCredential.deleteMany({}); // Estágio 14 — idem
     // outbox_events e job_executions não têm tenantId (são infraestrutura,
     // não dado de tenant) — mas ainda são dado de teste acumulado antes do
     // reset, então limpos aqui também, por completude.

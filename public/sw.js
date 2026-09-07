@@ -1,8 +1,52 @@
-// Service worker mínimo (Seção 121 — Push). Só o necessário para receber
-// push e abrir o deep link ao clicar. Nenhuma estratégia de cache aqui —
-// isso é o Estágio 14 (PWA), que também vai adicionar manifest e
-// instalabilidade a este mesmo arquivo. Seção 139: nunca cachear conteúdo
-// privado inseguramente — por isso, propositalmente, nada é cacheado ainda.
+// Service worker (Seção 138-139 — PWA). Expandido a partir da versão
+// mínima do Estágio 13, que só cobria push.
+//
+// Estratégia de cache (Seção 139 — "não offline-first", "nunca cachear
+// conteúdo privado inseguramente"):
+// - SÓ os arquivos estáticos e públicos listados em PRECACHE_URLS são
+//   cacheados (ícones, manifest) — nada com dado financeiro, nunca uma
+//   página HTML, nunca uma resposta de API.
+// - Toda outra requisição (páginas, /api/*) passa direto pro navegador
+//   tratar normalmente — o service worker nem intercepta. Não existe
+//   banco financeiro offline aqui, de propósito.
+// - skipWaiting/clients.claim garantem que uma atualização deste arquivo
+//   assume imediatamente, sem exigir fechar todas as abas.
+
+const CACHE_NAME = 'vortcon-static-v1';
+const PRECACHE_URLS = [
+  '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/icon-maskable-192.png',
+  '/icons/icon-maskable-512.png',
+  '/icons/apple-touch-icon.png',
+  '/icons/favicon-16.png',
+  '/icons/favicon-32.png',
+];
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)));
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+      )
+      .then(() => self.clients.claim()),
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  if (event.request.method === 'GET' && PRECACHE_URLS.includes(url.pathname)) {
+    event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request)));
+  }
+});
 
 self.addEventListener('push', (event) => {
   if (!event.data) return;
