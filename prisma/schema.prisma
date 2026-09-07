@@ -99,6 +99,7 @@ model Tenant {
   transfers            Transfer[]
   recurrenceSeries     RecurrenceSeries[]
   onboardingProgress   OnboardingProgress?
+  cockpitAcknowledgements CockpitAcknowledgement[]
 
   @@map("tenants")
 }
@@ -644,6 +645,26 @@ model OnboardingProgress {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   @@map("onboarding_progress")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ESTÁGIO 11 — COCKPIT (Seções 86-90)
+// ─────────────────────────────────────────────────────────────────────────
+
+// Virada do mês (Seção 89): "Seu resumo financeiro de [mês] está pronto",
+// mostrado uma vez no primeiro acesso após o mês fechar, nunca mais depois
+// de confirmado. `month` guarda o primeiro dia do mês (ex.: 2026-09-01) —
+// um registro por mês por tenant.
+model CockpitAcknowledgement {
+  id             String   @id @default(cuid())
+  tenantId       String
+  month          DateTime @db.Date
+  acknowledgedAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, month])
+  @@map("cockpit_acknowledgements")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

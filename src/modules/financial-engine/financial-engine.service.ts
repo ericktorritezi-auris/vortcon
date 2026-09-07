@@ -21,11 +21,17 @@ export interface AccountBalance {
   balanceCents: number;
 }
 
-export async function getAccountBalances(tenantId: string): Promise<AccountBalance[]> {
+export async function getAccountBalances(
+  tenantId: string,
+  asOfDate?: Date,
+): Promise<AccountBalance[]> {
   const accounts = await prisma.financialAccount.findMany({
     where: { tenantId, active: true },
     select: { id: true, initialBalanceCents: true },
   });
+
+  const settlementCutoff = asOfDate ? { settlementDate: { lte: asOfDate } } : {};
+  const transferCutoff = asOfDate ? { settlementDate: { lte: asOfDate } } : {};
 
   const balances = await Promise.all(
     accounts.map(
@@ -36,6 +42,7 @@ export async function getAccountBalances(tenantId: string): Promise<AccountBalan
               accountId: account.id,
               type: 'INCOME',
               status: 'RECEIVED',
+              ...settlementCutoff,
             }),
             _sum: { amountCents: true },
           }),
@@ -44,15 +51,26 @@ export async function getAccountBalances(tenantId: string): Promise<AccountBalan
               accountId: account.id,
               type: 'EXPENSE',
               status: 'PAID',
+              ...settlementCutoff,
             }),
             _sum: { amountCents: true },
           }),
           prisma.transfer.aggregate({
-            where: { tenantId, destinationAccountId: account.id, status: 'COMPLETED' },
+            where: {
+              tenantId,
+              destinationAccountId: account.id,
+              status: 'COMPLETED',
+              ...transferCutoff,
+            },
             _sum: { amountCents: true },
           }),
           prisma.transfer.aggregate({
-            where: { tenantId, sourceAccountId: account.id, status: 'COMPLETED' },
+            where: {
+              tenantId,
+              sourceAccountId: account.id,
+              status: 'COMPLETED',
+              ...transferCutoff,
+            },
             _sum: { amountCents: true },
           }),
         ]);
@@ -74,6 +92,17 @@ export async function getAccountBalances(tenantId: string): Promise<AccountBalan
 
 export async function getRealBalance(tenantId: string): Promise<number> {
   const balances = await getAccountBalances(tenantId);
+  return balances.reduce((total, account) => total + account.balanceCents, 0);
+}
+
+/**
+ * Saldo consolidado numa data histórica (ex.: fim do mês anterior) — usado
+ * pelo Cockpit (Seção 86) para "saldo inicial" e "posição final" do mês.
+ * Nunca um snapshot congelado (Seção 88: "correção histórica recalcula
+ * Cockpit") — sempre recomputado ao vivo a partir de `settlementDate`.
+ */
+export async function getBalanceAsOf(tenantId: string, asOfDate: Date): Promise<number> {
+  const balances = await getAccountBalances(tenantId, asOfDate);
   return balances.reduce((total, account) => total + account.balanceCents, 0);
 }
 

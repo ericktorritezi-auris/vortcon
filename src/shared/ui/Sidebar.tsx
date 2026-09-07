@@ -3,6 +3,7 @@
 import {
   ArrowLeftRight,
   CreditCard,
+  Gauge,
   Home,
   LayoutGrid,
   ListChecks,
@@ -16,6 +17,7 @@ const NAV_GROUPS = [
   {
     items: [
       { href: '/app', label: 'Início', icon: Home },
+      { href: '/app/cockpit', label: 'Cockpit', icon: Gauge },
       { href: '/app/transacoes', label: 'Transações', icon: ListChecks },
       { href: '/app/transferencias', label: 'Transferências', icon: ArrowLeftRight },
       { href: '/app/contas', label: 'Contas', icon: CreditCard },

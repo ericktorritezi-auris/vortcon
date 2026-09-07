@@ -81,6 +81,7 @@ export async function executeFactoryReset(
     await tx.passwordResetToken.deleteMany({});
     await tx.auditEvent.deleteMany({});
     await tx.onboardingProgress.deleteMany({}); // Estágio 10 — estado de dispensa é dado de teste, some com o tenant
+    await tx.cockpitAcknowledgement.deleteMany({}); // Estágio 11 — idem
 
     await tx.tenant.deleteMany({});
     await tx.user.deleteMany({}); // inclui o GLOBAL_ADMIN — a pedido explícito do cliente

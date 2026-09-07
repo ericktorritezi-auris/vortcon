@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 10 — Dashboard ✅ concluído                                                                               |
-| Próximo estágio         | Estágio 11 — Cockpit                                                                                              |
+| Estágio atual           | Estágio 11 — Cockpit ✅ concluído                                                                                 |
+| Próximo estágio         | Estágio 12 — Relatórios                                                                                           |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -679,6 +679,29 @@ Continuação da correção anterior — 4 pontos reportados juntos pelo cliente
   `shiftMonthParam`) foi extraída para `shared/period.ts`, reaproveitada por
   Transações e Transferências — evita duas implementações divergindo com o tempo.
   10 testes unitários novos, incluindo casos de borda (fevereiro, virada de ano).
+
+## Estágio 11 — o que foi entregue
+
+- `getBalanceAsOf(tenantId, asOfDate)` no Financial Engine — generalização de
+  `getAccountBalances`/`getRealBalance` com corte por data de liquidação, necessária
+  pra "saldo inicial" e "posição final" do mês (Seção 86). Validado via SQL direto em
+  3 pontos no tempo (antes de qualquer liquidação, com só a receita liquidada, com as
+  duas liquidadas) — os 3 valores bateram exatamente com o esperado.
+- Destaques de categoria (Seção 87): maior saída, maior entrada, maior resultado
+  líquido positivo/negativo, categorias que cresceram em despesa/receita vs. mês
+  anterior. Lógica pura extraída (`cockpit-highlights.ts`), testada isoladamente — 7
+  testes, incluindo o cenário explícito da Seção 87 ("não presumir que categoria
+  pertence só a um lado": uma categoria pode ser maior saída E crescer em receita ao
+  mesmo tempo).
+- Cockpit sempre recomputado ao vivo (Seção 88: "correção histórica recalcula
+  Cockpit") — validado com teste de integração: editar uma despesa de um mês fechado
+  reflete na próxima consulta, sem nenhuma ação de "recalcular".
+- `CockpitAcknowledgement` (Seção 38 já previa esta entidade) — virada do mês (Seção
+  89), persistida, nunca reaparece depois de confirmada.
+- UI em `/app/cockpit`, com menu próprio na sidebar: navegador de mês, 5 métricas
+  (saldo inicial, receitas, despesas, resultado, posição final), comparação com o mês
+  anterior em barras (sem dependência externa de gráficos), destaques de categoria,
+  placeholder honesto de Insights.
 
 ## Estágio 10 — o que foi entregue
 
