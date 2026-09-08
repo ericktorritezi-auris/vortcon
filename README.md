@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 14 — PWA ✅ concluído                                                                                     |
-| Próximo estágio         | Estágio 15 — Backup                                                                                               |
+| Estágio atual           | Estágio 15 — Backup ✅ concluído                                                                                  |
+| Próximo estágio         | Estágio 16 — Hardening                                                                                            |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -747,6 +747,29 @@ Validação do fluxo de troca de senha feita via Argon2 direto (bypass do Prisma
 não gera neste sandbox): hash da senha atual, rejeição de senha errada, hash da nova
 senha, e confirmação de que a senha antiga para de funcionar depois da troca — os 4
 pontos críticos confirmados com execução real, não só leitura de código.
+
+## Estágio 15 — o que foi entregue
+
+- **Backup por tenant** (Seção 142-146): tenant exporta o próprio backup
+  (`/api/backup/export`, tenantId sempre resolvido pela sessão, nunca do
+  frontend); Admin restaura (V1 admin-only) com pipeline completo: validar →
+  preview → confirmação → backup de segurança automático → transação → restore →
+  auditoria.
+- **Formato lógico versionado com manifesto** (Seção 144): versão, versão do
+  VortCon, geração, vínculo de tenant, datasets, checksum (SHA-256). Nunca um dump
+  multitenant — testado rejeitando explicitamente a restauração de um backup em
+  tenant diferente do que ele veio.
+- **Integridade transacional comprovada via SQL direto**: simulei uma falha
+  proposital no meio de uma transação de restauração — o `ROLLBACK` reverteu 100%
+  das mudanças, confirmando que uma falha no meio nunca deixa um tenant com dados
+  parcialmente restaurados.
+- IDs nunca reaproveitados na restauração — cada registro ganha ID novo, com todas
+  as referências (conta, categoria, tag, série de recorrência) remapeadas
+  corretamente.
+- **Backup de infraestrutura** (Seção 141) documentado separadamente em
+  `/docs/backup-infraestrutura.md` — as três camadas do Postgres no Railway (volume
+  backups, PITR, dump lógico) e runbook de qual usar em cada cenário. Não é
+  funcionalidade da aplicação — é operação de infraestrutura.
 
 ## Estágio 14 — o que foi entregue
 

@@ -9,6 +9,7 @@ import {
 } from '@/modules/subscriptions/subscription.service';
 import { Badge, FinancialValue } from '@/shared/ui';
 import { AdminShell } from '../../AdminShell';
+import { BackupRestore } from './BackupRestore';
 import { CreateBlockForm, LiftBlockButton, PayChargeButton } from './TenantActions';
 
 export const dynamic = 'force-dynamic';
@@ -120,9 +121,14 @@ export default async function AdminTenantDetailPage({
         </div>
       </section>
 
-      <section className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+      <section className="mb-6 rounded-lg border border-ink-secondary/15 bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold text-ink-primary">Bloqueio manual</h2>
         <CreateBlockForm tenantId={tenant.id} />
+      </section>
+
+      <section className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+        <h2 className="mb-3 text-sm font-semibold text-ink-primary">Restaurar backup</h2>
+        <BackupRestore tenantId={tenant.id} />
       </section>
     </AdminShell>
   );

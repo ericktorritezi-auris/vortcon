@@ -1,6 +1,6 @@
 'use client';
 
-import { Fingerprint, KeyRound, Trash2, User as UserIcon } from 'lucide-react';
+import { Download, Fingerprint, KeyRound, Trash2, User as UserIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button, DateInput, Input } from '@/shared/ui';
 import { registerBiometric, supportsBiometricLogin } from '@/modules/webauthn/webauthn-client';
@@ -283,6 +283,20 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
           </Button>
         </section>
       ) : null}
+
+      <section className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+        <div className="mb-2 flex items-center gap-2">
+          <Download className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
+          <h2 className="text-sm font-semibold text-ink-primary">Backup dos meus dados</h2>
+        </div>
+        <p className="mb-4 text-xs text-ink-secondary">
+          Baixe uma cópia de todas as suas contas, categorias, tags, transações, transferências e
+          recorrências em um arquivo. Nunca inclui senha ou dados de outras pessoas.
+        </p>
+        <a href="/api/backup/export">
+          <Button variant="secondary">Baixar backup</Button>
+        </a>
+      </section>
     </div>
   );
 }
