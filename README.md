@@ -719,6 +719,35 @@ acima da lista: no modo Mês, comportamento igual a antes; no modo Período, doi
 campos de data (De/Até) com botão "Aplicar", usando exatamente o mesmo parâmetro que
 o backend já esperava.
 
+### Correção pós-Estágio 14 — visibilidade do Admin + Meu Perfil
+
+Dois pedidos do cliente, antes de seguir pro Estágio 15:
+
+1. **Painel do Admin sem visibilidade real** — as métricas ("1 ativo", "1 isento", "N
+   pendentes") eram números soltos, sem forma de ver quais tenants elas representavam.
+   Cada métrica agora é clicável e leva pra `/admin/tenants` já filtrado
+   (`?filtro=ativos|inativos|bloqueados|pagantes|isentos|pendentes|inadimplentes`).
+   Adicionado também um painel de **"Saúde do sistema"** — reaproveita a
+   infraestrutura de jobs/outbox do Estágio 13 (nenhuma tabela nova): mostra a última
+   execução de cada um dos 8 jobs (sucesso/falha/nunca rodou), quantos itens do
+   outbox estão pendentes/falhos, e se e-mail (Resend) e push (VAPID) estão
+   configurados — com um indicativo geral "Sistema saudável"/"precisa de atenção" no
+   topo, exatamente como pedido.
+2. **"Meu Perfil" no painel do tenant** — não existia. Criado com: dados editáveis
+   (nome, telefone, data de nascimento — **nunca e-mail nem username**, mostrados só
+   como leitura com nota explicando o motivo), troca de senha (exige a senha atual,
+   reaproveita a mesma política de senha do cadastro), e **gerenciamento de
+   biometria** — lista os dispositivos ativados, permite remover um antigo e
+   cadastrar um novo. Isso fecha exatamente o cenário que o cliente descreveu:
+   "perdi a chave de acesso vinculada ao aparelho, como gero uma nova". A rota de
+   remover credencial já existia desde o Estágio 14 sem nenhuma tela pra usá-la —
+   agora tem.
+
+Validação do fluxo de troca de senha feita via Argon2 direto (bypass do Prisma, que
+não gera neste sandbox): hash da senha atual, rejeição de senha errada, hash da nova
+senha, e confirmação de que a senha antiga para de funcionar depois da troca — os 4
+pontos críticos confirmados com execução real, não só leitura de código.
+
 ## Estágio 14 — o que foi entregue
 
 - **Login biométrico (WebAuthn/Passkeys)** — pedido explícito do cliente, acrescentado

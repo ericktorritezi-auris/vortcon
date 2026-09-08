@@ -10,6 +10,7 @@ import {
   PieChart,
   Tag,
   Target,
+  User,
 } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 
@@ -26,6 +27,9 @@ const NAV_GROUPS = [
       { href: '/app/planejamento', label: 'Planejamento', icon: Target },
       { href: '/app/relatorios', label: 'Relatórios', icon: PieChart },
     ],
+  },
+  {
+    items: [{ href: '/app/perfil', label: 'Meu perfil', icon: User }],
   },
 ];
 

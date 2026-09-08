@@ -100,7 +100,6 @@ export interface AdminAlertItem {
   tenantName: string;
   detail: string;
 }
-
 async function resolveTenantOwnerName(tenantId: string): Promise<string> {
   const membership = await prisma.tenantUser.findFirst({
     where: { tenantId },
@@ -143,4 +142,86 @@ export async function listAdminAlerts(limit = 8): Promise<AdminAlertItem[]> {
   );
 
   return [...overdueItems, ...blockItems].slice(0, limit);
+}
+
+const MONITORED_JOB_NAMES = [
+  'RECURRENCE_MATERIALIZATION',
+  'FINANCIAL_DUE_REMINDERS',
+  'SUBSCRIPTION_REMINDERS',
+  'SUBSCRIPTION_DELINQUENCY_BLOCK',
+  'SUBSCRIPTION_OVERDUE_NOTICE',
+  'MONTH_ROLLOVER',
+  'TOKEN_CLEANUP',
+  'OUTBOX_PROCESSING',
+  'BACKUP_MAINTENANCE',
+] as const;
+
+const JOB_LABELS: Record<(typeof MONITORED_JOB_NAMES)[number], string> = {
+  RECURRENCE_MATERIALIZATION: 'Materialização de recorrências',
+  FINANCIAL_DUE_REMINDERS: 'Lembretes de vencimento',
+  SUBSCRIPTION_REMINDERS: 'Avisos de mensalidade',
+  SUBSCRIPTION_DELINQUENCY_BLOCK: 'Bloqueio por inadimplência',
+  SUBSCRIPTION_OVERDUE_NOTICE: 'Aviso de atraso',
+  MONTH_ROLLOVER: 'Virada do mês',
+  TOKEN_CLEANUP: 'Limpeza de tokens',
+  OUTBOX_PROCESSING: 'Processamento de outbox',
+  BACKUP_MAINTENANCE: 'Manutenção de backup',
+};
+
+export interface JobHealthStatus {
+  jobName: string;
+  label: string;
+  lastRunAt: Date | null;
+  lastStatus: 'SUCCESS' | 'FAILED' | 'RUNNING' | null;
+}
+
+export interface SystemHealth {
+  jobs: JobHealthStatus[];
+  outboxPending: number;
+  outboxFailed: number;
+  resendConfigured: boolean;
+  pushConfigured: boolean;
+  isHealthy: boolean;
+}
+
+/**
+ * Saúde do sistema (pedido do cliente: "o sistema está funcionando de
+ * forma saudável?"). Reaproveita a infraestrutura de jobs/outbox do
+ * Estágio 13 — cada job grava sua própria execução em `JobExecution`, então
+ * "quando foi a última vez que isso rodou, e deu certo?" já é uma
+ * pergunta respondível sem nenhuma tabela nova.
+ */
+export async function getSystemHealth(): Promise<SystemHealth> {
+  const jobs: JobHealthStatus[] = await Promise.all(
+    MONITORED_JOB_NAMES.map(async (jobName) => {
+      const last = await prisma.jobExecution.findFirst({
+        where: { jobName },
+        orderBy: { startedAt: 'desc' },
+      });
+      return {
+        jobName,
+        label: JOB_LABELS[jobName],
+        lastRunAt: last?.startedAt ?? null,
+        lastStatus: last?.status ?? null,
+      };
+    }),
+  );
+
+  const [outboxPending, outboxFailed] = await Promise.all([
+    prisma.outboxEvent.count({ where: { status: 'PENDING' } }),
+    prisma.outboxEvent.count({ where: { status: 'FAILED' } }),
+  ]);
+
+  const resendConfigured = Boolean(process.env.RESEND_API_KEY);
+  const pushConfigured = Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+  const anyJobFailed = jobs.some((job) => job.lastStatus === 'FAILED');
+
+  return {
+    jobs,
+    outboxPending,
+    outboxFailed,
+    resendConfigured,
+    pushConfigured,
+    isHealthy: !anyJobFailed && outboxFailed === 0 && resendConfigured && pushConfigured,
+  };
 }
