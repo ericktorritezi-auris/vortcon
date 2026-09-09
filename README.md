@@ -318,7 +318,7 @@ enquadra — o Financial Engine do Estágio 7 já expõe os primitivos (`getCate
 - **PWA:** manifest + service worker (não offline-first)
 - **Testes:** unit/integration + Playwright (E2E)
 - **CI/CD:** GitHub Actions → Railway
-- **Infraestrutura:** Railway (Web Service + Worker + PostgreSQL)
+- **Infraestrutura:** Railway (Web Service + PostgreSQL + Cron Schedules — ver "Worker e Jobs" abaixo)
 
 ## Arquitetura
 
@@ -430,11 +430,20 @@ npm run build
 
 ## Worker e Jobs
 
-Processos assíncronos (outbox transacional, notificações, recorrências, backups) rodam em um **Worker** separado do Web Service, com jobs idempotentes.
+Processos assíncronos (outbox transacional, notificações, recorrências, backups)
+rodam como jobs idempotentes, expostos via `/api/jobs/run` (protegido por
+`CRON_SECRET`) e disparados por **Railway Cron Schedules** — nunca um serviço
+Worker separado de longa duração. Decisão tomada no Estágio 13, quando os jobs
+reais foram implementados: resolve a mesma necessidade (Seção 33/164 previam um
+Worker) com uma peça de infraestrutura mais simples, sem manter um segundo
+processo rodando o tempo todo (Seção 201: "não adicionar infraestrutura
+prematuramente"). Ver `src/modules/jobs/README.md` e a seção "Estágio 18 —
+Release" para o detalhe completo dessa decisão.
 
-```bash
-npm run worker
-```
+Um esqueleto de processo `Worker` chegou a existir desde o Estágio 1
+(`src/worker/index.ts`), antecipando essa peça — nunca foi usado depois que a
+decisão acima foi tomada no Estágio 13, e foi removido no Estágio 18 por estar
+morto e contradizendo a arquitetura real.
 
 ## PWA
 
@@ -446,7 +455,7 @@ Envio transacional (convite, boas-vindas, recuperação de senha, avisos de assi
 
 ## Deploy (Railway)
 
-Infraestrutura oficial: Railway (não Heroku), com topologia Web + Worker + PostgreSQL.
+Infraestrutura oficial: Railway (não Heroku), com topologia Web Service + PostgreSQL + Cron Schedules (ver "Worker e Jobs" acima — nunca um serviço Worker separado).
 
 **Automação de ponta a ponta — zero passo manual.** Este projeto é mantido por alguém sem
 ambiente local para rodar comandos, então nenhuma etapa de deploy pode depender de um
@@ -961,10 +970,44 @@ sem ver acontecer:
 - [ ] **Mobile/desktop validados** — responsividade foi auditada e corrigida
       repetidamente (Estágios 9-16), mas "validado" no sentido do critério de
       aceite significa alguém olhando num aparelho real
-- [ ] **CI verde** — não existe pipeline de CI configurado no GitHub ainda
-      (Seção 166); isso nunca foi construído neste projeto e precisa de uma
-      decisão do cliente sobre se entra no escopo agora ou fica pra depois
+- [x] **CI verde** — ~~não existia~~ criado agora
+      (`.github/workflows/ci.yml`), ver seção "CI (GitHub Actions)" abaixo.
+      Falta só o próprio GitHub confirmar verde na primeira execução real —
+      não posso alegar isso sem ver o pipeline rodar de verdade lá.
 - [ ] **Smoke production aprovado** — mesmo motivo do item de Healthcheck acima
+
+### CI (GitHub Actions) — criado no Estágio 18
+
+Nunca existia (Seção 166). `.github/workflows/ci.yml` roda em toda PR e todo push
+em `main`: formatação, lint, typecheck, testes (unitários + integração) e build
+de produção — nesta ordem, falhando rápido no primeiro problema.
+
+**Diferença importante em relação a este ambiente de desenvolvimento**: o
+runner do GitHub Actions tem acesso de rede completo — `prisma generate`
+funciona de verdade lá (nunca funcionou aqui, limitação documentada desde o
+Estágio 7), e os testes de integração (que eu nunca consegui _executar_ de
+verdade neste sandbox, só validar por leitura/matemática/SQL direto) vão rodar
+de verdade contra um Postgres real do próprio GitHub Actions pela primeira vez
+nesse pipeline. Isso significa que a primeira execução do CI é também a
+primeira vez que a suíte de integração inteira roda de ponta a ponta — vale a
+pena prestar atenção especial nela.
+
+Um detalhe de configuração que corrigi no caminho: as variáveis opcionais
+(`RESEND_API_KEY`, `VAPID_*`) precisam ficar **totalmente ausentes** no
+workflow, nunca como string vazia — o schema de validação
+(`z.string().min(1).optional()`) aceita a variável ausente, mas uma string
+vazia falha o `min(1)` e quebraria o build por um motivo nada óbvio.
+
+### Limpeza encontrada no caminho — Worker morto desde o Estágio 1
+
+Ao montar o CI, precisei revisar `package.json` com atenção e achei um resíduo
+real: um script `"worker": "tsx src/worker/index.ts"` e o arquivo
+correspondente, ambos do **Estágio 1** — um esqueleto que antecipava um
+processo Worker separado, nunca atualizado quando a decisão real (Cron do
+Railway + rotas de API) foi tomada no Estágio 13. Ficou morto e contradizendo a
+arquitetura real por 17 estágios. Removidos agora — arquivo, script, e as 4
+menções que ainda restavam no README descrevendo a topologia antiga
+("Web + Worker + PostgreSQL").
 
 ### Checklists finais (Seções 214-218) — nenhum item novo encontrado
 
