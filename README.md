@@ -48,14 +48,14 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 
 ## Status do projeto
 
-| Item                    | Valor                                                                                                             |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 16 — Hardening ✅ concluído                                                                               |
-| Próximo estágio         | Estágio 17 — QA                                                                                                   |
-| Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
-| Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
-| Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
+| Item                    | Valor                                                                                                                                                   |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Versão                  | `1.0.0` (baseline em construção)                                                                                                                        |
+| Estágio atual           | Estágio 18 — Release ✅ concluído — **VortCon 1.0.0**                                                                                                   |
+| Próximo estágio         | Nenhum — todos os 18 estágios do roteiro original concluídos. Itens que exigem confirmação em produção listados na seção "Estágio 18 — Release" abaixo. |
+| Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                                                              |
+| Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                                                           |
+| Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito                                       |
 
 Este README evolui junto com o desenvolvimento. Ele é a documentação operacional raiz do projeto, não um arquivo descartável.
 
@@ -890,6 +890,93 @@ Dois ajustes pontuais, encontrados/pedidos ao revisar a entrega antes do Estági
    Estágios 8-9) sem nunca virar escopo de verdade. O cliente confirmou que não faz
    sentido pro propósito da ferramenta — removido o item do menu (`Sidebar.tsx`) e
    a página inteira (`/app/planejamento`).
+
+## Estágio 18 — Release — o que foi entregue
+
+Último estágio antes da VortCon V1.0.0 ser considerada formalmente completa.
+Não é construção de feature — é preparação de release e verificação final
+contra o critério de aceite da especificação (Seção 182) e as checklists finais
+(214-218).
+
+### Correção encontrada ao reler a Seção 207 (Perfil) — timezone nunca era editável
+
+Ao conferir "Meu Perfil" contra a especificação, achei uma lacuna funcional real:
+a Seção 207 pede "Tenant pode alterar: telefone; e-mail; timezone; senha" — o
+fuso horário nunca tinha campo pra editar, ficando travado no default
+`America/Sao_Paulo` pra sempre. Isso importa de verdade: é o fuso que decide o
+horário dos lembretes de vencimento (Seção 117 — "08:00 no timezone do tenant");
+sem poder mudar, qualquer pessoa fora de Brasília recebia lembrete na hora
+errada permanentemente. Corrigido: seletor de fuso horário (as 4 zonas reais do
+Brasil) adicionado ao formulário de dados pessoais.
+
+Adicionei também a seção "Links úteis" (Assinatura, Termos, Privacidade) —
+Seção 207 pede "Mostrar: (...) assinatura; legal" dentro do Perfil; esses já
+existiam como páginas próprias no app, só não estavam linkados a partir daqui.
+
+**Sobre e-mail continuar travado**: a Seção 207 original diz que e-mail
+deveria ser editável pelo tenant — mas o cliente, numa instrução verbal
+posterior e explícita, pediu o contrário ("com exceção do email... que é o que
+vincula todo o processo"). Mantido travado, por decisão do cliente que
+sobrepõe o texto original nesse ponto específico — não é uma lacuna, é uma
+divergência documentada de propósito.
+
+### Railway — infraestrutura (Seção 180)
+
+| Item        | Situação                                                                                                                                                                                                                                                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Web Service | Next.js, já em produção conforme confirmado pelo cliente ao longo dos Estágios 1-17                                                                                                                                                                                                                                                        |
+| **Worker**  | **Decisão arquitetural, documentada aqui**: nunca existe um serviço "Worker" separado. Os 8 jobs (Estágio 13) rodam via 3 serviços de Cron do Railway chamando `/api/jobs/run`, protegido por segredo — já configurado e confirmado funcionando pelo cliente. Resolve a mesma necessidade sem manter um segundo processo de longa duração. |
+| PostgreSQL  | Em produção, confirmado pelo cliente                                                                                                                                                                                                                                                                                                       |
+| env         | `.env.example` conferido contra a Seção 190 (banco, Resend, PIX, VAPID, URLs, Admin bootstrap, secrets) — completo, nenhuma lacuna                                                                                                                                                                                                         |
+| Migrations  | Todas testadas contra Postgres real antes de cada entrega, nesta sessão e em todas as anteriores                                                                                                                                                                                                                                           |
+| Healthcheck | `/api/health` existe desde o Estágio 16, testado                                                                                                                                                                                                                                                                                           |
+| Smoke       | **Requer confirmação do cliente em produção** — não posso alegar isso verificado sem acesso real ao ambiente (Seção 220: "não alegar deploy não verificado")                                                                                                                                                                               |
+
+### Critério de aceite V1.0.0 (Seção 182) — revisão item por item
+
+A esmagadora maioria já está confirmada por código + teste + o próprio cliente
+usando em produção ao longo dos 18 estágios. Os poucos itens abaixo exigem
+confirmação humana em produção — não é algo que eu, como agente, deveria alegar
+sem ver acontecer:
+
+- [x] Admin cria tenant, convite funciona, usuário cria senha, gate legal, tenant
+      entra, onboarding, contas, categorias/tags globais e bidirecionais,
+      relatório por categoria, resultado líquido, receitas/despesas, settlement,
+      transferências, recorrências, Dashboard, Cockpit, Insights, relatórios,
+      PDF/Excel, assinatura, bloqueio D+5, desbloqueio, notificações, backup
+      respeita tenant, Admin não vê financeiro, A não acessa B, migrations
+      reproduzíveis, README atualizado, env.example completo — **todos com
+      código + teste automatizado confirmando, detalhado estágio por estágio ao
+      longo deste README**
+- [ ] **PIX funciona via env** — a chave existe em `VORTCON_PIX_KEY`, nunca
+      hardcoded; o pagamento em si é sempre manual/externo (Seção 110), então
+      "funcionar" aqui significa a chave aparecer certo na tela — peço
+      confirmação visual do cliente
+- [ ] **PWA instala / push funciona** — documentado como checklist manual em
+      `/docs/qa-checklist-manual.md` desde o Estágio 17; exige navegador e
+      aparelho reais
+- [ ] **Resend funciona** — a integração está testada com mocks/lógica; o envio
+      de um e-mail real chegando numa caixa de entrada de verdade exige
+      confirmação do cliente
+- [ ] **Mobile/desktop validados** — responsividade foi auditada e corrigida
+      repetidamente (Estágios 9-16), mas "validado" no sentido do critério de
+      aceite significa alguém olhando num aparelho real
+- [ ] **CI verde** — não existe pipeline de CI configurado no GitHub ainda
+      (Seção 166); isso nunca foi construído neste projeto e precisa de uma
+      decisão do cliente sobre se entra no escopo agora ou fica pra depois
+- [ ] **Smoke production aprovado** — mesmo motivo do item de Healthcheck acima
+
+### Checklists finais (Seções 214-218) — nenhum item novo encontrado
+
+Conferidos contra o histórico completo do projeto — segurança (Estágio 16),
+financeiro (Estágios 6-9, 17), comercial (Estágio 6), legal (Estágio 12, 16B),
+mobile (auditado a cada estágio). Nenhuma lacuna nova além das já registradas
+nesta seção.
+
+### CHANGELOG.md criado
+
+Nunca tinha existido (Seção 198 exige). Criado agora, resumindo a V1.0.0
+completa.
 
 ## Estágio 17 — QA — o que foi entregue
 

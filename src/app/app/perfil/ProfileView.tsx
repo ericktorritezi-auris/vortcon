@@ -1,8 +1,17 @@
 'use client';
 
-import { Download, Fingerprint, KeyRound, Trash2, User as UserIcon } from 'lucide-react';
+import {
+  CreditCard,
+  Download,
+  ExternalLink,
+  Fingerprint,
+  KeyRound,
+  Trash2,
+  User as UserIcon,
+} from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Button, DateInput, Input } from '@/shared/ui';
+import { Button, DateInput, Input, Select } from '@/shared/ui';
 import { registerBiometric, supportsBiometricLogin } from '@/modules/webauthn/webauthn-client';
 
 interface ProfileViewProps {
@@ -12,8 +21,19 @@ interface ProfileViewProps {
     username: string;
     phone: string | null;
     birthDate: string | null;
+    timezone: string;
   };
 }
+
+// Lista curta e prática (Seção 208: default America/Sao_Paulo) — cobre os
+// fusos reais do Brasil sem virar um seletor de centenas de opções que
+// ninguém usa.
+const TIMEZONE_OPTIONS = [
+  { value: 'America/Sao_Paulo', label: 'Brasília (GMT-3)' },
+  { value: 'America/Manaus', label: 'Manaus (GMT-4)' },
+  { value: 'America/Rio_Branco', label: 'Rio Branco (GMT-5)' },
+  { value: 'America/Noronha', label: 'Fernando de Noronha (GMT-2)' },
+];
 
 interface CredentialItem {
   id: string;
@@ -32,6 +52,7 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone ?? '');
   const [birthDate, setBirthDate] = useState(user.birthDate ?? '');
+  const [timezone, setTimezone] = useState(user.timezone);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -69,7 +90,12 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
       const response = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone: phone || null, birthDate: birthDate || null }),
+        body: JSON.stringify({
+          name,
+          phone: phone || null,
+          birthDate: birthDate || null,
+          timezone,
+        }),
       });
       if (!response.ok) {
         setProfileError('Não foi possível salvar os dados.');
@@ -161,6 +187,10 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
         <p className="mb-4 text-xs text-ink-secondary">
           E-mail e usuário não podem ser alterados por aqui — são o que vincula sua conta.
         </p>
+        <p className="mb-4 text-xs text-ink-secondary">
+          O fuso horário define o horário dos seus lembretes de vencimento (sempre às 8h no seu
+          horário local).
+        </p>
 
         <form onSubmit={handleProfileSubmit} className="flex flex-col gap-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -180,6 +210,12 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
               label="Data de nascimento"
               value={birthDate}
               onChange={(event) => setBirthDate(event.target.value)}
+            />
+            <Select
+              label="Fuso horário"
+              value={timezone}
+              onChange={(event) => setTimezone(event.target.value)}
+              options={TIMEZONE_OPTIONS}
             />
           </div>
           {profileMessage ? (
@@ -296,6 +332,36 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
         <a href="/api/backup/export">
           <Button variant="secondary">Baixar backup</Button>
         </a>
+      </section>
+
+      <section className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
+          <h2 className="text-sm font-semibold text-ink-primary">Links úteis</h2>
+        </div>
+        <div className="flex flex-col divide-y divide-ink-secondary/10">
+          <Link
+            href="/app/assinatura"
+            className="flex items-center justify-between py-2.5 text-sm text-ink-primary hover:text-brand-flow"
+          >
+            Minha assinatura
+            <ExternalLink className="h-3.5 w-3.5 text-ink-secondary" aria-hidden="true" />
+          </Link>
+          <Link
+            href="/termos"
+            className="flex items-center justify-between py-2.5 text-sm text-ink-primary hover:text-brand-flow"
+          >
+            Termos de Uso
+            <ExternalLink className="h-3.5 w-3.5 text-ink-secondary" aria-hidden="true" />
+          </Link>
+          <Link
+            href="/privacidade"
+            className="flex items-center justify-between py-2.5 text-sm text-ink-primary hover:text-brand-flow"
+          >
+            Política de Privacidade
+            <ExternalLink className="h-3.5 w-3.5 text-ink-secondary" aria-hidden="true" />
+          </Link>
+        </div>
       </section>
     </div>
   );

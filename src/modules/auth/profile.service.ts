@@ -6,6 +6,7 @@ interface UpdateProfileInput {
   name?: string;
   phone?: string | null;
   birthDate?: Date | null;
+  timezone?: string;
 }
 
 /**
@@ -13,6 +14,10 @@ interface UpdateProfileInput {
  * username aqui, de propósito: email é o que vincula todo o processo de
  * autenticação/recuperação, username é o identificador de login. Ambos
  * ficam fora desta função — quem chama nunca deveria nem tentar passá-los.
+ * timezone (Seção 207/208) — pedido explícito do documento mestre,
+ * afetava direto o horário dos lembretes (Seção 117: "08:00 no timezone
+ * do tenant") e nunca tinha tela pra editar; ficava travado no default
+ * America/Sao_Paulo pra sempre.
  */
 export async function updateProfile(userId: string, input: UpdateProfileInput) {
   return prisma.user.update({
@@ -21,6 +26,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput) {
       name: input.name,
       phone: input.phone,
       birthDate: input.birthDate,
+      timezone: input.timezone,
     },
   });
 }

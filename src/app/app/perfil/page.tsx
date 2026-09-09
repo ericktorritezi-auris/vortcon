@@ -7,9 +7,12 @@ import { ProfileView } from './ProfileView';
 export const dynamic = 'force-dynamic';
 
 /**
- * Meu Perfil (pedido do cliente) — dados editáveis (nome, telefone, data
- * de nascimento), troca de senha, e gerenciamento de biometria. Nunca
- * email nem username — esses ficam de fora de propósito.
+ * Meu Perfil (Seção 207) — dados editáveis (nome, telefone, data de
+ * nascimento, timezone), troca de senha, gerenciamento de biometria, e
+ * links úteis (assinatura, termos, privacidade, backup). Nunca email nem
+ * username — esses ficam de fora de propósito (decisão explícita do
+ * cliente, sobrepõe o texto original do documento mestre nesse ponto
+ * específico).
  */
 export default async function PerfilPage(): Promise<React.ReactElement> {
   const access = await evaluateAccessPolicy();
@@ -45,6 +48,7 @@ export default async function PerfilPage(): Promise<React.ReactElement> {
           birthDate: session.user.birthDate
             ? session.user.birthDate.toISOString().slice(0, 10)
             : null,
+          timezone: session.user.timezone,
         }}
       />
     </AppShell>

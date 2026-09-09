@@ -7,6 +7,20 @@ const updateProfileSchema = z.object({
   name: z.string().min(1).optional(),
   phone: z.string().nullable().optional(),
   birthDate: z.coerce.date().nullable().optional(),
+  // Seção 208 — sempre um identificador IANA válido; a forma robusta de
+  // validar isso em JS é tentar formatar uma data com ele, sem depender
+  // de uma lista fixa que ficaria desatualizada.
+  timezone: z
+    .string()
+    .refine((value) => {
+      try {
+        new Intl.DateTimeFormat('en-US', { timeZone: value });
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'Fuso horário inválido.')
+    .optional(),
 });
 
 export async function PATCH(request: Request): Promise<NextResponse> {
