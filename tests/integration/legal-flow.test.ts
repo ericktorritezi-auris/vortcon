@@ -131,8 +131,17 @@ describe('fluxo de documentos legais', () => {
     await saveDraft('TERMS_OF_USE', '<h2>Termos</h2><p>Versao para historico</p>');
     const versionForHistory = await publishDraft('TERMS_OF_USE', true);
 
-    const [pending] = await findPendingAcceptances(userId);
-    if (pending) await recordAcceptance(tenantId, userId, pending.versionId, {});
+    // Nunca destructurar "o primeiro pendente" — a essa altura do arquivo
+    // o usuário pode ter mais de um documento pendente ao mesmo tempo (o
+    // teste anterior, de PRIVACY_POLICY, publicou uma versão nova também).
+    // Precisa ser exatamente o TERMS_OF_USE que acabamos de publicar, ou
+    // o aceite registrado é de outro documento, e este teste nunca prova
+    // o que diz provar (bug real, achado no Estágio 18 pelo CI de
+    // verdade, que este ambiente de desenvolvimento nunca conseguiu
+    // executar).
+    const pendingList = await findPendingAcceptances(userId);
+    const pendingTerms = pendingList.find((item) => item.type === 'TERMS_OF_USE');
+    if (pendingTerms) await recordAcceptance(tenantId, userId, pendingTerms.versionId, {});
 
     const acceptanceBefore = await prisma.legalAcceptance.findFirst({
       where: { userId, documentVersionId: versionForHistory.id },
