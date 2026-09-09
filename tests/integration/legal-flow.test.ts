@@ -135,7 +135,7 @@ describe('fluxo de documentos legais', () => {
     if (pending) await recordAcceptance(tenantId, userId, pending.versionId, {});
 
     const acceptanceBefore = await prisma.legalAcceptance.findFirst({
-      where: { userId, versionId: versionForHistory.id },
+      where: { userId, documentVersionId: versionForHistory.id },
     });
     expect(acceptanceBefore).not.toBeNull();
 
@@ -145,7 +145,7 @@ describe('fluxo de documentos legais', () => {
     // O aceite da versão anterior continua no banco, intacto — só deixa
     // de "contar" pro gate atual, nunca é apagado (evidência histórica).
     const acceptanceAfter = await prisma.legalAcceptance.findFirst({
-      where: { userId, versionId: versionForHistory.id },
+      where: { userId, documentVersionId: versionForHistory.id },
     });
     expect(acceptanceAfter?.id).toBe(acceptanceBefore?.id);
   });
