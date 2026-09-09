@@ -5,6 +5,8 @@ import { provisionTenantWithOwner } from '@/modules/tenants/tenant.service';
 import { createAccount } from '@/modules/accounts/account.service';
 import { createIncomeOrExpense } from '@/modules/transactions/transaction.service';
 import { runFinancialDueRemindersJob, runTokenCleanupJob } from '@/modules/jobs/jobs.service';
+import { subscribeToPush, listPushSubscriptions } from '@/modules/notifications/push.service';
+import { processPendingOutboxEvents } from '@/modules/notifications/outbox.service';
 import { cleanupTenant, createTestPlan, deleteTestPlan } from '../helpers/commercial';
 
 /**
@@ -71,6 +73,7 @@ describe('Idempotência de jobs', () => {
 
 describe('Jobs de negócio (Seção 117-119)', () => {
   let tenantId: string;
+  let userId: string;
   let planId: string;
   let accountId: string;
 
@@ -79,13 +82,14 @@ describe('Jobs de negócio (Seção 117-119)', () => {
     planId = plan.id;
 
     const suffix = crypto.randomUUID().slice(0, 8);
-    const { tenant } = await provisionTenantWithOwner({
+    const { tenant, user } = await provisionTenantWithOwner({
       name: 'Jobs Test Owner',
       email: `jobs-${suffix}@example.com`,
       username: `jobs_${suffix}`,
       planId,
     });
     tenantId = tenant.id;
+    userId = user.id;
 
     const account = await createAccount(tenantId, {
       name: 'Conta Jobs',
@@ -131,5 +135,46 @@ describe('Jobs de negócio (Seção 117-119)', () => {
     await runTokenCleanupJob();
     await runTokenCleanupJob();
     expect(true).toBe(true);
+  });
+
+  it('Seção 176 — multi-device: um usuário pode ter push ativado em mais de um aparelho ao mesmo tempo', async () => {
+    await subscribeToPush({
+      tenantId,
+      userId,
+      endpoint: `https://push.example.com/celular-${crypto.randomUUID()}`,
+      p256dh: 'key-celular',
+      auth: 'auth-celular',
+    });
+    await subscribeToPush({
+      tenantId,
+      userId,
+      endpoint: `https://push.example.com/notebook-${crypto.randomUUID()}`,
+      p256dh: 'key-notebook',
+      auth: 'auth-notebook',
+    });
+
+    const subscriptions = await listPushSubscriptions(userId);
+    expect(subscriptions.length).toBeGreaterThanOrEqual(2);
+
+    await prisma.pushSubscription.deleteMany({ where: { userId } });
+  });
+
+  it('Seção 176 — retry: um evento de outbox que falha fica marcado como FAILED com contagem de tentativas, pronto pra nova tentativa', async () => {
+    const event = await prisma.outboxEvent.create({
+      data: {
+        eventType: 'TipoDeEventoQueNaoExiste',
+        payload: {},
+      },
+    });
+
+    const result = await processPendingOutboxEvents();
+    expect(result.failed).toBeGreaterThanOrEqual(1);
+
+    const afterProcessing = await prisma.outboxEvent.findUnique({ where: { id: event.id } });
+    expect(afterProcessing?.status).toBe('FAILED');
+    expect(afterProcessing?.attempts).toBe(1);
+    expect(afterProcessing?.lastError).toBeTruthy();
+
+    await prisma.outboxEvent.delete({ where: { id: event.id } });
   });
 });

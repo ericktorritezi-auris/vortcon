@@ -3,6 +3,7 @@ import { prisma } from '@/shared/database/client';
 import { provisionTenantWithOwner } from '@/modules/tenants/tenant.service';
 import { consumeInvitation } from '@/modules/auth/invitation.service';
 import { publishDraft, saveDraft } from '@/modules/legal/legal-document.service';
+import * as legalAcceptanceModule from '@/modules/legal/legal-acceptance.service';
 import {
   findPendingAcceptances,
   hasAcceptedAllRequiredDocuments,
@@ -105,5 +106,58 @@ describe('fluxo de documentos legais', () => {
 
     const pendingAfterMinorEdit = await findPendingAcceptances(userId);
     expect(pendingAfterMinorEdit.find((item) => item.type === 'TERMS_OF_USE')).toBeUndefined();
+  });
+
+  it('Seção 175 — versão antiga é imutável: publicar uma nova versão nunca altera o conteúdo da anterior', async () => {
+    await saveDraft('PRIVACY_POLICY', '<h2>Privacidade</h2><p>Conteúdo original da v1</p>');
+    const v1 = await publishDraft('PRIVACY_POLICY', true);
+
+    await saveDraft(
+      'PRIVACY_POLICY',
+      '<h2>Privacidade</h2><p>Conteúdo totalmente diferente da v2</p>',
+    );
+    await publishDraft('PRIVACY_POLICY', true);
+
+    const v1AfterNewPublish = await prisma.legalDocumentVersion.findUnique({
+      where: { id: v1.id },
+    });
+    expect(v1AfterNewPublish?.contentHtml).toBe(
+      '<h2>Privacidade</h2><p>Conteúdo original da v1</p>',
+    );
+    expect(v1AfterNewPublish?.status).toBe('ARCHIVED');
+  });
+
+  it('Seção 175 — aceite histórico é preservado (nunca apagado ao publicar uma versão nova)', async () => {
+    await saveDraft('TERMS_OF_USE', '<h2>Termos</h2><p>Versao para historico</p>');
+    const versionForHistory = await publishDraft('TERMS_OF_USE', true);
+
+    const [pending] = await findPendingAcceptances(userId);
+    if (pending) await recordAcceptance(tenantId, userId, pending.versionId, {});
+
+    const acceptanceBefore = await prisma.legalAcceptance.findFirst({
+      where: { userId, versionId: versionForHistory.id },
+    });
+    expect(acceptanceBefore).not.toBeNull();
+
+    await saveDraft('TERMS_OF_USE', '<h2>Termos</h2><p>Versao seguinte</p>');
+    await publishDraft('TERMS_OF_USE', true);
+
+    // O aceite da versão anterior continua no banco, intacto — só deixa
+    // de "contar" pro gate atual, nunca é apagado (evidência histórica).
+    const acceptanceAfter = await prisma.legalAcceptance.findFirst({
+      where: { userId, versionId: versionForHistory.id },
+    });
+    expect(acceptanceAfter?.id).toBe(acceptanceBefore?.id);
+  });
+
+  it('Seção 175 — nenhuma função do módulo legal permite ao Admin alterar um aceite já registrado', () => {
+    // Só expõe recordAcceptance (criar) e consultas
+    // (findPendingAcceptances, hasAcceptedAllRequiredDocuments) — nenhuma
+    // função de update/delete de aceite existe pra nenhum papel, Admin
+    // incluso. A única exclusão em massa de LegalAcceptance em todo o
+    // código é o Factory Reset (uso único, pré-lançamento).
+    const exportedNames = Object.keys(legalAcceptanceModule);
+    expect(exportedNames).not.toContain('updateAcceptance');
+    expect(exportedNames).not.toContain('deleteAcceptance');
   });
 });

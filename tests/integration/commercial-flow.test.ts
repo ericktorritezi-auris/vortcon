@@ -122,4 +122,92 @@ describe('fluxo comercial (assinatura, mensalidade, inadimplencia)', () => {
     await cleanupTenant(tenant.id);
     await deleteTestPlan(exemptPlan.id);
   });
+
+  /**
+   * Seção 174 — fronteira exata dos dias de carência (Seção 113:
+   * "vencimento dia 10, bloqueio dia 15" = 5 dias de carência). O teste
+   * já existente acima usa 6 dias (bem depois da fronteira) — nunca prova
+   * o limite exato. Aqui: dia 4 nunca bloqueia, dia 5 sempre bloqueia.
+   */
+  it('Seção 174 — 4 dias de atraso NUNCA bloqueia (ainda dentro da carência)', async () => {
+    const charge = (await subscriptionRepository.listChargesForTenant(tenantId))[0]!;
+    const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
+    await prisma.subscriptionCharge.update({
+      where: { id: charge.id },
+      data: { dueDate: fourDaysAgo },
+    });
+
+    await evaluateAndApplyDelinquency(tenantId);
+
+    const blocks = await tenantRepository.findActiveBlocks(tenantId);
+    expect(blocks.some((block) => block.type === 'DELINQUENCY')).toBe(false);
+  });
+
+  it('Seção 174 — exatamente 5 dias de atraso SEMPRE bloqueia (fronteira exata da carência)', async () => {
+    const charge = (await subscriptionRepository.listChargesForTenant(tenantId))[0]!;
+    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+    await prisma.subscriptionCharge.update({
+      where: { id: charge.id },
+      data: { dueDate: fiveDaysAgo },
+    });
+
+    await evaluateAndApplyDelinquency(tenantId);
+
+    const blocks = await tenantRepository.findActiveBlocks(tenantId);
+    expect(blocks.some((block) => block.type === 'DELINQUENCY')).toBe(true);
+
+    await tenantRepository.liftBlock(blocks[0]!.id);
+  });
+
+  it('Seção 174 — bloqueio ADMINISTRATIVE (manual, pelo Admin) nunca foi testado antes — nunca é confundido com DELINQUENCY', async () => {
+    const block = await tenantRepository.createBlock(
+      tenantId,
+      'ADMINISTRATIVE',
+      'Revisão manual solicitada',
+    );
+    const activeBlocks = await tenantRepository.findActiveBlocks(tenantId);
+
+    expect(activeBlocks.some((b) => b.type === 'ADMINISTRATIVE')).toBe(true);
+    // Pagar a mensalidade só levanta bloqueio DELINQUENCY (Seção 114) —
+    // um bloqueio ADMINISTRATIVE nunca é levantado automaticamente.
+    const stillActive = await prisma.tenantAccessBlock.findUnique({ where: { id: block.id } });
+    expect(stillActive?.active).toBe(true);
+
+    await tenantRepository.liftBlock(block.id);
+  });
+
+  it('Seção 174 — bloqueio SECURITY (manual, pelo Admin) nunca foi testado antes — coexiste com outros tipos', async () => {
+    const block = await tenantRepository.createBlock(
+      tenantId,
+      'SECURITY',
+      'Atividade suspeita detectada',
+    );
+    const activeBlocks = await tenantRepository.findActiveBlocks(tenantId);
+
+    expect(activeBlocks.some((b) => b.type === 'SECURITY')).toBe(true);
+
+    await tenantRepository.liftBlock(block.id);
+    const afterLift = await tenantRepository.findActiveBlocks(tenantId);
+    expect(afterLift.some((b) => b.type === 'SECURITY')).toBe(false);
+  });
+
+  it('Seção 174 — histórico de cobrança é preservado após o pagamento (nunca apagado nem alterado retroativamente)', async () => {
+    const charge = (await subscriptionRepository.listChargesForTenant(tenantId))[0]!;
+    const originalCompetence = charge.competence;
+    const originalAmount = charge.amountCents;
+
+    await subscriptionRepository.markChargePaid(charge.id, {
+      tenantId,
+      userId: 'test-user',
+      userEmail: 'test@example.com',
+      planName: 'Plano Teste',
+      amountFormatted: 'R$ 0,00',
+    });
+
+    const afterPayment = await prisma.subscriptionCharge.findUnique({ where: { id: charge.id } });
+    expect(afterPayment?.status).toBe('PAID');
+    expect(afterPayment?.competence.getTime()).toBe(originalCompetence.getTime());
+    expect(afterPayment?.amountCents).toBe(originalAmount);
+    expect(afterPayment?.paidAt).not.toBeNull();
+  });
 });

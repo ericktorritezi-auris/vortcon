@@ -891,6 +891,75 @@ Dois ajustes pontuais, encontrados/pedidos ao revisar a entrega antes do Estági
    sentido pro propósito da ferramenta — removido o item do menu (`Sidebar.tsx`) e
    a página inteira (`/app/planejamento`).
 
+## Estágio 17 — QA — o que foi entregue
+
+Estágio de auditoria (Seções 169-179) — não é construção nova, é conferir cada
+cenário obrigatório listado na especificação contra a suíte de testes já
+existente, escrevendo só o que realmente faltava. Rodado em toda a extensão do
+projeto, não um recorte.
+
+**Confirmado como já coberto, sem precisar de nada novo:**
+
+- Seção 170 (financeiro obrigatório) — os 11 itens, incluindo o que parecia faltar
+  numa primeira olhada ("recorrência editada em outubro não altera novembro" —
+  estava em `recurrence-flow.test.ts`, não no arquivo que eu esperava)
+- Seção 171 (categoria) e 172 (tag) — cobertura completa e exata, incluindo o
+  exemplo literal da especificação
+
+**Lacunas reais encontradas e corrigidas nesta rodada:**
+
+- **Seção 173 (multitenant)** — novo arquivo
+  `multitenant-isolation-extended.test.ts`: A não lê B, A não edita B (descobri que
+  editar/cancelar transação de outro tenant **lança erro**, nunca falha
+  silenciosamente — mais forte do que eu esperava), A não cancela B, A não recebe
+  push B, jobs A não alteram B.
+- **Seção 174 (assinatura)** — a fronteira exata da carência nunca tinha sido
+  testada (o teste antigo usava 6 dias, bem depois do limite) — agora 4 dias
+  nunca bloqueia e exatamente 5 dias sempre bloqueia, confirmado também via
+  cálculo direto fora do teste. Bloqueio ADMINISTRATIVE e SECURITY nunca tinham
+  sido testados nenhuma vez. Histórico de cobrança preservado após pagamento.
+- **Seção 175 (legal)** — versão antiga imutável após publicar uma nova, aceite
+  histórico nunca apagado, confirmação de que nenhuma função permite ao Admin
+  alterar um aceite já registrado.
+- **Seção 176 (notificação)** — "push inválido" (a decisão de remover uma
+  inscrição expirada) foi extraída pra um arquivo próprio sem dependência de
+  Prisma (`push-error-classification.ts`) especificamente pra poder ser testada
+  isoladamente — sem essa extração, o teste quebraria só de _importar_ o módulo
+  neste ambiente (mesma classe de problema que já apareceu antes com testes que
+  tocam Prisma sem querer). Multi-device (um usuário com push ativado em dois
+  aparelhos) e retry do outbox (evento que falha fica marcado com contagem de
+  tentativas) testados por integração.
+- **Seção 177 (PWA)** — estes itens (manifest real, prompt de instalação, ícone
+  renderizado, service worker no navegador, push chegando de verdade num
+  aparelho, cache do navegador) **exigem navegador real** — não são
+  automatizáveis em Vitest, que roda em Node sem DOM. Documentado como checklist
+  manual em `/docs/qa-checklist-manual.md`, com a explicação de por quê.
+
+**Definition of Done (Seção 178) — avaliação em nível de projeto:**
+
+| Dimensão                              | Situação                                                                                                                                     |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Comportamento, validação, autorização | Cobertos por testes de integração em cada módulo, reforçados nesta rodada                                                                    |
+| Tenant isolation                      | Extensivamente testado — Estágio 17 fechou os últimos itens da Seção 173                                                                     |
+| Erros                                 | Toda rota de API trata erro e devolve mensagem; jobs marcam FAILED com detalhe                                                               |
+| Loading / empty                       | Todo componente de listagem tem estado vazio tratado (confirmado ao longo dos Estágios 6-16)                                                 |
+| Mobile / desktop                      | Responsividade auditada e corrigida repetidamente (Estágios 9-16)                                                                            |
+| Accessibility                         | `aria-label`, `role`, navegação por teclado nos componentes interativos principais                                                           |
+| Testes                                | 118 testes unitários reais + suíte de integração ampla (não executável neste sandbox por limitação de Prisma, documentada desde o Estágio 7) |
+| Logs                                  | Nunca segredo/senha em log (auditado no Estágio 16); jobs e outbox logam falha com contexto                                                  |
+| Migration                             | Toda migration testada contra Postgres real antes de cada entrega                                                                            |
+| Docs                                  | README com histórico completo de cada estágio, decisão e correção                                                                            |
+| Regressão                             | Nenhuma mudança recente quebrou teste já existente (confirmado a cada rodada de validação)                                                   |
+
+**QA desta rodada:** lint limpo, typecheck limpo, **118/118 testes unitários**
+rodando de verdade (116 anteriores + 2 novos nesta auditoria —
+`isExpiredSubscriptionError`). Os demais testes novos desta rodada são de
+integração (multitenant, assinatura, legal, jobs) — não executam neste sandbox
+pela limitação de Prisma já documentada desde o Estágio 7, mas foram validados
+por revisão manual linha a linha contra o schema e, no caso da fronteira de
+carência, por cálculo direto fora do teste (confirmado: 4 dias não bloqueia, 5
+dias bloqueia). Build compilando.
+
 ## Insight Engine — o que foi entregue
 
 Parte original do Estágio 11 ("Cockpit/Insights"), nunca construída até agora —

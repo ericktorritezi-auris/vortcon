@@ -1,6 +1,9 @@
 import webpush from 'web-push';
 import type { PushSubscription as PushSubscriptionRecord } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
+import { isExpiredSubscriptionError } from './push-error-classification';
+
+export { isExpiredSubscriptionError };
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
@@ -73,7 +76,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
         );
       } catch (error) {
         const statusCode = (error as { statusCode?: number }).statusCode;
-        if (statusCode === 404 || statusCode === 410) {
+        if (isExpiredSubscriptionError(statusCode)) {
           await prisma.pushSubscription
             .delete({ where: { id: subscription.id } })
             .catch(() => undefined);
