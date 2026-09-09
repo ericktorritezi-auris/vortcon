@@ -8,6 +8,8 @@ import {
 import type { CategoryBreakdownRow } from '@/modules/financial-engine/financial-engine.service';
 import { selectCategoryHighlights } from './cockpit-highlights';
 import type { CategoryHighlights } from './cockpit-highlights';
+import { generateCategoryInsights } from '@/modules/insights/insight-engine.service';
+import type { Insight } from '@/modules/insights/insight-rules';
 
 interface MonthBoundaries {
   from: Date;
@@ -42,6 +44,8 @@ export interface CockpitSummary {
   categoryHighlights: CategoryHighlights;
   /** Movimentação do mês por categoria — base para o gráfico de pizza (despesas/receitas por categoria, a pedido do cliente). */
   categoryBreakdown: CategoryBreakdownRow[];
+  /** Insight Engine (Seção 90-92) — determinístico, sem IA generativa. */
+  insights: Insight[];
 }
 
 /**
@@ -93,6 +97,11 @@ export async function getCockpitSummary(
     currentCategoryBreakdown,
     previousCategoryBreakdown,
   );
+  const insights = await generateCategoryInsights(
+    tenantId,
+    currentCategoryBreakdown,
+    previousCategoryBreakdown,
+  );
 
   return {
     initialBalanceCents,
@@ -107,6 +116,7 @@ export async function getCockpitSummary(
     },
     categoryHighlights,
     categoryBreakdown: currentCategoryBreakdown,
+    insights,
   };
 }
 

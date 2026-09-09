@@ -872,6 +872,48 @@ Segundo dos 3 sub-estágios do backlog de páginas públicas (16A/16B/16C).
   no `tailwind.config.ts` agora — beneficia tanto o editor novo quanto as duas
   páginas públicas que já dependiam dessas classes.
 
+## Insight Engine — o que foi entregue
+
+Parte original do Estágio 11 ("Cockpit/Insights"), nunca construída até agora —
+fechada antes do Estágio 17, a pedido do cliente.
+
+- **`insight-rules.ts`** — motor de regras puro (Seção 90-92), sem I/O: recebe os
+  totais já calculados pelo Financial Engine e devolve 0 ou 1 candidato a insight
+  por categoria. Determinístico, nunca IA generativa — pipeline fixo Financial
+  Engine → métricas → regras → relevância → templates → insight.
+  - Categoria bidirecional com receita **e** despesa no mesmo período → sempre
+    template de resultado líquido (Seção 92: "preferir resultado líquido da
+    categoria quando entradas e saídas forem comparadas"), nunca dois insights
+    separados que poderiam se contradizer.
+  - Categoria só de despesa ou só de receita → variação percentual em relação ao
+    mês anterior, com piso de relevância (R$ 50, julgamento de engenharia
+    documentado no código — a especificação não define um valor exato) pra nunca
+    gerar uma "variação de 200%" de uma categoria com movimento irrisório; sem
+    base de comparação válida, cai pro total absoluto.
+  - **Nunca divide por zero** (`computePercentChange` retorna `null` quando o mês
+    anterior é zero) e **nunca confunde redução de despesa com lucro** — os
+    templates descrevem só a métrica em si, nunca concluem nada sobre o resultado
+    financeiro geral do tenant.
+  - **11/11 testes reais**, incluindo o exemplo exato da Seção 91 (R$ 8.000 em
+    entradas, R$ 5.000 em saídas, R$ 3.000 de resultado líquido) e a confirmação
+    de que o texto nunca menciona "lucro". No caminho, achei e corrigi um bug real
+    no próprio teste: o formatador de moeda brasileiro (`Intl.NumberFormat`)
+    insere um espaço não separável (U+00A0) entre "R$" e o valor, não um espaço
+    comum — os testes agora montam o valor esperado com o mesmo formatador, nunca
+    digitando a pontuação de moeda à mão.
+- **`insight-engine.service.ts`** — orquestrador fino: só resolve os nomes reais
+  de categoria (a única parte que faltava), delega tudo o resto pra
+  `insight-rules.ts`. Recebe o breakdown por categoria **já calculado** pelo
+  Cockpit — nunca busca de novo o que quem chama já tem, evitando uma consulta
+  duplicada ao banco.
+- **Integrado no Cockpit** — `CockpitSummary` ganhou o campo `insights`;
+  `CockpitView.tsx` troca o placeholder "chega em um estágio futuro" pela lista
+  real. Continua honesto quando não há insight nenhum ("ainda não há movimentação
+  suficiente"), nunca inventa dado.
+- **3 testes de integração** contra PostgreSQL real, incluindo o mesmo exemplo da
+  Seção 91 com dados de verdade lançados no banco, e a confirmação de que um mês
+  sem movimentação nenhuma não gera insight algum.
+
 ## Estágio 16A — o que foi entregue
 
 Divisão do backlog de páginas públicas em 3 sub-estágios (16A/16B/16C), a pedido do
@@ -1098,6 +1140,9 @@ desde estágios anteriores — registrado abaixo com a evidência de cada checag
 ## Backlog registrado (não são lacunas — adiamento deliberado, confirmado pelo cliente)
 
 Itens identificados e conscientemente adiados para um estágio futuro a definir:
+
+- ~~Insight Engine (Seções 90-92) — parte original do Estágio 11, nunca construída.~~
+  **Construído**, ver seção própria abaixo.
 
 - **Tela de gerenciamento de credenciais biométricas** — o backend já suporta remover
   um dispositivo (`DELETE /api/webauthn/credentials/[id]`, Estágio 14), mas não existe

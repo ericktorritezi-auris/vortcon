@@ -281,15 +281,30 @@ export function CockpitView({
         </div>
       </section>
 
-      <section className="rounded-lg border border-dashed border-ink-secondary/25 p-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-ink-primary">
+      <section
+        className={
+          summary.insights.length > 0
+            ? 'rounded-lg border border-ink-secondary/15 bg-white p-4'
+            : 'rounded-lg border border-dashed border-ink-secondary/25 p-4'
+        }
+      >
+        <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-primary">
           <Lightbulb className="h-4 w-4 text-financial-warning" aria-hidden="true" />
           Insights
         </div>
-        <p className="mt-1 text-sm text-ink-secondary">
-          O motor de insights chega em um estágio futuro (Insight Engine). Por enquanto, acompanhe o
-          resumo acima.
-        </p>
+        {summary.insights.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {summary.insights.map((insight) => (
+              <li key={insight.categoryId} className="text-sm text-ink-secondary">
+                {insight.text}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-ink-secondary">
+            Ainda não há movimentação suficiente neste mês para gerar insights.
+          </p>
+        )}
       </section>
     </div>
   );
