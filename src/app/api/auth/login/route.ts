@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { login } from '@/modules/auth/login.service';
+import { setSessionCookie } from '@/modules/auth/session.service';
 import { checkRateLimit, getClientIp } from '@/shared/security/rate-limit';
 
 const loginSchema = z.object({
@@ -47,6 +48,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       { status: 403 },
     );
   }
+
+  // login() nunca seta o cookie diretamente (Estágio 18 — precisa
+  // continuar testável fora de uma requisição real); a rota, que sempre
+  // roda dentro de uma requisição de verdade, faz isso aqui.
+  setSessionCookie(result.sessionToken);
 
   return NextResponse.json({ status: 'ok', role: result.role });
 }
