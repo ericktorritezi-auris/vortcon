@@ -206,4 +206,32 @@ describe('fluxo comercial (assinatura, mensalidade, inadimplencia)', () => {
       'SECURITY',
       'Atividade suspeita detectada',
     );
-    const activeBlocks =
+    const activeBlocks = await tenantRepository.findActiveBlocks(tenantId);
+
+    expect(activeBlocks.some((b) => b.type === 'SECURITY')).toBe(true);
+
+    await tenantRepository.liftBlock(block.id);
+    const afterLift = await tenantRepository.findActiveBlocks(tenantId);
+    expect(afterLift.some((b) => b.type === 'SECURITY')).toBe(false);
+  });
+
+  it('Seção 174 — histórico de cobrança é preservado após o pagamento (nunca apagado nem alterado retroativamente)', async () => {
+    const charge = (await subscriptionRepository.listChargesForTenant(tenantId))[0]!;
+    const originalCompetence = charge.competence;
+    const originalAmount = charge.amountCents;
+
+    await subscriptionRepository.markChargePaid(charge.id, {
+      tenantId,
+      userId: 'test-user',
+      userEmail: 'test@example.com',
+      planName: 'Plano Teste',
+      amountFormatted: 'R$ 0,00',
+    });
+
+    const afterPayment = await prisma.subscriptionCharge.findUnique({ where: { id: charge.id } });
+    expect(afterPayment?.status).toBe('PAID');
+    expect(afterPayment?.competence.getTime()).toBe(originalCompetence.getTime());
+    expect(afterPayment?.amountCents).toBe(originalAmount);
+    expect(afterPayment?.paidAt).not.toBeNull();
+  });
+});
