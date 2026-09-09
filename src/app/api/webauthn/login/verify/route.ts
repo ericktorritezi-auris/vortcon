@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createSessionAndSetCookie } from '@/modules/auth/session.service';
 import { verifyAuthentication } from '@/modules/webauthn/webauthn.service';
+import { checkRateLimit, getClientIp } from '@/shared/security/rate-limit';
 
 const verifySchema = z.object({ response: z.unknown() });
 
@@ -11,6 +12,15 @@ const verifySchema = z.object({ response: z.unknown() });
  * autenticação, nenhuma lógica de sessão duplicada.
  */
 export async function POST(request: Request): Promise<NextResponse> {
+  // Seção 153: mesma proteção do login por senha — este é outro caminho de login público.
+  const rateLimit = checkRateLimit(`webauthn-login-verify:${getClientIp(request)}`, 10, 60);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'RATE_LIMITED', message: 'Muitas tentativas. Tente novamente em instantes.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+    );
+  }
+
   const parsed = verifySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: 'VALIDATION_ERROR' }, { status: 400 });

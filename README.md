@@ -51,8 +51,8 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Item                    | Valor                                                                                                             |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | Versão                  | `1.0.0` (baseline em construção)                                                                                  |
-| Estágio atual           | Estágio 15 — Backup ✅ concluído                                                                                  |
-| Próximo estágio         | Estágio 16 — Hardening                                                                                            |
+| Estágio atual           | Estágio 16 — Hardening ✅ concluído                                                                               |
+| Próximo estágio         | Estágio 17 — QA                                                                                                   |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                        |
 | Domínio oficial         | `vortcon.belleplanner.com.br`                                                                                     |
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito |
@@ -747,6 +747,53 @@ Validação do fluxo de troca de senha feita via Argon2 direto (bypass do Prisma
 não gera neste sandbox): hash da senha atual, rejeição de senha errada, hash da nova
 senha, e confirmação de que a senha antiga para de funcionar depois da troca — os 4
 pontos críticos confirmados com execução real, não só leitura de código.
+
+## Estágio 16 — o que foi entregue
+
+Estágio de auditoria — a lista da Seção 16 (auth, authorization, IDOR, XSS, CSRF,
+rate limiting, headers, logs, secrets, multitenancy, cache, jobs, concurrency,
+idempotency) foi conferida item por item, com inspeção real de código, não só
+leitura. Dois gaps reais encontrados e corrigidos; todo o resto já estava correto
+desde estágios anteriores — registrado abaixo com a evidência de cada checagem.
+
+**Corrigido:**
+
+- **Rate limiting ausente nas rotas de login por biometria** (Seção 153 —
+  "especialmente login... endpoints públicos"). `/api/webauthn/login/options` e
+  `/api/webauthn/login/verify` são caminhos de login público, criados no Estágio 14,
+  mas nunca receberam a mesma proteção que o login por senha já tinha desde o
+  Estágio 4. Mesma função `checkRateLimit` já testada, mesmo limite (10/60s).
+- **Security headers incompletos** (Seção 154 — "baseline moderno compatível com
+  PWA"). Faltavam `Content-Security-Policy` e `Strict-Transport-Security`. CSP
+  usa só `'self'` (nenhuma exceção de domínio externo necessária — `next/font`
+  hospeda as fontes no próprio domínio em build-time) e bloqueia enquadramento em
+  iframe (`frame-ancestors 'none'`) e submissão de formulário para fora do domínio.
+
+**Verificado e já correto (nenhuma mudança):**
+
+- **Índices** (Seção 155) — os 5 índices compostos exigidos já existiam desde os
+  Estágios 6-8: `tenantId+dueDate`, `tenantId+status`, `tenantId+categoryId+dueDate`,
+  `tenantId+accountId`, `tenantId+createdAt`.
+- **Integridade referencial** (Seção 156) — categoria usa `onDelete: SetNull` e tag
+  usa `onDelete: Restrict` em transações; nenhuma função de exclusão definitiva
+  existe para categoria/tag (só "inativar") — transação histórica nunca é apagada
+  por uma exclusão de categoria/tag.
+- **Privacidade de logs** (Seção 147) — auditoria de alteração de saldo inicial já
+  tinha um comentário explícito desde o Estágio 7 citando esta seção e gravando só
+  `{ changed: true }`, nunca o valor. Restauração de backup (Estágio 15) só grava
+  contagens, nunca conteúdo.
+- **XSS via HTML de documentos legais** — conteúdo de Termos/Privacidade
+  (`dangerouslySetInnerHTML`) já passa por `sanitizeLegalContent` (allowlist restrita
+  de tags, biblioteca `sanitize-html`) desde o Estágio 12, com comentário explícito
+  "nunca confiar em sanitização feita só no client".
+- **DTOs / exposição de dados internos** — conferido que nenhuma rota de API
+  devolve o objeto `User` do Prisma completo (risco de expor `passwordHash`); toda
+  passagem de dado de usuário pra Client Component já usa campos específicos
+  escolhidos a dedo (Meu Perfil, Estágio 14), nunca o objeto inteiro.
+- **Segredos em log** — nenhuma ocorrência de senha/token/segredo em
+  `console.log`/`console.error` em todo o código.
+- **Idempotência/concorrência de jobs** (Seção 128) — já coberta com prova real
+  (constraint única no banco) desde o Estágio 13.
 
 ## Estágio 15 — o que foi entregue
 
