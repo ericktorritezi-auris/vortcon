@@ -766,6 +766,37 @@ As páginas de venda (`/produto`, `/funcionalidades`, `/planos`), o "Ajuda" dent
 painel do tenant, e o editor WYSIWYG de Termos/Privacidade continuam no backlog,
 sem mudança — são trabalho de conteúdo/design dedicado, não ajustes pontuais.
 
+## Estágio 16C — o que foi entregue
+
+Terceiro e último dos 3 sub-estágios do backlog de páginas públicas (16A/16B/16C).
+
+- **Menu "Ajuda" novo na sidebar do tenant** (`Sidebar.tsx`), levando pra `/app/ajuda`.
+- **Manual de referência em formato de perguntas expansíveis**, cobrindo Contas,
+  Categorias/Tags, Transações, Transferências, Cockpit, Relatórios, Notificações,
+  Meu Perfil, Biometria e Backup. Texto puro, sem imagem, como pedido — ao contrário
+  das páginas públicas do 16A.
+- **Toda instrução usa o texto exato dos botões/campos reais da tela** ("Nova
+  receita", "Nova despesa", "Marcar como transferida" etc.) — conferido linha por
+  linha no código de cada tela antes de escrever, nunca aproximado de memória.
+
+### ⚠️ Achado importante durante a escrita do manual — recorrências sem UI
+
+Ao escrever a seção de Transações, fui confirmar o texto exato do fluxo de criar uma
+transação **recorrente** — e descobri que **essa funcionalidade não tem nenhuma tela
+para o tenant usar**. O backend inteiro existe desde o Estágio 8
+(`RecurrenceSeries`, materialização automática via job, tudo funcionando), mas
+`createRecurrenceSeries` nunca foi conectado a nenhuma rota de API nem a nenhum
+formulário — só é chamada em testes e seed. Um tenant hoje **não tem como criar uma
+série recorrente pelo produto**, mesmo o job de materialização (Estágio 13) estando
+ativo e pronto para processar séries que já existissem.
+
+Por isso, o manual de Ajuda **não inclui instrução de "como criar uma recorrência"**
+— eu não ia escrever um passo a passo pra um botão que não existe. Isso provavelmente
+pertence à página "Planejamento" (hoje só um placeholder "em breve"), mas essa é uma
+decisão sua: construir a tela de recorrência como parte de um Planejamento futuro,
+ou como um ajuste pontual mais simples. Registrado aqui, não construído — quero sua
+confirmação antes de tocar nisso.
+
 ## Estágio 16B — o que foi entregue
 
 Segundo dos 3 sub-estágios do backlog de páginas públicas (16A/16B/16C).
@@ -1059,13 +1090,8 @@ Itens identificados e conscientemente adiados para um estágio futuro a definir:
 - ~~`/ajuda` pública (pré-login) — decisão tomada: remover.~~ **Executado.** Link
   removido de `Header.tsx`. Só permanece o menu "Ajuda" dentro do painel do tenant
   (abaixo, ainda no backlog).
-- **Novo menu "Ajuda" dentro do painel do tenant (pós-login).** Diferente da ajuda
-  pública acima — o cliente gostou desta ideia especificamente: um manual de uso do
-  próprio sistema, passo a passo por funcionalidade (ex.: "para lançar uma categoria,
-  clique em Categorias, depois em Adicionar categoria..."). Cobre o mesmo escopo de
-  `/funcionalidades` mas em formato de manual, não de venda. **Sem imagem** — só
-  descrição em texto, ao contrário das páginas públicas acima. Vira um item de menu
-  na sidebar do tenant (`Sidebar.tsx`), ao lado dos já existentes.
+- **Menu "Ajuda" dentro do painel do tenant** — ~~backlog~~ **construído (Estágio
+  16C)**, ver seção própria abaixo.
 
 - **Busca global do Admin não é funcional ainda** — a `Topbar` tem o campo de busca
   desabilitado de propósito (Seção "Reestruturação de UX" abaixo). Buscar de verdade

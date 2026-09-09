@@ -4,6 +4,7 @@ import {
   ArrowLeftRight,
   CreditCard,
   Gauge,
+  HelpCircle,
   Home,
   LayoutGrid,
   ListChecks,
@@ -29,7 +30,10 @@ const NAV_GROUPS = [
     ],
   },
   {
-    items: [{ href: '/app/perfil', label: 'Meu perfil', icon: User }],
+    items: [
+      { href: '/app/perfil', label: 'Meu perfil', icon: User },
+      { href: '/app/ajuda', label: 'Ajuda', icon: HelpCircle },
+    ],
   },
 ];
 
