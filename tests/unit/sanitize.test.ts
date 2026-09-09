@@ -69,4 +69,12 @@ describe('sanitização de conteúdo legal (Seção 130)', () => {
     const result = sanitizeLegalContent('  Primeiro.  \n\n\n\n   Segundo.   ');
     expect(result).toBe('<p>Primeiro.</p>\n<p>Segundo.</p>');
   });
+
+  it('conteúdo do editor WYSIWYG (Estágio 16B) — vários <p> sem linha em branco entre eles nunca são envolvidos de novo', () => {
+    const html = '<p>Primeiro parágrafo.</p><h2>Um título</h2><p>Segundo parágrafo.</p>';
+    const result = sanitizeLegalContent(html);
+    expect(result).toBe(html);
+    expect(result).not.toContain('<p><p>');
+    expect(result).not.toContain('<p><h2>');
+  });
 });

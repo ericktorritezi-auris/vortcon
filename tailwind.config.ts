@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss';
+import typography from '@tailwindcss/typography';
 
 // Tokens normativos — Master Document VortCon, Seções 7 (Paleta), 8 (Tipografia),
 // 9 (Design Tokens) e 10 (Grid e Responsividade). Não hardcode cores/espaçamentos
@@ -43,7 +44,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [typography],
 };
 
 export default config;

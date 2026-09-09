@@ -766,6 +766,35 @@ As páginas de venda (`/produto`, `/funcionalidades`, `/planos`), o "Ajuda" dent
 painel do tenant, e o editor WYSIWYG de Termos/Privacidade continuam no backlog,
 sem mudança — são trabalho de conteúdo/design dedicado, não ajustes pontuais.
 
+## Estágio 16B — o que foi entregue
+
+Segundo dos 3 sub-estágios do backlog de páginas públicas (16A/16B/16C).
+
+- **Editor WYSIWYG de verdade** substituindo o textarea-com-toolbar do Estágio 12 —
+  construído com TipTap. O que o Admin digita e formata aparece **idêntico** na
+  tela, sem nenhuma marcação HTML visível — exatamente o que faltava.
+- **Extensões do editor restritas exatamente às mesmas tags que sobrevivem à
+  sanitização do servidor** (`ALLOWED_TAGS` em `shared/security/sanitize.ts`):
+  H2, H3, negrito, itálico, lista com marcadores, lista numerada, link, divisor.
+  Nunca mais capacidade no editor do que o que realmente é salvo — bloqueado
+  `blockquote`/`code`/`codeBlock` do StarterKit de propósito, e heading restrito a
+  níveis 2-3 (nunca H1, reservado ao título da página).
+- **Bug real corrigido na sanitização**: o TipTap serializa parágrafos como `<p>`
+  sem linha em branco entre eles (diferente do texto corrido que o textarea antigo
+  esperava) — sem ajuste, isso duplicaria a marcação (`<p><p>...`). Corrigido
+  adicionando `p` à lista de tags de bloco já reconhecidas — mudança cirúrgica de
+  uma linha, testada contra o comportamento antigo (10/10 testes, nenhum
+  regredindo) mais o caso novo do editor.
+- **A sanitização do servidor continua sendo a autoridade real** — o componente novo
+  só troca a experiência de edição; o contrato com o backend não mudou, e nada do
+  editor é confiado sem sanitizar de novo ao salvar.
+- **Lacuna latente encontrada e corrigida de brinde**: `@tailwindcss/typography`
+  nunca tinha sido instalado, mesmo com `/termos` e `/privacidade` já usando classes
+  `prose`/`prose-sm` desde o Estágio 12 — essas classes eram silenciosamente
+  ignoradas pelo Tailwind (nenhum efeito visual) o tempo todo. Instalado e registrado
+  no `tailwind.config.ts` agora — beneficia tanto o editor novo quanto as duas
+  páginas públicas que já dependiam dessas classes.
+
 ## Estágio 16A — o que foi entregue
 
 Divisão do backlog de páginas públicas em 3 sub-estágios (16A/16B/16C), a pedido do
@@ -1043,13 +1072,8 @@ Itens identificados e conscientemente adiados para um estágio futuro a definir:
   entre usuários/tenants/pagamentos/logs cruza vários módulos e precisa de um desenho
   próprio (índice de busca, escopo por papel) — não é trivial o bastante pra encaixar
   em qualquer estágio já planejado sem definir isso explicitamente antes.
-- **Editor de Política de Privacidade/Termos de Uso não é WYSIWYG de verdade** — hoje
-  o Admin vê o HTML bruto no campo de texto (`<h2>`, `<strong>` etc.), com uma toolbar
-  que insere essas tags manualmente. O esperado: o que for digitado e formatado no
-  campo aparecer **idêntico** — sem código visível — tanto na prévia quanto na página
-  pública do usuário. Isso exige trocar o `<textarea>` atual por um editor rich-text de
-  verdade (ex.: TipTap ou Slate) que edita visualmente e só serializa para HTML por
-  baixo dos panos, nunca expondo a marcação para quem está digitando.
+- **Editor WYSIWYG de Termos/Privacidade** — ~~backlog~~ **construído (Estágio
+  16B)**, ver seção própria abaixo.
 
 ## Reestruturação de UX/Navegação (a pedido do cliente, entre Estágios 8 e 9)
 
