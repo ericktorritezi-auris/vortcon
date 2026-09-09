@@ -766,6 +766,35 @@ As páginas de venda (`/produto`, `/funcionalidades`, `/planos`), o "Ajuda" dent
 painel do tenant, e o editor WYSIWYG de Termos/Privacidade continuam no backlog,
 sem mudança — são trabalho de conteúdo/design dedicado, não ajustes pontuais.
 
+## Estágio 16A — o que foi entregue
+
+Divisão do backlog de páginas públicas em 3 sub-estágios (16A/16B/16C), a pedido do
+cliente. Este é o 16A — as 3 páginas de venda.
+
+- **`/produto`** — página de vendas completa: hero assimétrico (texto à esquerda,
+  mockup do Cockpit à direita), seção do problema real ("a maioria só descobre o
+  saldo no dia do aperto"), 3 blocos de "como ajuda" alternando lado do mockup,
+  seção de confiança (biometria/backup), CTA final.
+- **`/funcionalidades`** — cobre só o lado do **tenant** (nunca Admin): 4 passos
+  numerados (lançar → transferir → acompanhar no Cockpit → exportar relatório) —
+  numerado porque é uma sequência real de uso, não decoração — mais uma grade de
+  funcionalidades extra (lembretes, biometria, PWA, backup) sem numeração, porque
+  essas não são uma sequência.
+- **`/planos`** — **alimentada pelo banco de verdade** (`findActivePlans()`), nunca
+  hardcoded: um card por plano ativo, gerado dinamicamente. Hoje só o VortCon Pro
+  aparece; um plano novo cadastrado pelo Admin apareceria aqui automaticamente, sem
+  tocar no código. PIX destacado. CTA é sempre "Entrar" nas três páginas — nunca um
+  botão de "assinar agora" fingindo um checkout self-service que não existe no V1.
+- **Sistema visual próprio para as páginas de marketing**: paleta 100% reaproveitada
+  do produto real (nunca inventada) — `#123B46`/`#19A7A0`/gradiente `#1EA6D6→#0B4F82`
+  — mais Fraunces (serifada) só nos títulos destas páginas, para dar um tom mais
+  caloroso e confiante que o utilitário do app logado (que continua só Inter).
+- **"Imagens reais" são recriações fiéis das telas reais do produto** (Cockpit,
+  Transações, Relatórios), construídas com os mesmos tokens visuais do app —
+  nunca ícone genérico nem banco de imagens, seguindo o pedido do cliente à risca.
+- Link "Ajuda" removido do `Header.tsx` (decisão já tomada antes, agora executada
+  em conjunto com a entrega das 3 páginas que a substituem em conteúdo).
+
 ## Estágio 16 — o que foi entregue
 
 Estágio de auditoria — a lista da Seção 16 (auth, authorization, IDOR, XSS, CSRF,
@@ -996,30 +1025,8 @@ Itens identificados e conscientemente adiados para um estágio futuro a definir:
   - Servidor gera o desafio (challenge) e verifica a assinatura — a biometria em si
     nunca sai do aparelho da pessoa, só a prova de que ela passou.
 
-- **Páginas públicas de venda: `/produto`, `/funcionalidades`, `/planos` — hoje 404,
-  link morto no `Header.tsx`.** Mesmo padrão do incidente das páginas de
-  contas/categorias/tags (Estágio 10): o link existe no menu, a página nunca foi
-  construída. Diferente daquele incidente, aqui a construção em si é conscientemente
-  adiada — não é pra ser corrigida com uma tela simples, é um trabalho de conteúdo e
-  design de verdade. Especificação exata dada pelo cliente:
-  - **`/produto`**: página de vendas completa, como se estivesse vendendo o produto.
-    Precisa explicar o que o VortCon faz, os pontos em que ele ajuda no dia a dia,
-    **com imagens reais** (não só texto) — o objetivo é estimular a pessoa a querer
-    usar, não é uma tela institucional genérica.
-  - **`/funcionalidades`**: cobre as funcionalidades de ponta a ponta do lado do
-    **tenant** (lançamentos, contas, categorias, tags, transferências, Cockpit etc.)
-    — nunca as funcionalidades do Admin. Também com imagens e texto persuasivo,
-    pontos que estimulem a conversão, não uma lista seca de features.
-  - **`/planos`**: página de planos **alimentada pelo banco** (`subscription_plans`)
-    — nunca hardcoded. Hoje só existe o VortCon Pro (R$ 49,90), então só ele aparece;
-    se um novo plano for cadastrado depois, aparece automaticamente, sem precisar
-    mexer na página. Precisa destacar o pagamento via PIX, de forma facilitada. O
-    dado vem do banco, mas o layout/design em cima disso é customizado e bonito —
-    não é uma lista de tabela crua, é uma página pensada pra conversão, assim como
-    as outras duas.
-  - As três precisam ser bem feitas — o cliente foi explícito: "tem que fazer
-    bonito, tem que fazer direito, principalmente com imagens" (exceto `/planos`,
-    que não foi pedido com imagens, só design customizado sobre o dado do banco).
+- **Páginas públicas de venda: `/produto`, `/funcionalidades`, `/planos`** — ~~backlog~~
+  **construído (Estágio 16A)**, ver seção própria abaixo.
 - ~~`/ajuda` pública (pré-login) — decisão tomada: remover.~~ **Executado.** Link
   removido de `Header.tsx`. Só permanece o menu "Ajuda" dentro do painel do tenant
   (abaixo, ainda no backlog).
