@@ -3,6 +3,7 @@ import { prisma } from '@/shared/database/client';
 import { recordAuditEvent } from '@/modules/audit/audit.service';
 import * as tenantRepository from '@/modules/tenants/tenant.repository';
 import * as subscriptionRepository from './subscription.repository';
+import { isOverdueEnoughToBlock } from './delinquency-rules';
 
 function firstDayOfMonth(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
@@ -44,8 +45,6 @@ export async function ensureCurrentMonthCharge(tenantId: string): Promise<void> 
   });
 }
 
-const DELINQUENCY_GRACE_DAYS = 5; // Secao 113: vencimento dia 10, bloqueio dia 15.
-
 /**
  * Aplica bloqueio automatico por inadimplencia (Secao 113). Chamado
  * reativamente pelo AccessPolicyService a cada avaliacao de acesso - mesma
@@ -62,10 +61,7 @@ export async function evaluateAndApplyDelinquency(tenantId: string): Promise<voi
 
   const overdue = charges.find((charge: SubscriptionCharge) => {
     if (charge.status !== 'PENDING') return false;
-    const daysPastDue = Math.floor(
-      (today.getTime() - charge.dueDate.getTime()) / (24 * 60 * 60 * 1000),
-    );
-    return daysPastDue >= DELINQUENCY_GRACE_DAYS;
+    return isOverdueEnoughToBlock(charge.dueDate, today);
   });
 
   if (!overdue) return;
