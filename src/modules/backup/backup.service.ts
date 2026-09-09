@@ -59,6 +59,7 @@ export async function exportTenantBackup(tenantId: string): Promise<BackupFile> 
     tags: tags.map((tag: Tag) => ({ id: tag.id, name: tag.name, active: tag.active })),
     recurrenceSeries: recurrenceSeries.map((series: RecurrenceSeries) => ({
       id: series.id,
+      kind: series.kind,
       transactionType: series.transactionType,
       frequency: series.frequency,
       interval: series.interval,
@@ -66,10 +67,13 @@ export async function exportTenantBackup(tenantId: string): Promise<BackupFile> 
       endDate: series.endDate ? series.endDate.toISOString() : null,
       maxOccurrences: series.maxOccurrences,
       baseAmountCents: series.baseAmountCents,
+      description: series.description,
       baseDueRule: series.baseDueRule,
       defaultAccountId: series.defaultAccountId,
       defaultCategoryId: series.defaultCategoryId,
       defaultReminderEnabled: series.defaultReminderEnabled,
+      defaultSourceAccountId: series.defaultSourceAccountId,
+      defaultDestinationAccountId: series.defaultDestinationAccountId,
       active: series.active,
     })),
     transactions: transactions.map((transaction: FinancialTransaction) => ({
@@ -105,6 +109,7 @@ export async function exportTenantBackup(tenantId: string): Promise<BackupFile> 
       note: transfer.note,
       cancelledAt: transfer.cancelledAt ? transfer.cancelledAt.toISOString() : null,
       recurrenceSeriesId: transfer.recurrenceSeriesId,
+      recurrenceOccurrenceKey: transfer.recurrenceOccurrenceKey,
     })),
   };
 
@@ -207,6 +212,7 @@ export async function restoreTenantBackup(
           const created = await tx.recurrenceSeries.create({
             data: {
               tenantId: targetTenantId,
+              kind: series.kind as never,
               transactionType: series.transactionType as never,
               frequency: series.frequency as never,
               interval: series.interval,
@@ -214,12 +220,21 @@ export async function restoreTenantBackup(
               endDate: series.endDate ? new Date(series.endDate) : null,
               maxOccurrences: series.maxOccurrences,
               baseAmountCents: series.baseAmountCents,
+              description: series.description,
               baseDueRule: series.baseDueRule as Prisma.InputJsonValue,
-              defaultAccountId: accountIdMap.get(series.defaultAccountId) ?? '',
+              defaultAccountId: series.defaultAccountId
+                ? (accountIdMap.get(series.defaultAccountId) ?? null)
+                : null,
               defaultCategoryId: series.defaultCategoryId
                 ? (categoryIdMap.get(series.defaultCategoryId) ?? null)
                 : null,
               defaultReminderEnabled: series.defaultReminderEnabled,
+              defaultSourceAccountId: series.defaultSourceAccountId
+                ? (accountIdMap.get(series.defaultSourceAccountId) ?? null)
+                : null,
+              defaultDestinationAccountId: series.defaultDestinationAccountId
+                ? (accountIdMap.get(series.defaultDestinationAccountId) ?? null)
+                : null,
               active: series.active,
             },
           });
@@ -282,6 +297,7 @@ export async function restoreTenantBackup(
               recurrenceSeriesId: transfer.recurrenceSeriesId
                 ? (recurrenceIdMap.get(transfer.recurrenceSeriesId) ?? null)
                 : null,
+              recurrenceOccurrenceKey: transfer.recurrenceOccurrenceKey,
             },
           });
         }

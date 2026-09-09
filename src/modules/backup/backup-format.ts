@@ -35,17 +35,21 @@ export interface ExportedTag {
 
 export interface ExportedRecurrenceSeries {
   id: string;
-  transactionType: string;
+  kind: string;
+  transactionType: string | null;
   frequency: string;
   interval: number;
   startDate: string;
   endDate: string | null;
   maxOccurrences: number | null;
   baseAmountCents: number;
+  description: string | null;
   baseDueRule: unknown;
-  defaultAccountId: string;
+  defaultAccountId: string | null;
   defaultCategoryId: string | null;
   defaultReminderEnabled: boolean;
+  defaultSourceAccountId: string | null;
+  defaultDestinationAccountId: string | null;
   active: boolean;
 }
 
@@ -84,6 +88,7 @@ export interface ExportedTransfer {
   note: string | null;
   cancelledAt: string | null;
   recurrenceSeriesId: string | null;
+  recurrenceOccurrenceKey: string | null;
 }
 
 export interface BackupData {

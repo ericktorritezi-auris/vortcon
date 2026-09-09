@@ -823,6 +823,26 @@ transferência**, só para transação.
 - Rejeita explicitamente série de transferência com a mesma conta de origem e
   destino — testado.
 
+### Correção pós-recorrência — build quebrado no Railway (módulo de backup desatualizado)
+
+Erro real reportado no deploy: `backup.service.ts` não tinha sido atualizado depois
+que o `RecurrenceSeries` foi estendido pra suportar transferência —
+`transactionType` virou opcional (`| null`) no schema, mas o formato de backup ainda
+declarava como obrigatório. Só apareceu no build real do Railway porque o Prisma
+Client daqui do meu ambiente de desenvolvimento nunca gera de verdade (limitação de
+rede documentada desde o Estágio 7) — o mesmo padrão dos hotfixes anteriores.
+
+Corrigido, com auditoria manual campo por campo contra o schema (mesma disciplina do
+hotfix do Estágio 13):
+
+- `ExportedRecurrenceSeries` e `ExportedTransfer` (formato do backup) atualizados
+  com todos os campos novos: `kind`, `description`, `defaultSourceAccountId`,
+  `defaultDestinationAccountId`, `recurrenceOccurrenceKey` em transferência.
+- Exportação **e** restauração corrigidas nos dois sentidos — sem isso, restaurar um
+  backup com uma transferência recorrente perderia a chave de idempotência
+  (`recurrenceOccurrenceKey`), arriscando o job de materialização duplicar
+  transferências reais depois de uma restauração.
+
 ## Estágio 16B — o que foi entregue
 
 Segundo dos 3 sub-estágios do backlog de páginas públicas (16A/16B/16C).
