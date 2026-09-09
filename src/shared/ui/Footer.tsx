@@ -17,10 +17,10 @@ export function Footer(): React.ReactElement {
           {APP_VERSION}
         </p>
         <nav aria-label="Links legais" className="flex gap-4">
-          <Link href="/legal/privacidade" className="hover:text-ink-primary hover:underline">
+          <Link href="/privacidade" className="hover:text-ink-primary hover:underline">
             Política de Privacidade
           </Link>
-          <Link href="/legal/termos" className="hover:text-ink-primary hover:underline">
+          <Link href="/termos" className="hover:text-ink-primary hover:underline">
             Termos de Uso
           </Link>
         </nav>

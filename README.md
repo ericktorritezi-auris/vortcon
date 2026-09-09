@@ -748,6 +748,24 @@ não gera neste sandbox): hash da senha atual, rejeição de senha errada, hash 
 senha, e confirmação de que a senha antiga para de funcionar depois da troca — os 4
 pontos críticos confirmados com execução real, não só leitura de código.
 
+### Correção pós-Estágio 16 — links legais quebrados + remoção do "Ajuda" público
+
+Dois ajustes pontuais, achados/pedidos ao revisar o backlog de páginas públicas
+antes do Estágio 17:
+
+1. **Bug real, nunca mapeado antes**: o `Footer.tsx` linkava para `/legal/privacidade`
+   e `/legal/termos`, mas as páginas reais sempre estiveram em `/privacidade` e
+   `/termos` — o link de Política de Privacidade/Termos de Uso estava **quebrado
+   desde que o Footer foi criado**, em toda página pública e autenticada (o Footer é
+   global). Corrigido para os caminhos reais.
+2. **Decisão de remover "Ajuda" pública (registrada no Estágio 14), finalmente
+   executada** — só tinha sido documentada como decisão, nunca removida de
+   `Header.tsx` de fato. Removida agora.
+
+As páginas de venda (`/produto`, `/funcionalidades`, `/planos`), o "Ajuda" dentro do
+painel do tenant, e o editor WYSIWYG de Termos/Privacidade continuam no backlog,
+sem mudança — são trabalho de conteúdo/design dedicado, não ajustes pontuais.
+
 ## Estágio 16 — o que foi entregue
 
 Estágio de auditoria — a lista da Seção 16 (auth, authorization, IDOR, XSS, CSRF,
@@ -1002,10 +1020,9 @@ Itens identificados e conscientemente adiados para um estágio futuro a definir:
   - As três precisam ser bem feitas — o cliente foi explícito: "tem que fazer
     bonito, tem que fazer direito, principalmente com imagens" (exceto `/planos`,
     que não foi pedido com imagens, só design customizado sobre o dado do banco).
-- **`/ajuda` pública (pré-login) — decisão tomada: remover.** Confirmado pelo
-  cliente: não vai ficar. Só permanece o menu "Ajuda" dentro do painel do tenant
-  (abaixo). Quando as páginas de venda acima forem construídas, remover também o
-  link "Ajuda" de `Header.tsx`.
+- ~~`/ajuda` pública (pré-login) — decisão tomada: remover.~~ **Executado.** Link
+  removido de `Header.tsx`. Só permanece o menu "Ajuda" dentro do painel do tenant
+  (abaixo, ainda no backlog).
 - **Novo menu "Ajuda" dentro do painel do tenant (pós-login).** Diferente da ajuda
   pública acima — o cliente gostou desta ideia especificamente: um manual de uso do
   próprio sistema, passo a passo por funcionalidade (ex.: "para lançar uma categoria,
