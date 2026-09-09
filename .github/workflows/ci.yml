@@ -1,1 +1,81 @@
+name: CI
 
+# Seção 166 do documento mestre — nunca existia antes do Estágio 18.
+# Roda em toda PR e todo push em main: format, lint, typecheck, testes
+# unitários e de integração contra Postgres real, e build de produção.
+#
+# Diferente do sandbox de desenvolvimento usado ao longo deste projeto
+# (sem acesso à rede para o Prisma Engine ou ao Google Fonts — ver
+# limitação documentada desde o Estágio 7), o runner do GitHub Actions
+# tem acesso de rede completo: `prisma generate` funciona de verdade
+# aqui, e os testes de integração (que nunca puderam rodar de verdade
+# no ambiente de desenvolvimento) rodam pela primeira vez contra um
+# Postgres real neste pipeline.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  DATABASE_URL: postgresql://vortcon:vortcon@localhost:5432/vortcon_ci
+  APP_URL: http://localhost:3000
+  APP_ENV: development
+  AUTH_SESSION_SECRET: ci-only-secret-nunca-usado-em-producao-0000000
+  CRON_SECRET: ci-only-cron-secret
+  # RESEND_API_KEY, RESEND_FROM_EMAIL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY:
+  # deliberadamente NUNCA definidas aqui, nem como string vazia. O schema
+  # de validação (src/shared/config/env.ts) usa `z.string().min(1).optional()`
+  # — aceita a variável totalmente ausente, mas uma string vazia falharia o
+  # min(1) e quebraria o build/testes por um motivo bem menos óbvio.
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: vortcon
+          POSTGRES_PASSWORD: vortcon
+          POSTGRES_DB: vortcon_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Formatação (Prettier)
+        run: npm run format:check
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Typecheck (TypeScript)
+        run: npm run typecheck
+
+      - name: Aplicar migrations no Postgres do CI
+        run: npm run db:migrate:deploy
+
+      - name: Testes (unitários + integração contra Postgres real)
+        run: npm run test
+
+      - name: Build de produção
+        run: npm run build
