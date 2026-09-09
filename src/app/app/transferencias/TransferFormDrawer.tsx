@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Button, DateInput, Drawer, Input, MoneyInput, SearchableSelect } from '@/shared/ui';
+import { EMPTY_RECURRENCE, RecurrenceFields } from '@/shared/recurrence/RecurrenceFields';
+import type { RecurrenceValues } from '@/shared/recurrence/RecurrenceFields';
 
 interface SimpleOption {
   id: string;
@@ -30,6 +32,7 @@ export function TransferFormDrawer({
   const [amountCents, setAmountCents] = useState(0);
   const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState('');
+  const [recurrence, setRecurrence] = useState<RecurrenceValues>(EMPTY_RECURRENCE);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -50,17 +53,36 @@ export function TransferFormDrawer({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/transfers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sourceAccountId,
-          destinationAccountId,
-          amountCents,
-          scheduledDate,
-          note: note || undefined,
-        }),
-      });
+      const response = recurrence.enabled
+        ? await fetch('/api/recurrencias', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              kind: 'TRANSFER',
+              description: note || undefined,
+              baseAmountCents: amountCents,
+              startDate: scheduledDate,
+              defaultSourceAccountId: sourceAccountId,
+              defaultDestinationAccountId: destinationAccountId,
+              frequency: recurrence.frequency,
+              interval: recurrence.interval,
+              endDate: recurrence.endDate || undefined,
+              maxOccurrences: recurrence.maxOccurrences
+                ? Number(recurrence.maxOccurrences)
+                : undefined,
+            }),
+          })
+        : await fetch('/api/transfers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sourceAccountId,
+              destinationAccountId,
+              amountCents,
+              scheduledDate,
+              note: note || undefined,
+            }),
+          });
       const body = (await response.json()) as { message?: string };
       if (!response.ok) {
         setError(body.message ?? 'Não foi possível transferir.');
@@ -118,6 +140,11 @@ export function TransferFormDrawer({
           value={note}
           onChange={(event) => setNote(event.target.value)}
           hint="Opcional"
+        />
+        <RecurrenceFields
+          values={recurrence}
+          onChange={setRecurrence}
+          toggleLabel="Transferência recorrente"
         />
         {error ? (
           <p role="alert" className="text-sm font-medium text-financial-danger">

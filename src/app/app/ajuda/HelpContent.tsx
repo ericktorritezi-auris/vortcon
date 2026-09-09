@@ -90,6 +90,11 @@ const SECTIONS: HelpSection[] = [
         answer:
           'Ao criar ou editar uma transação, ative o toggle "Lembrete". No dia do vencimento, o VortCon te avisa (dentro do app e por notificação push, se você tiver ativado) — sem precisar checar o app.',
       },
+      {
+        question: 'Como eu crio uma receita ou despesa recorrente (aluguel, salário, assinatura)?',
+        answer:
+          'Ao criar a receita ou despesa, ative o toggle "Receita recorrente" ou "Despesa recorrente". Escolha a frequência (diária, semanal, mensal ou anual) e, se quiser, quando ela termina (por data ou por número de vezes) — se não preencher nenhum dos dois, ela continua até você encerrar manualmente. O VortCon já cria os próximos lançamentos automaticamente.',
+      },
     ],
   },
   {
@@ -111,6 +116,11 @@ const SECTIONS: HelpSection[] = [
         question: 'O que significa "transferida" e como eu desfaço?',
         answer:
           'Uma transferência pendente ainda não moveu o saldo real entre as contas. Clique nela e use o toggle "Marcar como transferida" pra confirmar que o dinheiro já saiu de uma conta e entrou na outra — e pra desfazer, é o mesmo toggle, na direção contrária.',
+      },
+      {
+        question: 'Como eu crio uma transferência recorrente (ex.: aporte mensal)?',
+        answer:
+          'Ao criar a transferência, ative o toggle "Transferência recorrente" e escolha a frequência. Assim como nas transações recorrentes, você pode definir quando ela termina, ou deixar em aberto até encerrar manualmente.',
       },
     ],
   },

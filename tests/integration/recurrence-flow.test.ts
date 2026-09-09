@@ -1,3 +1,4 @@
+import type { Transfer } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '@/shared/database/client';
 import { provisionTenantWithOwner } from '@/modules/tenants/tenant.service';
@@ -54,6 +55,7 @@ describe('fluxo de recorrência', () => {
 
   it('criar a série já materializa as ocorrências dentro da janela futura', async () => {
     const series = await createRecurrenceSeries(tenantId, {
+      kind: 'TRANSACTION',
       transactionType: 'EXPENSE',
       frequency: 'MONTHLY',
       startDate: new Date('2026-09-14'),
@@ -184,6 +186,113 @@ describe('fluxo de recorrência', () => {
     const countAfter = await prisma.financialTransaction.count({
       where: { recurrenceSeriesId: series.id },
     });
+    expect(countAfter).toBe(countBefore);
+  });
+});
+
+/**
+ * Transferência recorrente (Estágio 16C — lacuna corrigida: o campo
+ * `recurrenceSeriesId` existia em `Transfer` desde o Estágio 8, mas nunca
+ * teve lógica de materialização real). Validado contra PostgreSQL real.
+ */
+describe('fluxo de transferência recorrente', () => {
+  let tenantId: string;
+  let planId: string;
+  let sourceAccountId: string;
+  let destinationAccountId: string;
+
+  beforeAll(async () => {
+    const plan = await createTestPlan();
+    planId = plan.id;
+
+    const suffix = crypto.randomUUID().slice(0, 8);
+    const { tenant } = await provisionTenantWithOwner({
+      name: 'Transfer Recurrence Owner',
+      email: `transfer-rec-${suffix}@example.com`,
+      username: `transfer_rec_${suffix}`,
+      planId,
+    });
+    tenantId = tenant.id;
+
+    const source = await createAccount(tenantId, {
+      name: 'Conta Corrente',
+      initialBalanceCents: 500_000,
+      initialBalanceDate: new Date('2026-01-01'),
+    });
+    sourceAccountId = source.id;
+
+    const destination = await createAccount(tenantId, {
+      name: 'Conta Investimento',
+      initialBalanceCents: 0,
+      initialBalanceDate: new Date('2026-01-01'),
+    });
+    destinationAccountId = destination.id;
+  });
+
+  afterAll(async () => {
+    await prisma.transfer.deleteMany({ where: { tenantId } });
+    await prisma.recurrenceSeries.deleteMany({ where: { tenantId } });
+    await prisma.financialAccount.deleteMany({ where: { tenantId } });
+    await cleanupTenant(tenantId);
+    await deleteTestPlan(planId);
+  });
+
+  it('rejeita série de transferência com a mesma conta de origem e destino', async () => {
+    await expect(
+      createRecurrenceSeries(tenantId, {
+        kind: 'TRANSFER',
+        frequency: 'MONTHLY',
+        startDate: new Date('2026-09-14'),
+        baseAmountCents: 50_000,
+        defaultSourceAccountId: sourceAccountId,
+        defaultDestinationAccountId: sourceAccountId,
+      }),
+    ).rejects.toThrow('mesma');
+  });
+
+  it('cria a série e já materializa transferências (não transações) dentro da janela futura', async () => {
+    const series = await createRecurrenceSeries(tenantId, {
+      kind: 'TRANSFER',
+      frequency: 'MONTHLY',
+      startDate: new Date('2026-09-14'),
+      baseAmountCents: 50_000,
+      description: 'Aporte mensal',
+      defaultSourceAccountId: sourceAccountId,
+      defaultDestinationAccountId: destinationAccountId,
+    });
+
+    const transfers = await prisma.transfer.findMany({ where: { recurrenceSeriesId: series.id } });
+    expect(transfers.length).toBeGreaterThan(0);
+    expect(transfers.every((t: Transfer) => t.status === 'PENDING')).toBe(true);
+    expect(transfers.every((t: Transfer) => t.note === 'Aporte mensal')).toBe(true);
+    expect(transfers.every((t: Transfer) => t.sourceAccountId === sourceAccountId)).toBe(true);
+    expect(transfers.every((t: Transfer) => t.destinationAccountId === destinationAccountId)).toBe(
+      true,
+    );
+
+    // Nunca cria FinancialTransaction para uma série de transferência.
+    const wrongKindCount = await prisma.financialTransaction.count({
+      where: { recurrenceSeriesId: series.id },
+    });
+    expect(wrongKindCount).toBe(0);
+  });
+
+  it('materializar de novo a mesma série de transferência nunca duplica (idempotência real, constraint única)', async () => {
+    const series = await createRecurrenceSeries(tenantId, {
+      kind: 'TRANSFER',
+      frequency: 'MONTHLY',
+      startDate: new Date('2026-09-14'),
+      baseAmountCents: 30_000,
+      defaultSourceAccountId: sourceAccountId,
+      defaultDestinationAccountId: destinationAccountId,
+    });
+
+    const countBefore = await prisma.transfer.count({ where: { recurrenceSeriesId: series.id } });
+
+    const createdSecondRun = await materializeSeriesOccurrences(tenantId, series.id);
+    expect(createdSecondRun).toBe(0);
+
+    const countAfter = await prisma.transfer.count({ where: { recurrenceSeriesId: series.id } });
     expect(countAfter).toBe(countBefore);
   });
 });

@@ -1,5 +1,5 @@
 import { prisma } from '@/shared/database/client';
-import type { FinancialTransactionType, RecurrenceFrequency } from '@prisma/client';
+import type { FinancialTransactionType, RecurrenceFrequency, RecurrenceKind } from '@prisma/client';
 
 export async function findSeriesById(tenantId: string, seriesId: string) {
   return prisma.recurrenceSeries.findFirst({ where: { id: seriesId, tenantId } });
@@ -10,22 +10,27 @@ export async function listActiveSeries(tenantId: string) {
 }
 
 interface CreateSeriesInput {
-  transactionType: FinancialTransactionType;
+  kind: RecurrenceKind;
+  transactionType?: FinancialTransactionType;
   frequency: RecurrenceFrequency;
   interval?: number;
   startDate: Date;
   endDate?: Date;
   maxOccurrences?: number;
   baseAmountCents: number;
-  defaultAccountId: string;
+  description?: string;
+  defaultAccountId?: string;
   defaultCategoryId?: string;
   defaultReminderEnabled?: boolean;
+  defaultSourceAccountId?: string;
+  defaultDestinationAccountId?: string;
 }
 
 export async function createSeries(tenantId: string, input: CreateSeriesInput) {
   return prisma.recurrenceSeries.create({
     data: {
       tenantId,
+      kind: input.kind,
       transactionType: input.transactionType,
       frequency: input.frequency,
       interval: input.interval ?? 1,
@@ -33,9 +38,12 @@ export async function createSeries(tenantId: string, input: CreateSeriesInput) {
       endDate: input.endDate,
       maxOccurrences: input.maxOccurrences,
       baseAmountCents: input.baseAmountCents,
+      description: input.description,
       defaultAccountId: input.defaultAccountId,
       defaultCategoryId: input.defaultCategoryId,
       defaultReminderEnabled: input.defaultReminderEnabled ?? false,
+      defaultSourceAccountId: input.defaultSourceAccountId,
+      defaultDestinationAccountId: input.defaultDestinationAccountId,
     },
   });
 }
@@ -52,6 +60,8 @@ interface UpdateSeriesBaseInput {
   baseAmountCents?: number;
   defaultAccountId?: string;
   defaultCategoryId?: string;
+  defaultSourceAccountId?: string;
+  defaultDestinationAccountId?: string;
 }
 
 export async function updateSeriesBase(

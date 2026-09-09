@@ -570,6 +570,11 @@ model Transfer {
   // contas). Nulo para transferências avulsas. Adicionado só agora porque
   // `recurrence_series` não existia antes do Estágio 8.
   recurrenceSeriesId   String?
+  // Estágio 16C — idempotência da materialização de transferências
+  // recorrentes, mesmo padrão de `FinancialTransaction`: a constraint única
+  // abaixo é a proteção real contra duplicação (nunca uma checagem em
+  // memória), mesmo se o job rodar duas vezes ou em corrida.
+  recurrenceOccurrenceKey String?
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
@@ -578,6 +583,7 @@ model Transfer {
   destinationAccount FinancialAccount  @relation("TransferDestination", fields: [destinationAccountId], references: [id], onDelete: Restrict)
   recurrenceSeries   RecurrenceSeries? @relation(fields: [recurrenceSeriesId], references: [id], onDelete: SetNull)
 
+  @@unique([recurrenceSeriesId, recurrenceOccurrenceKey])
   @@index([tenantId, status])
   @@map("transfers")
 }
@@ -599,31 +605,52 @@ enum RecurrenceFrequency {
   CUSTOM_DAYS
 }
 
+// Estágio 16C — antes só existia recorrência de transação; transferência
+// recorrente tinha o campo `recurrenceSeriesId` desde o Estágio 8, mas
+// nunca teve lógica de materialização nem UI pra criar. `kind` decide
+// quais campos abaixo se aplicam: TRANSACTION usa `transactionType` +
+// `defaultAccountId` (+ `defaultCategoryId` opcional); TRANSFER usa
+// `defaultSourceAccountId` + `defaultDestinationAccountId`. Nunca os dois
+// grupos preenchidos ao mesmo tempo — validado em código (Seção 210),
+// já que o schema não expressa "OU um grupo OU outro" nativamente.
+enum RecurrenceKind {
+  TRANSACTION
+  TRANSFER
+}
+
 // A série é só o padrão gerador (Seção 70) — nunca a fonte de verdade do
 // valor/vencimento de uma ocorrência já materializada e editada
 // individualmente (Seção 72). `defaultCategoryId` referencia categoria
 // global, sem tipo (Seção 70) — mesma regra estrutural do Estágio 7.
 model RecurrenceSeries {
-  id                      String                   @id @default(cuid())
+  id                      String                    @id @default(cuid())
   tenantId                String
-  transactionType         FinancialTransactionType
+  kind                    RecurrenceKind            @default(TRANSACTION)
+  transactionType         FinancialTransactionType?
   frequency               RecurrenceFrequency
-  interval                Int                      @default(1)
-  startDate               DateTime                 @db.Date
-  endDate                 DateTime?                @db.Date
+  interval                Int                       @default(1)
+  startDate               DateTime                  @db.Date
+  endDate                 DateTime?                 @db.Date
   maxOccurrences          Int?
   baseAmountCents         Int
+  // Estágio 16C — descrição escolhida pela pessoa (ex.: "Aluguel",
+  // "Salário"), usada em cada ocorrência materializada. Opcional porque a
+  // série pode não ter uma ainda no momento da criação inicial; nesse
+  // caso a materialização usa um texto genérico como fallback.
+  description             String?
   // Reservado para regras de vencimento mais elaboradas no futuro (ex.:
   // "último dia útil do mês"). Na V1, a materialização deriva a data de
   // cada ocorrência a partir de `startDate` + `frequency` + `interval` —
   // a solução mais simples que preserva o requisito (Seção 0).
-  baseDueRule             Json?
-  defaultAccountId        String
-  defaultCategoryId       String?
-  defaultReminderEnabled  Boolean                  @default(false)
-  active                  Boolean                  @default(true)
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
+  baseDueRule                 Json?
+  defaultAccountId            String?
+  defaultCategoryId           String?
+  defaultReminderEnabled      Boolean               @default(false)
+  defaultSourceAccountId      String?
+  defaultDestinationAccountId String?
+  active                      Boolean               @default(true)
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
 
   tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   occurrences  FinancialTransaction[]

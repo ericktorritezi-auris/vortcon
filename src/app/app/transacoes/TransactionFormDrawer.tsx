@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { Button, Drawer, Toggle } from '@/shared/ui';
 import { TransactionFormFields } from './TransactionFormFields';
 import type { TransactionFormValues } from './TransactionFormFields';
+import { EMPTY_RECURRENCE, RecurrenceFields } from '@/shared/recurrence/RecurrenceFields';
+import type { RecurrenceValues } from '@/shared/recurrence/RecurrenceFields';
 
 interface SimpleOption {
   id: string;
@@ -40,6 +42,7 @@ export function TransactionFormDrawer({
 }: TransactionFormDrawerProps): React.ReactElement {
   const router = useRouter();
   const [values, setValues] = useState<TransactionFormValues>(EMPTY_VALUES);
+  const [recurrence, setRecurrence] = useState<RecurrenceValues>(EMPTY_RECURRENCE);
   const [alreadySettled, setAlreadySettled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -53,22 +56,43 @@ export function TransactionFormDrawer({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type,
-          description: values.description,
-          amountCents: values.amountCents,
-          dueDate: values.dueDate,
-          accountId: values.accountId,
-          categoryId: values.categoryId || undefined,
-          tagIds: values.tagIds,
-          note: values.note || undefined,
-          reminderEnabled: values.reminderEnabled,
-          settlementDate: alreadySettled ? new Date().toISOString() : undefined,
-        }),
-      });
+      const response = recurrence.enabled
+        ? await fetch('/api/recurrencias', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              kind: 'TRANSACTION',
+              transactionType: type,
+              description: values.description,
+              baseAmountCents: values.amountCents,
+              startDate: values.dueDate,
+              defaultAccountId: values.accountId,
+              defaultCategoryId: values.categoryId || undefined,
+              defaultReminderEnabled: values.reminderEnabled,
+              frequency: recurrence.frequency,
+              interval: recurrence.interval,
+              endDate: recurrence.endDate || undefined,
+              maxOccurrences: recurrence.maxOccurrences
+                ? Number(recurrence.maxOccurrences)
+                : undefined,
+            }),
+          })
+        : await fetch('/api/transactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type,
+              description: values.description,
+              amountCents: values.amountCents,
+              dueDate: values.dueDate,
+              accountId: values.accountId,
+              categoryId: values.categoryId || undefined,
+              tagIds: values.tagIds,
+              note: values.note || undefined,
+              reminderEnabled: values.reminderEnabled,
+              settlementDate: alreadySettled ? new Date().toISOString() : undefined,
+            }),
+          });
       const body = (await response.json()) as { message?: string };
       if (!response.ok) {
         setError(body.message ?? 'Não foi possível salvar.');
@@ -107,10 +131,17 @@ export function TransactionFormDrawer({
           categories={categories}
           tags={tags}
         />
-        <Toggle
-          label={type === 'INCOME' ? 'Já recebida' : 'Já paga'}
-          checked={alreadySettled}
-          onChange={setAlreadySettled}
+        {!recurrence.enabled ? (
+          <Toggle
+            label={type === 'INCOME' ? 'Já recebida' : 'Já paga'}
+            checked={alreadySettled}
+            onChange={setAlreadySettled}
+          />
+        ) : null}
+        <RecurrenceFields
+          values={recurrence}
+          onChange={setRecurrence}
+          toggleLabel={type === 'INCOME' ? 'Receita recorrente' : 'Despesa recorrente'}
         />
         {error ? (
           <p role="alert" className="text-sm font-medium text-financial-danger">

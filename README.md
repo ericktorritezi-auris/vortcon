@@ -779,23 +779,49 @@ Terceiro e último dos 3 sub-estágios do backlog de páginas públicas (16A/16B
   receita", "Nova despesa", "Marcar como transferida" etc.) — conferido linha por
   linha no código de cada tela antes de escrever, nunca aproximado de memória.
 
-### ⚠️ Achado importante durante a escrita do manual — recorrências sem UI
+### Achado durante a escrita do manual — recorrências sem UI (~~pendente~~ corrigido a seguir)
 
 Ao escrever a seção de Transações, fui confirmar o texto exato do fluxo de criar uma
-transação **recorrente** — e descobri que **essa funcionalidade não tem nenhuma tela
-para o tenant usar**. O backend inteiro existe desde o Estágio 8
-(`RecurrenceSeries`, materialização automática via job, tudo funcionando), mas
-`createRecurrenceSeries` nunca foi conectado a nenhuma rota de API nem a nenhum
-formulário — só é chamada em testes e seed. Um tenant hoje **não tem como criar uma
-série recorrente pelo produto**, mesmo o job de materialização (Estágio 13) estando
-ativo e pronto para processar séries que já existissem.
+transação **recorrente** — e descobri que essa funcionalidade não tinha nenhuma tela
+para o tenant usar. O backend existia desde o Estágio 8 (`RecurrenceSeries`,
+materialização automática via job), mas `createRecurrenceSeries` nunca tinha sido
+conectada a nenhuma rota de API nem a nenhum formulário. Corrigido imediatamente
+depois — ver "Correção pós-16C" abaixo.
 
-Por isso, o manual de Ajuda **não inclui instrução de "como criar uma recorrência"**
-— eu não ia escrever um passo a passo pra um botão que não existe. Isso provavelmente
-pertence à página "Planejamento" (hoje só um placeholder "em breve"), mas essa é uma
-decisão sua: construir a tela de recorrência como parte de um Planejamento futuro,
-ou como um ajuste pontual mais simples. Registrado aqui, não construído — quero sua
-confirmação antes de tocar nisso.
+### Correção pós-16C — recorrência de transação e de transferência, de ponta a ponta
+
+A pedido do cliente, corrigida antes de seguir pro Estágio 17 — e a lacuna acabou
+sendo maior do que o achado inicial: o campo `recurrenceSeriesId` já existia em
+`Transfer` desde o Estágio 8, mas a materialização **nunca teve lógica nenhuma para
+transferência**, só para transação.
+
+- **`RecurrenceSeries` estendido pra suportar os dois tipos** — novo campo `kind`
+  (`TRANSACTION`/`TRANSFER`). `transactionType` e `defaultAccountId` passam a ser
+  opcionais (só usados quando `kind = TRANSACTION`); `defaultSourceAccountId` e
+  `defaultDestinationAccountId` são os novos campos usados quando
+  `kind = TRANSFER`. Novo campo `description` — a série agora guarda o texto
+  escolhido pela pessoa (ex.: "Aluguel", "Aporte mensal"), usado em cada
+  ocorrência materializada; antes, transações recorrentes sempre geravam uma
+  descrição genérica ("Recorrência — AAAA-MM-DD").
+- **`Transfer` ganhou a mesma proteção de idempotência que `FinancialTransaction`
+  já tinha** — campo `recurrenceOccurrenceKey` + constraint única
+  `[recurrenceSeriesId, recurrenceOccurrenceKey]`. Sem isso, o job de
+  materialização rodando duas vezes duplicaria transferências reais, movendo
+  dinheiro duplicado entre contas. **Provado via SQL direto**: uma segunda
+  tentativa de inserir a mesma ocorrência retorna 0 linhas afetadas — a proteção
+  é do próprio Postgres, nunca uma checagem em memória.
+- **`materializeSeriesOccurrences` ramificada por `kind`** — TRANSACTION continua
+  criando `FinancialTransaction` como sempre; TRANSFER agora cria `Transfer`,
+  seguindo exatamente o mesmo padrão de idempotência.
+- **Nova rota `/api/recurrencias`**, unificada com discriminador `kind`
+  (validação via `z.discriminatedUnion`) — `tenantId` sempre da sessão (Seção 142),
+  nunca confiado do corpo da requisição.
+- **UI conectada nos dois formulários de criação** — "Receita/despesa recorrente"
+  em Transações, "Transferência recorrente" em Transferências — usando um
+  componente compartilhado (`RecurrenceFields`) pra frequência, intervalo e
+  condição de término (data ou número de ocorrências).
+- Rejeita explicitamente série de transferência com a mesma conta de origem e
+  destino — testado.
 
 ## Estágio 16B — o que foi entregue
 
