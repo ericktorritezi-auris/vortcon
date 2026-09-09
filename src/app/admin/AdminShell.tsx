@@ -20,7 +20,11 @@ export async function AdminShell({
     <div className="flex min-h-screen flex-col md:flex-row">
       <AdminSidebarNav />
       <div className="flex flex-1 flex-col">
-        <Topbar userName={session?.user.name ?? 'Administrador'} userSubtitle="Administrador" />
+        <Topbar
+          userName={session?.user.name ?? 'Administrador'}
+          userSubtitle="Administrador"
+          searchScope="admin"
+        />
         <main className="flex-1 px-6 py-8">{children}</main>
       </div>
     </div>

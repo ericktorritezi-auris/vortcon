@@ -970,13 +970,43 @@ sem ver acontecer:
 - [ ] **Mobile/desktop validados** — responsividade foi auditada e corrigida
       repetidamente (Estágios 9-16), mas "validado" no sentido do critério de
       aceite significa alguém olhando num aparelho real
-- [x] **CI verde** — ~~não existia~~ criado agora
-      (`.github/workflows/ci.yml`), ver seção "CI (GitHub Actions)" abaixo.
-      Falta só o próprio GitHub confirmar verde na primeira execução real —
-      não posso alegar isso sem ver o pipeline rodar de verdade lá.
+- [x] **CI verde** — confirmado. Pipeline completo (formatação, lint,
+      typecheck, testes unitários + integração contra Postgres real, build de
+      produção) rodou verde de ponta a ponta pela primeira vez. Ver
+      "CI (GitHub Actions) — jornada até o verde" abaixo — o caminho até aqui
+      revelou e corrigiu vários bugs reais que este ambiente de
+      desenvolvimento nunca teve como pegar sozinho.
 - [ ] **Smoke production aprovado** — mesmo motivo do item de Healthcheck acima
 
-### CI (GitHub Actions) — criado no Estágio 18
+## Busca (tenant e Admin) — construída após o Estágio 18
+
+O cliente notou que a busca, tanto do painel do tenant quanto do Admin, nunca
+tinha sido implementada de verdade — era um "shell visual" desabilitado de
+propósito desde a reestruturação de UX (entre os Estágios 8-9), quando os
+módulos que ela cruzaria ainda não existiam. Como o app está completo agora,
+essa razão para adiar não vale mais.
+
+- **`tenant-search.service.ts`** — busca do painel do tenant: transações (por
+  descrição), contas, categorias e tags. `tenantId` sempre da sessão (Seção
+  142), nunca aceito do cliente. Menos de 2 caracteres nunca busca nada, pra
+  evitar consulta ampla demais a cada tecla digitada.
+- **`admin-search.service.ts`** — busca do painel Admin, deliberadamente
+  restrita a tenants (nome/e-mail/usuário do dono, nunca dado financeiro) —
+  mesma regra de sempre ("Admin não acessa financeiro do tenant").
+- **`Topbar` reescrita** — campo de busca real, com dropdown de resultados,
+  busca ao digitar (debounce de 300ms), navega pro lugar certo ao clicar num
+  resultado. Ganhou o prop `searchScope` (`admin` | `tenant`) pra saber qual
+  serviço chamar — Admin e área do tenant reaproveitam o mesmo componente,
+  mas nunca o mesmo escopo de busca.
+- **Isolamento testado de verdade**: criei dois tenants com dados
+  reconhecíveis (um com a palavra "Netflix" numa transação, outro sem nada
+  parecido) e confirmei que a busca de um nunca encontra o dado do outro —
+  e que a busca do Admin, mesmo encontrando o tenant certo, nunca inclui
+  nenhum vestígio do dado financeiro dele na resposta (serializei o
+  resultado e conferi que a string "Netflix" e o valor em centavos nunca
+  aparecem nele).
+
+### CI (GitHub Actions) — jornada até o verde
 
 Nunca existia (Seção 166). `.github/workflows/ci.yml` roda em toda PR e todo push
 em `main`: formatação, lint, typecheck, testes (unitários + integração) e build
@@ -997,6 +1027,50 @@ Um detalhe de configuração que corrigi no caminho: as variáveis opcionais
 workflow, nunca como string vazia — o schema de validação
 (`z.string().min(1).optional()`) aceita a variável ausente, mas uma string
 vazia falha o `min(1)` e quebraria o build por um motivo nada óbvio.
+
+**A primeira execução real revelou bugs genuínos que este ambiente de
+desenvolvimento nunca teve como pegar sozinho** — a diferença de rede/Prisma
+já mencionada significa que boa parte da suíte de integração só rodou de
+verdade pela primeira vez neste pipeline, depois de 18 estágios inteiros só
+validados por leitura de código, matemática e SQL direto. Cada rodada do CI
+revelou um problema real, corrigido antes da próxima:
+
+1. **272 arquivos "mal formatados" de uma vez** — não era conteúdo, era
+   diferença de final de linha (CRLF introduzido ao subir arquivo pelo
+   navegador). Corrigido com `endOfLine: "auto"` no Prettier + `.gitattributes`
+   pra padronizar daqui pra frente.
+2. **Configurações essenciais nunca tinham chegado ao repositório** —
+   `.eslintrc.json`, `.prettierrc.json`, `.gitattributes`: arquivos que
+   começam com ponto ficam ocultos por padrão em vários gerenciadores de
+   arquivo, e simplesmente nunca foram enviados nas entregas anteriores deste
+   projeto (só existiam no ambiente de desenvolvimento).
+3. **`demo.html`** — um mockup estático da fase de design inicial, nunca
+   referenciado em lugar nenhum do projeto, removido (limpeza, não conserto).
+4. **Bug real em `legal-flow.test.ts`** (Estágio 17) — usava o nome de campo
+   errado (`versionId` em vez de `documentVersionId`) numa consulta direta ao
+   banco.
+5. **JSX quebrando em qualquer teste que tocasse um componente `.tsx`** —
+   `tsconfig.json` usa `"jsx": "preserve"` (delega a transformação pro
+   bundler do Next.js), mas o esbuild do Vitest não infere isso sozinho.
+   Corrigido configurando o runtime automático explicitamente em
+   `vitest.config.ts` — resolve a causa raiz pra qualquer `.tsx` futuro, não
+   só o arquivo que quebrou primeiro.
+6. **Bug real na fronteira exata de carência** (Estágio 17) — o teste
+   reaproveitava "a primeira cobrança do tenant compartilhado", que por essa
+   altura do arquivo já tinha sido paga por outro teste anterior. Corrigido
+   criando uma cobrança isolada; e a fronteira exata (4 vs. 5 dias) foi
+   extraída pra um módulo puro (`delinquency-rules.ts`) porque testá-la
+   através de um campo `@db.Date` do banco (que trunca a hora) provou ser
+   instável dependendo do horário exato em que o pipeline rodava.
+7. **Bug pré-existente de um estágio bem anterior, nunca pego até agora** —
+   `login()` chamava `cookies()` do Next.js diretamente, uma API que só
+   funciona dentro de uma requisição HTTP real. Corrigido separando a criação
+   da sessão (lógica pura, testável) do efeito colateral de setar o cookie
+   (que só a rota de API real faz agora).
+
+Nenhum desses bugs foi hipotético — cada um só apareceu porque a suíte
+finalmente rodou contra infraestrutura real pela primeira vez. É exatamente o
+valor que o CI deveria entregar, e entregou.
 
 ### Limpeza encontrada no caminho — Worker morto desde o Estágio 1
 
@@ -1402,11 +1476,8 @@ Itens identificados e conscientemente adiados para um estágio futuro a definir:
 - **Menu "Ajuda" dentro do painel do tenant** — ~~backlog~~ **construído (Estágio
   16C)**, ver seção própria abaixo.
 
-- **Busca global do Admin não é funcional ainda** — a `Topbar` tem o campo de busca
-  desabilitado de propósito (Seção "Reestruturação de UX" abaixo). Buscar de verdade
-  entre usuários/tenants/pagamentos/logs cruza vários módulos e precisa de um desenho
-  próprio (índice de busca, escopo por papel) — não é trivial o bastante pra encaixar
-  em qualquer estágio já planejado sem definir isso explicitamente antes.
+- **Busca (tenant e Admin)** — ~~backlog~~ **construída (pós-Estágio 18)**, ver
+  seção própria abaixo.
 - **Editor WYSIWYG de Termos/Privacidade** — ~~backlog~~ **construído (Estágio
   16B)**, ver seção própria abaixo.
 
@@ -1421,10 +1492,11 @@ marca — nome, logo e cores VortCon foram mantidos exatamente como já validado
   seções, usada tanto pelo Admin quanto pela área do tenant. Responsiva por
   dentro: desktop mostra a sidebar fixa, mobile vira hambúrguer + overlay —
   antes disso não existia nenhum tratamento de mobile no Admin.
-- **`Topbar`** (novo) — busca e notificação são shells visuais desabilitados de
-  propósito (nada de verdade pra buscar ainda; notificações reais são o
-  Estágio 13) — desabilitados explicitamente para não parecer que funcionam.
-  O menu do avatar é real: mostra nome/papel e faz logout de verdade.
+- **`Topbar`** (novo) — nesta fase, busca e notificação eram shells visuais
+  desabilitados de propósito (nada de verdade pra buscar ainda; notificações
+  reais chegaram no Estágio 13, busca de verdade chegou depois do Estágio 18 —
+  ver seção própria). O menu do avatar sempre foi real: mostra nome/papel e
+  faz logout de verdade.
 - **`AdminShell`** reescrito: menu horizontal → sidebar agrupada (Visão geral /
   Tenants e assinaturas / Conteúdo), com Dashboard ganhando dois painéis com
   **dado real** (não estático): Atividade recente (via `audit_events`, já
