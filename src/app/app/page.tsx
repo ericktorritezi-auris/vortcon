@@ -20,6 +20,7 @@ import {
   getRealBalance,
 } from '@/modules/financial-engine/financial-engine.service';
 import { getOnboardingStatus } from '@/modules/onboarding/onboarding.service';
+import { generateCategoryInsights } from '@/modules/insights/insight-engine.service';
 import { resolveIcon } from '@/shared/design-system/icons';
 import { FinancialValue, MetricCard } from '@/shared/ui';
 import { AppShell } from './AppShell';
@@ -41,6 +42,13 @@ function currentMonthPeriod(): { from: Date; to: Date } {
   const now = new Date();
   const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+  return { from, to };
+}
+
+/** Mesmo mês anterior que o Cockpit usa (Estágio 11) — Insight Engine precisa de base de comparação. */
+function previousMonthPeriod(currentFrom: Date): { from: Date; to: Date } {
+  const from = new Date(Date.UTC(currentFrom.getUTCFullYear(), currentFrom.getUTCMonth() - 1, 1));
+  const to = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 1, 0, 23, 59, 59, 999));
   return { from, to };
 }
 
@@ -73,6 +81,7 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
   const { tenantId } = access.context;
   const session = await getCurrentSession();
   const period = currentMonthPeriod();
+  const previousPeriod = previousMonthPeriod(period.from);
   const firstName = (session?.user.name ?? 'você').split(' ')[0];
   // Seção 24: timezone é cadastrado por usuário (default America/Sao_Paulo,
   // alterável) — "hoje" na saudação usa o fuso do próprio usuário, nunca o
@@ -90,6 +99,7 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
     accountBalances,
     accounts,
     categoryBreakdown,
+    previousCategoryBreakdown,
     categories,
     onboarding,
   ] = await Promise.all([
@@ -102,9 +112,16 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
     getAccountBalances(tenantId),
     listAccounts(tenantId),
     getCategoryBreakdown(tenantId, period, 'ALL_MOVEMENT'),
+    getCategoryBreakdown(tenantId, previousPeriod, 'ALL_MOVEMENT'),
     listCategories(tenantId),
     getOnboardingStatus(tenantId),
   ]);
+
+  const insights = await generateCategoryInsights(
+    tenantId,
+    categoryBreakdown,
+    previousCategoryBreakdown,
+  );
 
   const periodResultCents = periodIncomeCents - periodExpensesCents;
   const showProjected = pendingPayablesCents > 0 || pendingReceivablesCents > 0;
@@ -238,15 +255,24 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
         </section>
       </div>
 
-      <section className="mt-6 rounded-lg border border-dashed border-ink-secondary/25 p-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-ink-primary">
+      <section className="mt-6 rounded-lg border border-ink-secondary/15 bg-white p-4">
+        <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-primary">
           <Lightbulb className="h-4 w-4 text-financial-warning" aria-hidden="true" />
           Insights
         </div>
-        <p className="mt-1 text-sm text-ink-secondary">
-          O motor de insights chega em um estágio futuro (Insight Engine). Por enquanto, acompanhe
-          suas métricas acima.
-        </p>
+        {insights.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {insights.map((insight) => (
+              <li key={insight.categoryId} className="text-sm text-ink-secondary">
+                {insight.text}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-ink-secondary">
+            Ainda não há movimentação suficiente neste mês para gerar insights.
+          </p>
+        )}
       </section>
     </AppShell>
   );

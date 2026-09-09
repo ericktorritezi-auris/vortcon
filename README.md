@@ -872,6 +872,25 @@ Segundo dos 3 sub-estágios do backlog de páginas públicas (16A/16B/16C).
   no `tailwind.config.ts` agora — beneficia tanto o editor novo quanto as duas
   páginas públicas que já dependiam dessas classes.
 
+### Correção pós-Insight Engine — Dashboard esquecido + remoção do Planejamento
+
+Dois ajustes pontuais, encontrados/pedidos ao revisar a entrega antes do Estágio 17:
+
+1. **Bug real: o Insight Engine só tinha sido conectado ao Cockpit, nunca ao
+   Dashboard (Início)** — o Dashboard tem sua própria seção "Insights", separada da
+   do Cockpit, com o mesmo texto hardcoded ("O motor de insights chega em um
+   estágio futuro"). Corrigido: `/app/page.tsx` agora busca também o breakdown por
+   categoria do mês anterior (única peça que faltava) e chama
+   `generateCategoryInsights`, o mesmo motor real usado no Cockpit. Confirmado por
+   busca no código inteiro que não sobra nenhuma outra ocorrência do texto antigo.
+2. **Menu "Planejamento" removido por completo** — investigado a pedido do
+   cliente: esse item **não aparece em nenhum lugar do documento mestre** e eu não
+   tinha nenhuma nota registrada sobre por que foi criado. O mais provável é que
+   tenha sido adicionado como placeholder durante a reestruturação de UX (entre os
+   Estágios 8-9) sem nunca virar escopo de verdade. O cliente confirmou que não faz
+   sentido pro propósito da ferramenta — removido o item do menu (`Sidebar.tsx`) e
+   a página inteira (`/app/planejamento`).
+
 ## Insight Engine — o que foi entregue
 
 Parte original do Estágio 11 ("Cockpit/Insights"), nunca construída até agora —
