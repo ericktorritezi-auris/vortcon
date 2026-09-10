@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   ListChecks,
   PieChart,
+  Repeat,
   Tag,
   User,
 } from 'lucide-react';
@@ -21,6 +22,7 @@ const NAV_GROUPS = [
       { href: '/app/cockpit', label: 'Cockpit', icon: Gauge },
       { href: '/app/transacoes', label: 'Transações', icon: ListChecks },
       { href: '/app/transferencias', label: 'Transferências', icon: ArrowLeftRight },
+      { href: '/app/recorrencias', label: 'Recorrências', icon: Repeat },
       { href: '/app/contas', label: 'Contas', icon: CreditCard },
       { href: '/app/categorias', label: 'Categorias', icon: LayoutGrid },
       { href: '/app/tags', label: 'Tags', icon: Tag },

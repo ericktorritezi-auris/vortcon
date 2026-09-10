@@ -6,9 +6,11 @@ import { createAccount } from '@/modules/accounts/account.service';
 import {
   alterRecurrenceForward,
   createRecurrenceSeries,
+  deleteSeriesWithOccurrences,
   endRecurrenceSeries,
   materializeSeriesOccurrences,
 } from '@/modules/recurrence/recurrence.service';
+import { listAllSeriesForTenant } from '@/modules/recurrence/recurrence.repository';
 import { createTag } from '@/modules/tags/tag.service';
 import { settleTransaction } from '@/modules/transactions/transaction.service';
 import { cleanupTenant, createTestPlan, deleteTestPlan } from '../helpers/commercial';
@@ -340,6 +342,73 @@ describe('fluxo de recorrência', () => {
     vi.spyOn(Date, 'now').mockRestore();
     await prisma.financialTransaction.deleteMany({ where: { recurrenceSeriesId: series.id } });
     await prisma.recurrenceSeries.delete({ where: { id: series.id } });
+  });
+
+  it('pedido do cliente — tela de gestão: listAllSeriesForTenant traz a contagem certa de ocorrências, inclusive de séries encerradas', async () => {
+    const series = await createRecurrenceSeries(tenantId, {
+      kind: 'TRANSACTION',
+      transactionType: 'EXPENSE',
+      frequency: 'MONTHLY',
+      startDate: new Date('2026-09-01'),
+      endDate: new Date('2026-12-01'),
+      baseAmountCents: 20_000,
+      description: 'Série pra listagem',
+      defaultAccountId: accountId,
+    });
+
+    const list = await listAllSeriesForTenant(tenantId);
+    const found = list.find(
+      (s: Awaited<ReturnType<typeof listAllSeriesForTenant>>[number]) => s.id === series.id,
+    );
+    expect(found).toBeDefined();
+    expect(found?.occurrenceCount).toBe(4); // set/out/nov/dez
+    expect(found?.description).toBe('Série pra listagem');
+    expect(found?.accountName).toBe('Conta Recorrência');
+
+    await endRecurrenceSeries(tenantId, series.id);
+    const listAfterEnd = await listAllSeriesForTenant(tenantId);
+    const foundAfterEnd = listAfterEnd.find(
+      (s: Awaited<ReturnType<typeof listAllSeriesForTenant>>[number]) => s.id === series.id,
+    );
+    // Encerrada continua aparecendo na listagem (nunca some) — só marcada.
+    expect(foundAfterEnd?.active).toBe(false);
+
+    await prisma.financialTransaction.deleteMany({ where: { recurrenceSeriesId: series.id } });
+    await prisma.recurrenceSeries.delete({ where: { id: series.id } });
+  });
+
+  it('pedido do cliente — excluir uma série inteira apaga TODAS as ocorrências, de qualquer status, numa ação só', async () => {
+    const series = await createRecurrenceSeries(tenantId, {
+      kind: 'TRANSACTION',
+      transactionType: 'EXPENSE',
+      frequency: 'MONTHLY',
+      startDate: new Date('2026-09-01'),
+      endDate: new Date('2026-12-01'),
+      baseAmountCents: 15_000,
+      description: 'Vai ser excluída inteira',
+      defaultAccountId: accountId,
+    });
+
+    const occurrencesBefore = await prisma.financialTransaction.findMany({
+      where: { recurrenceSeriesId: series.id },
+    });
+    expect(occurrencesBefore.length).toBeGreaterThan(0);
+
+    // Uma das ocorrências já paga — a exclusão em massa precisa funcionar
+    // mesmo assim, sem exigir cancelar uma por uma antes (diferente de
+    // deleteTransaction).
+    await settleTransaction(tenantId, occurrencesBefore[0]!.id, new Date());
+
+    const { deletedOccurrences } = await deleteSeriesWithOccurrences(tenantId, series.id);
+    expect(deletedOccurrences).toBe(occurrencesBefore.length);
+
+    const occurrencesAfter = await prisma.financialTransaction.count({
+      where: { recurrenceSeriesId: series.id },
+    });
+    expect(occurrencesAfter).toBe(0);
+
+    const seriesAfter = await prisma.recurrenceSeries.findUnique({ where: { id: series.id } });
+    expect(seriesAfter).toBeNull();
   });
 });
 

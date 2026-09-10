@@ -978,6 +978,36 @@ sem ver acontecer:
       desenvolvimento nunca teve como pegar sozinho.
 - [ ] **Smoke production aprovado** — mesmo motivo do item de Healthcheck acima
 
+## Tela de gestão de recorrências — construída a pedido do cliente
+
+Depois da correção da janela de materialização (acima), o cliente apontou um
+problema real de consequência: **lançamentos que já existiam antes da
+correção continuam travados na janela antiga** — o job só preenche o que
+falta pra frente, nunca reprocessa o que já foi gerado. Com muitas
+transações recorrentes de setembro a dezembro, apagar uma por uma seria
+inviável. Pedido: uma tela pra ver todas as séries de uma vez, selecionar e
+excluir em massa (série inteira + todas as ocorrências), pra poder
+recomeçar do zero com a correção já valendo desde o início.
+
+- **`listAllSeriesForTenant`** — lista todas as séries (ativas E encerradas
+  — nunca somem da tela), com contagem de ocorrências já materializadas e o
+  nome da conta vinculada, para exibição direta.
+- **`deleteSeriesWithOccurrences`** — exclui a série inteira e **todas** as
+  suas ocorrências, de qualquer status (pendente, paga, cancelada) — ação
+  diferente de `deleteTransaction` (que exige cancelar antes, uma por uma).
+  Essa é uma ação de reset em massa, deliberadamente mais permissiva,
+  porque é um consentimento explícito e forte do usuário na tela ("excluir
+  tudo de uma vez"), nunca disparada sem confirmação clara mostrando quantos
+  lançamentos serão apagados.
+- **Tela `/app/recorrencias`** (novo item no menu) — lista com seleção
+  múltipla (uma a uma ou "selecionar todas"), botão único de exclusão em
+  massa com confirmação mostrando o total de lançamentos que serão
+  apagados.
+- **3 testes de integração**: listagem traz a contagem certa (inclusive de
+  série encerrada, que nunca deveria sumir), e exclusão em massa funciona
+  mesmo com uma ocorrência já paga no meio (sem exigir desfazer o pagamento
+  antes — diferente do fluxo cuidadoso de exclusão individual).
+
 ## Janela de materialização de recorrência — bug real corrigido
 
 Cliente reportou: recorrências (parcelas, assinaturas) sumindo a partir de

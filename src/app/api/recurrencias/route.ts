@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { evaluateAccessPolicy } from '@/modules/auth/access-policy.service';
 import { createRecurrenceSeries } from '@/modules/recurrence/recurrence.service';
+import { listAllSeriesForTenant } from '@/modules/recurrence/recurrence.repository';
 
 const baseSchema = {
   frequency: z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY', 'CUSTOM_DAYS']),
@@ -67,4 +68,15 @@ export async function POST(request: Request): Promise<NextResponse> {
       error instanceof Error ? error.message : 'Não foi possível criar a recorrência.';
     return NextResponse.json({ error: 'CREATE_FAILED', message }, { status: 400 });
   }
+}
+
+/** Lista todas as séries (ativas e encerradas) — base da tela de gestão de recorrências (pedido do cliente). */
+export async function GET(): Promise<NextResponse> {
+  const access = await evaluateAccessPolicy();
+  if (access.kind !== 'ALLOWED') {
+    return NextResponse.json({ error: access.kind }, { status: 401 });
+  }
+
+  const series = await listAllSeriesForTenant(access.context.tenantId);
+  return NextResponse.json({ series });
 }

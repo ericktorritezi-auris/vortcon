@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
 import { computeOccurrenceDates, toOccurrenceKey } from './date-sequence';
 import * as recurrenceRepository from './recurrence.repository';
@@ -285,4 +286,44 @@ export async function endRecurrenceSeries(
   endDate: Date = new Date(),
 ) {
   return recurrenceRepository.endSeries(tenantId, seriesId, endDate);
+}
+
+/**
+ * Excluir uma série inteira + TODAS as suas ocorrências materializadas,
+ * de qualquer status (pendente, paga, cancelada) — pedido explícito do
+ * cliente: "quero recomeçar do zero". Diferente de `deleteTransaction`
+ * (que só exclui uma transação isolada, e só depois de cancelada) — essa
+ * é uma ação de reset em massa, consentida explicitamente na tela de
+ * gestão de recorrências, nunca disparada sem confirmação clara.
+ */
+export async function deleteSeriesWithOccurrences(
+  tenantId: string,
+  seriesId: string,
+): Promise<{ deletedOccurrences: number }> {
+  const series = await recurrenceRepository.findSeriesById(tenantId, seriesId);
+  if (!series) throw new Error('Série não encontrada neste tenant.');
+
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    let deletedOccurrences = 0;
+
+    if (series.kind === 'TRANSFER') {
+      const result = await tx.transfer.deleteMany({
+        where: { recurrenceSeriesId: seriesId, tenantId },
+      });
+      deletedOccurrences = result.count;
+    } else {
+      await tx.financialTransactionTag.deleteMany({
+        where: { transaction: { recurrenceSeriesId: seriesId, tenantId } },
+      });
+      const result = await tx.financialTransaction.deleteMany({
+        where: { recurrenceSeriesId: seriesId, tenantId },
+      });
+      deletedOccurrences = result.count;
+    }
+
+    await tx.recurrenceSeriesTag.deleteMany({ where: { recurrenceSeriesId: seriesId } });
+    await tx.recurrenceSeries.delete({ where: { id: seriesId } });
+
+    return { deletedOccurrences };
+  });
 }

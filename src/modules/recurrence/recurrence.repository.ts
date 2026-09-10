@@ -9,6 +9,54 @@ export async function listActiveSeries(tenantId: string) {
   return prisma.recurrenceSeries.findMany({ where: { tenantId, active: true } });
 }
 
+/**
+ * Lista TODAS as séries do tenant (ativas e encerradas), com a contagem de
+ * ocorrências já materializadas — base da tela de gestão de recorrências
+ * (pedido do cliente: "quero ver todas de uma vez e poder excluir em
+ * massa").
+ */
+export async function listAllSeriesForTenant(tenantId: string) {
+  const series = await prisma.recurrenceSeries.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      _count: { select: { occurrences: true, transfers: true } },
+    },
+  });
+
+  const accountIds = new Set<string>();
+  for (const s of series) {
+    if (s.defaultAccountId) accountIds.add(s.defaultAccountId);
+    if (s.defaultSourceAccountId) accountIds.add(s.defaultSourceAccountId);
+    if (s.defaultDestinationAccountId) accountIds.add(s.defaultDestinationAccountId);
+  }
+  const accounts = await prisma.financialAccount.findMany({
+    where: { id: { in: [...accountIds] } },
+    select: { id: true, name: true },
+  });
+  const accountNameById = new Map(
+    accounts.map((a: { id: string; name: string }) => [a.id, a.name]),
+  );
+
+  return series.map((s: (typeof series)[number]) => ({
+    id: s.id,
+    kind: s.kind,
+    transactionType: s.transactionType,
+    description: s.description,
+    frequency: s.frequency,
+    interval: s.interval,
+    startDate: s.startDate,
+    endDate: s.endDate,
+    active: s.active,
+    occurrenceCount: s._count.occurrences + s._count.transfers,
+    accountName:
+      accountNameById.get(s.defaultAccountId ?? '') ??
+      (s.defaultSourceAccountId && s.defaultDestinationAccountId
+        ? `${accountNameById.get(s.defaultSourceAccountId) ?? '—'} → ${accountNameById.get(s.defaultDestinationAccountId) ?? '—'}`
+        : null),
+  }));
+}
+
 interface CreateSeriesInput {
   kind: RecurrenceKind;
   transactionType?: FinancialTransactionType;
