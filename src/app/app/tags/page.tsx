@@ -27,12 +27,14 @@ export default async function TagsPage(): Promise<React.ReactElement> {
       break;
   }
 
-  const tags = await listTags(access.context.tenantId);
+  const tags = await listTags(access.context.tenantId, true);
 
   return (
     <AppShell>
       <h1 className="mb-6 text-xl font-semibold text-ink-primary">Tags</h1>
-      <TagsManager tags={tags.map((tag: Tag) => ({ id: tag.id, name: tag.name }))} />
+      <TagsManager
+        tags={tags.map((tag: Tag) => ({ id: tag.id, name: tag.name, active: tag.active }))}
+      />
     </AppShell>
   );
 }

@@ -94,6 +94,59 @@ export async function cancelTransfer(tenantId: string, transferId: string) {
   });
 }
 
+interface UpdateTransferInput {
+  sourceAccountId?: string;
+  destinationAccountId?: string;
+  amountCents?: number;
+  scheduledDate?: Date;
+  note?: string | null;
+}
+
+/** Editar (pedido do cliente) — nunca toca em status/liquidação, mesmo padrão de updateTransaction. */
+export async function updateTransfer(
+  tenantId: string,
+  transferId: string,
+  input: UpdateTransferInput,
+) {
+  const transfer = await prisma.transfer.findFirstOrThrow({ where: { id: transferId, tenantId } });
+
+  const sourceAccountId = input.sourceAccountId ?? transfer.sourceAccountId;
+  const destinationAccountId = input.destinationAccountId ?? transfer.destinationAccountId;
+  if (sourceAccountId === destinationAccountId) {
+    throw new Error('A conta de origem e destino não podem ser a mesma.');
+  }
+  if (input.sourceAccountId || input.destinationAccountId) {
+    await assertAccountsBelongToTenant(tenantId, [sourceAccountId, destinationAccountId]);
+  }
+
+  return prisma.transfer.update({
+    where: { id: transfer.id },
+    data: {
+      sourceAccountId: input.sourceAccountId,
+      destinationAccountId: input.destinationAccountId,
+      amountCents: input.amountCents,
+      scheduledDate: input.scheduledDate,
+      note: input.note,
+    },
+  });
+}
+
+/**
+ * Excluir de verdade (pedido do cliente) — só permitido depois de
+ * cancelada, nunca em cima de uma transferência ativa/concluída. Mesma
+ * regra de deleteTransaction: cancelar é o passo reversível, excluir é o
+ * passo definitivo, só alcançável a partir do estado cancelado.
+ */
+export async function deleteTransfer(tenantId: string, transferId: string): Promise<void> {
+  const transfer = await prisma.transfer.findFirstOrThrow({ where: { id: transferId, tenantId } });
+
+  if (transfer.status !== 'CANCELLED') {
+    throw new Error('Só é possível excluir uma transferência cancelada.');
+  }
+
+  await prisma.transfer.delete({ where: { id: transfer.id } });
+}
+
 interface ListTransfersFilters {
   from?: Date;
   to?: Date;

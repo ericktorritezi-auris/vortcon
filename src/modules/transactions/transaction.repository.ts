@@ -67,6 +67,7 @@ interface CreateTransactionData {
   reminderEnabled?: boolean;
   settlementDate?: Date;
   tagIds?: string[];
+  affectsBalance?: boolean;
 }
 
 export async function createTransaction(tenantId: string, data: CreateTransactionData) {
@@ -85,6 +86,7 @@ export async function createTransaction(tenantId: string, data: CreateTransactio
       categoryId: data.categoryId,
       note: data.note,
       reminderEnabled: data.reminderEnabled ?? false,
+      affectsBalance: data.affectsBalance ?? true,
       tags: data.tagIds ? { create: data.tagIds.map((tagId) => ({ tagId })) } : undefined,
     },
     include: { tags: true },
@@ -100,6 +102,7 @@ interface UpdateTransactionData {
   note?: string | null;
   reminderEnabled?: boolean;
   tagIds?: string[];
+  affectsBalance?: boolean;
 }
 
 /**
@@ -129,6 +132,7 @@ export async function updateTransaction(
         categoryId: data.categoryId,
         note: data.note,
         reminderEnabled: data.reminderEnabled,
+        affectsBalance: data.affectsBalance,
       },
     });
 
@@ -216,6 +220,28 @@ export async function reactivateTransaction(tenantId: string, transactionId: str
       cancelledFromStatus: null,
     },
   });
+}
+
+/**
+ * Excluir de verdade (pedido do cliente) — só permitido depois de
+ * cancelada, nunca em cima de uma transação ativa/liquidada. Cancelar é o
+ * passo reversível (dá pra reativar); excluir é o passo definitivo, só
+ * alcançável a partir do estado cancelado — "fiz errado, vou excluir, vou
+ * fazer outro".
+ */
+export async function deleteTransaction(tenantId: string, transactionId: string): Promise<void> {
+  const transaction = await prisma.financialTransaction.findFirstOrThrow({
+    where: { id: transactionId, tenantId },
+  });
+
+  if (transaction.status !== 'CANCELLED') {
+    throw new Error('Só é possível excluir uma transação cancelada.');
+  }
+
+  await prisma.$transaction([
+    prisma.financialTransactionTag.deleteMany({ where: { transactionId } }),
+    prisma.financialTransaction.delete({ where: { id: transactionId } }),
+  ]);
 }
 
 export async function setIgnored(tenantId: string, transactionId: string, ignored: boolean) {

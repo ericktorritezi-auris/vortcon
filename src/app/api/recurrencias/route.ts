@@ -19,6 +19,11 @@ const transactionSeriesSchema = z.object({
   defaultAccountId: z.string().min(1),
   defaultCategoryId: z.string().min(1).optional(),
   defaultReminderEnabled: z.boolean().optional(),
+  // Bug real corrigido (pedido do cliente) — antes a série nunca
+  // propagava nota nem tags pras ocorrências materializadas.
+  defaultNote: z.string().min(1).optional(),
+  defaultAffectsBalance: z.boolean().optional(),
+  defaultTagIds: z.array(z.string().min(1)).optional(),
   ...baseSchema,
 });
 

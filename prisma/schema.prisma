@@ -471,6 +471,7 @@ model Tag {
 
   tenant          Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   transactionTags FinancialTransactionTag[]
+  recurrenceSeriesTags RecurrenceSeriesTag[]
 
   @@index([tenantId])
   @@map("tags")
@@ -502,6 +503,13 @@ model FinancialTransaction {
   accountId           String
   categoryId          String?
   reminderEnabled     Boolean                     @default(false)
+  // Pedido do cliente — um lançamento pode existir só como histórico, sem
+  // influenciar o saldo real das contas (ex.: registro de algo que já
+  // aconteceu antes de começar a usar o VortCon). Nunca afeta relatórios,
+  // categorias, tags ou o resultado do período — só o saldo em si
+  // (getRealBalance/getBalanceAsOf/getProjectedBalance). Default true:
+  // todo lançamento normal continua influenciando o saldo, como sempre.
+  affectsBalance      Boolean                     @default(true)
   // Estágio 13 — idempotência do lembrete de vencimento (Seção 117/128):
   // marca que o lembrete das 08h já foi enviado para esta transação, pra
   // nunca duplicar mesmo se o job rodar mais de uma vez no mesmo dia.
@@ -646,18 +654,40 @@ model RecurrenceSeries {
   defaultAccountId            String?
   defaultCategoryId           String?
   defaultReminderEnabled      Boolean               @default(false)
+  // Bug real corrigido (pedido do cliente) — a série nunca propagava nota
+  // nem tags pras ocorrências materializadas, só a descrição. Nulo =
+  // ocorrência nasce sem observação/tag (comportamento anterior,
+  // preservado como opção).
+  defaultNote                 String?
+  defaultAffectsBalance       Boolean               @default(true)
   defaultSourceAccountId      String?
   defaultDestinationAccountId String?
   active                      Boolean               @default(true)
   createdAt                   DateTime              @default(now())
   updatedAt                   DateTime              @updatedAt
 
-  tenant       Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant       Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   occurrences  FinancialTransaction[]
   transfers    Transfer[]
+  defaultTags  RecurrenceSeriesTag[]
 
   @@index([tenantId, active])
   @@map("recurrence_series")
+}
+
+// Tags padrão de uma série recorrente (join table — mesmo padrão de
+// FinancialTransactionTag). Nunca embutido como array/JSON: preserva
+// integridade referencial (nunca aponta pra uma tag que não existe mais)
+// e permite consultar "quais séries usam esta tag".
+model RecurrenceSeriesTag {
+  recurrenceSeriesId String
+  tagId              String
+
+  recurrenceSeries RecurrenceSeries @relation(fields: [recurrenceSeriesId], references: [id], onDelete: Cascade)
+  tag              Tag              @relation(fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([recurrenceSeriesId, tagId])
+  @@map("recurrence_series_tags")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

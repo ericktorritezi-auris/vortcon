@@ -27,7 +27,7 @@ export default async function ContasPage(): Promise<React.ReactElement> {
       break;
   }
 
-  const accounts = await listAccounts(access.context.tenantId);
+  const accounts = await listAccounts(access.context.tenantId, true);
 
   return (
     <AppShell>
@@ -38,6 +38,7 @@ export default async function ContasPage(): Promise<React.ReactElement> {
           name: account.name,
           type: account.type,
           initialBalanceCents: account.initialBalanceCents,
+          active: account.active,
         }))}
       />
     </AppShell>

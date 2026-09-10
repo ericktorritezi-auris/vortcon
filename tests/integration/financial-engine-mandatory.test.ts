@@ -13,6 +13,7 @@ import {
 import { createTransfer } from '@/modules/transfers/transfer.service';
 import {
   getCategoryBreakdown,
+  getPeriodIncome,
   getPeriodResult,
   getRealBalance,
 } from '@/modules/financial-engine/financial-engine.service';
@@ -333,5 +334,52 @@ describe('Financial Engine — testes obrigatórios (Seções 170-172)', () => {
 
     await cleanupTenant(otherTenant.id);
     await deleteTestPlan(otherPlan.id);
+  });
+
+  it('pedido do cliente — affectsBalance=false: lançamento pago não muda o saldo real, mas continua contando no período/relatório (histórico)', async () => {
+    const balanceBefore = await getRealBalance(tenantId);
+    const incomeBefore = await getPeriodIncome(tenantId, {
+      from: new Date('2026-09-01'),
+      to: new Date('2026-09-30'),
+    });
+
+    await createIncomeOrExpense(tenantId, {
+      type: 'INCOME',
+      description: 'Receita histórica, só registro',
+      amountCents: 300_000,
+      dueDate: new Date('2026-09-15'),
+      settlementDate: new Date('2026-09-15'),
+      accountId,
+      affectsBalance: false,
+    });
+
+    const balanceAfter = await getRealBalance(tenantId);
+    expect(balanceAfter).toBe(balanceBefore); // nunca mexe no saldo
+
+    const incomeAfter = await getPeriodIncome(tenantId, {
+      from: new Date('2026-09-01'),
+      to: new Date('2026-09-30'),
+    });
+    expect(incomeAfter).toBe(incomeBefore + 300_000); // continua no histórico/relatório
+  });
+
+  it('affectsBalance é editável depois de criado (pedido do cliente: 10 primeiras parcelas não influenciam, 10 últimas influenciam)', async () => {
+    const transaction = await createIncomeOrExpense(tenantId, {
+      type: 'EXPENSE',
+      description: 'Parcela histórica',
+      amountCents: 100_000,
+      dueDate: new Date('2026-09-20'),
+      settlementDate: new Date('2026-09-20'),
+      accountId,
+      affectsBalance: false,
+    });
+
+    const balanceWithoutInfluence = await getRealBalance(tenantId);
+
+    const { updateTransaction } = await import('@/modules/transactions/transaction.service');
+    await updateTransaction(tenantId, transaction.id, { affectsBalance: true });
+
+    const balanceWithInfluence = await getRealBalance(tenantId);
+    expect(balanceWithInfluence).toBe(balanceWithoutInfluence - 100_000);
   });
 });

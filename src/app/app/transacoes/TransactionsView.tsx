@@ -24,6 +24,7 @@ export interface TransactionItemView {
   tags: { tag: { id: string; name: string } }[];
   note: string | null;
   reminderEnabled: boolean;
+  affectsBalance: boolean;
 }
 
 interface PaginatedData {

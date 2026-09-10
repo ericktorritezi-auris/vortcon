@@ -11,10 +11,14 @@
  * natureza financeira (Seção 48).
  */
 import {
+  Ambulance,
   Banknote,
+  Briefcase,
   Bus,
   Car,
   CreditCard,
+  Dumbbell,
+  Fuel,
   Gift,
   GraduationCap,
   Heart,
@@ -55,6 +59,12 @@ export const ICON_CATALOG = {
   landmark: Landmark,
   sparkles: Sparkles,
   tag: Tag,
+  // Pedido do cliente (Seção "CRUD completo") — esporte/lazer, saúde,
+  // trabalho e combustível.
+  dumbbell: Dumbbell,
+  ambulance: Ambulance,
+  briefcase: Briefcase,
+  fuel: Fuel,
 } as const satisfies Record<string, LucideIcon>;
 
 export type IconKey = keyof typeof ICON_CATALOG;

@@ -4,6 +4,8 @@ import { ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Badge, Button, Drawer, FinancialValue, Toggle } from '@/shared/ui';
+import { TransferFormFields } from './TransferFormFields';
+import type { TransferFormValues } from './TransferFormFields';
 import type { TransferItemView } from './TransfersView';
 
 interface SimpleOption {
@@ -25,11 +27,16 @@ const STATUS_LABEL: Record<TransferItemView['status'], string> = {
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'UTC' });
 
+function toDateInputValue(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  return date.toISOString().slice(0, 10);
+}
+
 /**
- * Detalhe da transferência — mesmo padrão pedido pelo cliente para
- * transações: toggle "transferido/não transferido" (Seção 68 estendida),
- * sempre disponível antes de qualquer outra ação, nunca só um botão de mão
- * única.
+ * Detalhe da transferência — pedido do cliente: editar, cancelar e excluir
+ * (só depois de cancelada), mesmo padrão de TransactionDetailDrawer. O
+ * toggle "transferido/não transferido" continua sempre disponível antes de
+ * qualquer outra ação, nunca só um botão de mão única.
  */
 export function TransferDetailDrawer({
   transfer,
@@ -37,8 +44,16 @@ export function TransferDetailDrawer({
   onClose,
 }: TransferDetailDrawerProps): React.ReactElement {
   const router = useRouter();
+  const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [values, setValues] = useState<TransferFormValues>({
+    sourceAccountId: transfer.sourceAccountId,
+    destinationAccountId: transfer.destinationAccountId,
+    amountCents: transfer.amountCents,
+    scheduledDate: toDateInputValue(transfer.scheduledDate),
+    note: transfer.note ?? '',
+  });
 
   const accountsById = new Map(accounts.map((account) => [account.id, account]));
   const isCancelled = transfer.status === 'CANCELLED';
@@ -54,6 +69,7 @@ export function TransferDetailDrawer({
         setError(body.message ?? 'Não foi possível concluir a ação.');
         return;
       }
+      onClose();
       router.refresh();
     } catch {
       setError('Não foi possível concluir a ação agora.');
@@ -70,15 +86,81 @@ export function TransferDetailDrawer({
     }
   }
 
+  async function handleCancel(): Promise<void> {
+    await runAction(() => fetch(`/api/transfers/${transfer.id}/cancel`, { method: 'POST' }));
+  }
+
+  async function handleDelete(): Promise<void> {
+    if (!window.confirm('Excluir esta transferência de vez? Essa ação não pode ser desfeita.'))
+      return;
+    await runAction(() => fetch(`/api/transfers/${transfer.id}`, { method: 'DELETE' }));
+  }
+
+  async function handleSaveEdit(): Promise<void> {
+    await runAction(() =>
+      fetch(`/api/transfers/${transfer.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceAccountId: values.sourceAccountId,
+          destinationAccountId: values.destinationAccountId,
+          amountCents: values.amountCents,
+          scheduledDate: values.scheduledDate,
+          note: values.note || null,
+        }),
+      }),
+    );
+  }
+
+  if (editing) {
+    return (
+      <Drawer
+        open
+        onClose={onClose}
+        title="Editar transferência"
+        footer={
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setEditing(false)} className="flex-1">
+              Voltar
+            </Button>
+            <Button onClick={handleSaveEdit} loading={loading} className="flex-1">
+              Salvar
+            </Button>
+          </div>
+        }
+      >
+        <TransferFormFields values={values} onChange={setValues} accounts={accounts} />
+        {error ? (
+          <p role="alert" className="mt-3 text-sm font-medium text-financial-danger">
+            {error}
+          </p>
+        ) : null}
+      </Drawer>
+    );
+  }
+
   return (
     <Drawer
       open
       onClose={onClose}
       title="Detalhe da transferência"
       footer={
-        <Button variant="secondary" onClick={onClose} className="w-full">
-          Fechar
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {!isCancelled ? (
+            <Button variant="secondary" onClick={() => setEditing(true)} className="flex-1">
+              Editar
+            </Button>
+          ) : null}
+          {isCancelled ? (
+            <Button variant="danger" onClick={handleDelete} loading={loading} className="flex-1">
+              Excluir
+            </Button>
+          ) : (
+            <Button variant="danger" onClick={handleCancel} loading={loading} className="flex-1">
+              Cancelar
+            </Button>
+          )}
+        </div>
       }
     >
       <div className="flex flex-col gap-4">

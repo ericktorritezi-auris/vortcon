@@ -22,6 +22,9 @@ interface CreateSeriesInput {
   defaultAccountId?: string;
   defaultCategoryId?: string;
   defaultReminderEnabled?: boolean;
+  defaultNote?: string;
+  defaultAffectsBalance?: boolean;
+  defaultTagIds?: string[];
   defaultSourceAccountId?: string;
   defaultDestinationAccountId?: string;
 }
@@ -42,8 +45,14 @@ export async function createSeries(tenantId: string, input: CreateSeriesInput) {
       defaultAccountId: input.defaultAccountId,
       defaultCategoryId: input.defaultCategoryId,
       defaultReminderEnabled: input.defaultReminderEnabled ?? false,
+      defaultNote: input.defaultNote,
+      defaultAffectsBalance: input.defaultAffectsBalance ?? true,
       defaultSourceAccountId: input.defaultSourceAccountId,
       defaultDestinationAccountId: input.defaultDestinationAccountId,
+      defaultTags:
+        input.defaultTagIds && input.defaultTagIds.length > 0
+          ? { create: input.defaultTagIds.map((tagId) => ({ tagId })) }
+          : undefined,
     },
   });
 }
@@ -62,6 +71,8 @@ interface UpdateSeriesBaseInput {
   defaultCategoryId?: string;
   defaultSourceAccountId?: string;
   defaultDestinationAccountId?: string;
+  defaultNote?: string | null;
+  defaultAffectsBalance?: boolean;
 }
 
 export async function updateSeriesBase(

@@ -1,4 +1,4 @@
-import type { Transfer } from '@prisma/client';
+import type { FinancialTransaction, FinancialTransactionTag, Transfer } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '@/shared/database/client';
 import { provisionTenantWithOwner } from '@/modules/tenants/tenant.service';
@@ -9,6 +9,7 @@ import {
   endRecurrenceSeries,
   materializeSeriesOccurrences,
 } from '@/modules/recurrence/recurrence.service';
+import { createTag } from '@/modules/tags/tag.service';
 import { settleTransaction } from '@/modules/transactions/transaction.service';
 import { cleanupTenant, createTestPlan, deleteTestPlan } from '../helpers/commercial';
 
@@ -86,6 +87,41 @@ describe('fluxo de recorrência', () => {
     });
     expect(created).toBe(0);
     expect(countAfter).toBe(countBefore);
+  });
+
+  it('bug real corrigido (pedido do cliente): série propaga nota, tags e affectsBalance pra cada ocorrência materializada', async () => {
+    const tag = await createTag(tenantId, 'Recorrente com tag');
+
+    const series = await createRecurrenceSeries(tenantId, {
+      kind: 'TRANSACTION',
+      transactionType: 'EXPENSE',
+      frequency: 'MONTHLY',
+      startDate: new Date('2026-10-01'),
+      baseAmountCents: 50_000,
+      description: 'Assinatura com tag e nota',
+      defaultAccountId: accountId,
+      defaultNote: 'Nota que precisa ir pra toda ocorrência',
+      defaultAffectsBalance: false,
+      defaultTagIds: [tag.id],
+    });
+
+    const occurrences = await prisma.financialTransaction.findMany({
+      where: { recurrenceSeriesId: series.id },
+      include: { tags: true },
+    });
+
+    expect(occurrences.length).toBeGreaterThan(0);
+    expect(
+      occurrences.every(
+        (o: FinancialTransaction) => o.note === 'Nota que precisa ir pra toda ocorrência',
+      ),
+    ).toBe(true);
+    expect(occurrences.every((o: FinancialTransaction) => o.affectsBalance === false)).toBe(true);
+    expect(
+      occurrences.every((o: FinancialTransaction & { tags: FinancialTransactionTag[] }) =>
+        o.tags.some((t: FinancialTransactionTag) => t.tagId === tag.id),
+      ),
+    ).toBe(true);
   });
 
   it('Seção 72 — editar uma ocorrência isolada não altera a série nem as demais ocorrências', async () => {
@@ -170,6 +206,42 @@ describe('fluxo de recorrência', () => {
     for (const occurrence of stillPending) {
       expect(occurrence.amountCents).toBe(200_000);
     }
+  });
+
+  it('pedido do cliente — flag de propagar (ou remover) observação e affectsBalance pras ocorrências futuras elegíveis', async () => {
+    const freshSeries = await createRecurrenceSeries(tenantId, {
+      kind: 'TRANSACTION',
+      transactionType: 'EXPENSE',
+      frequency: 'MONTHLY',
+      startDate: new Date('2026-10-01'),
+      baseAmountCents: 30_000,
+      defaultAccountId: accountId,
+      defaultNote: 'Nota original',
+    });
+
+    const { updatedOccurrences } = await alterRecurrenceForward(tenantId, freshSeries.id, {
+      defaultNote: 'Nota nova propagada pra frente',
+      defaultAffectsBalance: false,
+    });
+    expect(updatedOccurrences).toBeGreaterThan(0);
+
+    const futureOnes = await prisma.financialTransaction.findMany({
+      where: { recurrenceSeriesId: freshSeries.id, status: 'PENDING', dueDate: { gt: new Date() } },
+    });
+    expect(
+      futureOnes.every((o: FinancialTransaction) => o.note === 'Nota nova propagada pra frente'),
+    ).toBe(true);
+    expect(futureOnes.every((o: FinancialTransaction) => o.affectsBalance === false)).toBe(true);
+
+    // Remover a observação de todo mundo pra frente (null explícito).
+    await alterRecurrenceForward(tenantId, freshSeries.id, { defaultNote: null });
+    const afterRemoval = await prisma.financialTransaction.findMany({
+      where: { recurrenceSeriesId: freshSeries.id, status: 'PENDING', dueDate: { gt: new Date() } },
+    });
+    expect(afterRemoval.every((o: FinancialTransaction) => o.note === null)).toBe(true);
+
+    await prisma.financialTransaction.deleteMany({ where: { recurrenceSeriesId: freshSeries.id } });
+    await prisma.recurrenceSeries.delete({ where: { id: freshSeries.id } });
   });
 
   it('Seção 74 — encerrar a recorrência para novas ocorrências, sem apagar as já materializadas', async () => {

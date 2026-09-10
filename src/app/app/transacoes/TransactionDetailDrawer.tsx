@@ -71,6 +71,7 @@ export function TransactionDetailDrawer({
     tagIds: transaction.tags.map((link) => link.tag.id),
     note: transaction.note ?? '',
     reminderEnabled: transaction.reminderEnabled,
+    affectsBalance: transaction.affectsBalance,
   });
 
   const CategoryIcon = resolveIcon(transaction.category?.iconKey);
@@ -138,9 +139,15 @@ export function TransactionDetailDrawer({
           tagIds: values.tagIds,
           note: values.note || null,
           reminderEnabled: values.reminderEnabled,
+          affectsBalance: values.affectsBalance,
         }),
       }),
     );
+  }
+
+  async function handleDelete(): Promise<void> {
+    if (!window.confirm('Excluir esta transação de vez? Essa ação não pode ser desfeita.')) return;
+    await runAction(() => fetch(`/api/transactions/${transaction.id}`, { method: 'DELETE' }));
   }
 
   if (editing) {
@@ -189,14 +196,19 @@ export function TransactionDetailDrawer({
             </Button>
           ) : null}
           {isCancelled ? (
-            <Button
-              variant="secondary"
-              onClick={handleReactivate}
-              loading={loading}
-              className="flex-1"
-            >
-              Reativar
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                onClick={handleReactivate}
+                loading={loading}
+                className="flex-1"
+              >
+                Reativar
+              </Button>
+              <Button variant="danger" onClick={handleDelete} loading={loading} className="flex-1">
+                Excluir
+              </Button>
+            </>
           ) : (
             <Button variant="danger" onClick={handleCancel} loading={loading} className="flex-1">
               Cancelar

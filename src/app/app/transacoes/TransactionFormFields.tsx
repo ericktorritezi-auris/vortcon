@@ -16,6 +16,7 @@ export interface TransactionFormValues {
   tagIds: string[];
   note: string;
   reminderEnabled: boolean;
+  affectsBalance: boolean;
 }
 
 interface TransactionFormFieldsProps {
@@ -95,6 +96,16 @@ export function TransactionFormFields({
         checked={values.reminderEnabled}
         onChange={(checked) => set('reminderEnabled', checked)}
       />
+      <Toggle
+        label="Influencia no saldo das contas"
+        checked={values.affectsBalance}
+        onChange={(checked) => set('affectsBalance', checked)}
+      />
+      {!values.affectsBalance ? (
+        <p className="-mt-2 text-xs text-ink-secondary">
+          Fica registrada só como histórico — não muda o saldo real de nenhuma conta.
+        </p>
+      ) : null}
     </div>
   );
 }

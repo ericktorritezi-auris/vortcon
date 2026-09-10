@@ -7,6 +7,7 @@ import {
   cancelTransfer,
   completeTransfer,
   createTransfer,
+  deleteTransfer,
   listTransfers,
   unsettleTransfer,
 } from '@/modules/transfers/transfer.service';
@@ -196,5 +197,24 @@ describe('fluxo de transferências', () => {
         (t: Transfer) => t.amountCents === 1000 && t.scheduledDate < new Date('2026-02-01'),
       ),
     ).toBe(false);
+  });
+
+  it('pedido do cliente: exclusão de verdade só funciona depois de cancelada', async () => {
+    const transfer = await createTransfer(tenantId, {
+      sourceAccountId,
+      destinationAccountId,
+      amountCents: 5_000,
+      scheduledDate: new Date('2026-09-25'),
+    });
+
+    await expect(deleteTransfer(tenantId, transfer.id)).rejects.toThrow(
+      'Só é possível excluir uma transferência cancelada.',
+    );
+
+    await cancelTransfer(tenantId, transfer.id);
+    await deleteTransfer(tenantId, transfer.id);
+
+    const deleted = await prisma.transfer.findUnique({ where: { id: transfer.id } });
+    expect(deleted).toBeNull();
   });
 });

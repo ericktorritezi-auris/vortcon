@@ -2,9 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button, DateInput, Drawer, Input, MoneyInput, SearchableSelect } from '@/shared/ui';
+import { Button, Drawer } from '@/shared/ui';
 import { EMPTY_RECURRENCE, RecurrenceFields } from '@/shared/recurrence/RecurrenceFields';
 import type { RecurrenceValues } from '@/shared/recurrence/RecurrenceFields';
+import { TransferFormFields } from './TransferFormFields';
+import type { TransferFormValues } from './TransferFormFields';
 
 interface SimpleOption {
   id: string;
@@ -15,6 +17,14 @@ interface TransferFormDrawerProps {
   accounts: SimpleOption[];
   onClose: () => void;
 }
+
+const EMPTY_VALUES: TransferFormValues = {
+  sourceAccountId: null,
+  destinationAccountId: null,
+  amountCents: 0,
+  scheduledDate: new Date().toISOString().slice(0, 10),
+  note: '',
+};
 
 /**
  * Transferência entre contas (Seção 66-68). Entidade própria — nunca
@@ -27,25 +37,21 @@ export function TransferFormDrawer({
   onClose,
 }: TransferFormDrawerProps): React.ReactElement {
   const router = useRouter();
-  const [sourceAccountId, setSourceAccountId] = useState<string | null>(null);
-  const [destinationAccountId, setDestinationAccountId] = useState<string | null>(null);
-  const [amountCents, setAmountCents] = useState(0);
-  const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().slice(0, 10));
-  const [note, setNote] = useState('');
+  const [values, setValues] = useState<TransferFormValues>(EMPTY_VALUES);
   const [recurrence, setRecurrence] = useState<RecurrenceValues>(EMPTY_RECURRENCE);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(): Promise<void> {
-    if (!sourceAccountId || !destinationAccountId) {
+    if (!values.sourceAccountId || !values.destinationAccountId) {
       setError('Selecione a conta de origem e a de destino.');
       return;
     }
-    if (sourceAccountId === destinationAccountId) {
+    if (values.sourceAccountId === values.destinationAccountId) {
       setError('A conta de origem e destino não podem ser a mesma.');
       return;
     }
-    if (amountCents <= 0) {
+    if (values.amountCents <= 0) {
       setError('Informe um valor maior que zero.');
       return;
     }
@@ -59,11 +65,11 @@ export function TransferFormDrawer({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               kind: 'TRANSFER',
-              description: note || undefined,
-              baseAmountCents: amountCents,
-              startDate: scheduledDate,
-              defaultSourceAccountId: sourceAccountId,
-              defaultDestinationAccountId: destinationAccountId,
+              description: values.note || undefined,
+              baseAmountCents: values.amountCents,
+              startDate: values.scheduledDate,
+              defaultSourceAccountId: values.sourceAccountId,
+              defaultDestinationAccountId: values.destinationAccountId,
               frequency: recurrence.frequency,
               interval: recurrence.interval,
               endDate: recurrence.endDate || undefined,
@@ -76,11 +82,11 @@ export function TransferFormDrawer({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              sourceAccountId,
-              destinationAccountId,
-              amountCents,
-              scheduledDate,
-              note: note || undefined,
+              sourceAccountId: values.sourceAccountId,
+              destinationAccountId: values.destinationAccountId,
+              amountCents: values.amountCents,
+              scheduledDate: values.scheduledDate,
+              note: values.note || undefined,
             }),
           });
       const body = (await response.json()) as { message?: string };
@@ -114,33 +120,7 @@ export function TransferFormDrawer({
       }
     >
       <div className="flex flex-col gap-4">
-        <MoneyInput label="Valor" valueInCents={amountCents} onValueChange={setAmountCents} />
-        <SearchableSelect
-          label="De (conta de origem)"
-          value={sourceAccountId}
-          onChange={setSourceAccountId}
-          options={accounts.map((account) => ({ value: account.id, label: account.name }))}
-          placeholder="Selecione a conta de origem"
-        />
-        <SearchableSelect
-          label="Para (conta de destino)"
-          value={destinationAccountId}
-          onChange={setDestinationAccountId}
-          options={accounts.map((account) => ({ value: account.id, label: account.name }))}
-          placeholder="Selecione a conta de destino"
-        />
-        <DateInput
-          label="Data"
-          value={scheduledDate}
-          onChange={(event) => setScheduledDate(event.target.value)}
-          required
-        />
-        <Input
-          label="Observação"
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          hint="Opcional"
-        />
+        <TransferFormFields values={values} onChange={setValues} accounts={accounts} />
         <RecurrenceFields
           values={recurrence}
           onChange={setRecurrence}

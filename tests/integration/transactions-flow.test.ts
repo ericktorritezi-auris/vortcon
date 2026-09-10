@@ -8,6 +8,7 @@ import { createTag } from '@/modules/tags/tag.service';
 import {
   cancelTransaction,
   createIncomeOrExpense,
+  deleteTransaction,
   findTransactionById,
   listTransactions,
   reactivateTransaction,
@@ -235,5 +236,25 @@ describe('fluxo de transações', () => {
     expect(onlyExpenses.items.every((item: FinancialTransaction) => item.type === 'EXPENSE')).toBe(
       true,
     );
+  });
+
+  it('pedido do cliente: exclusão de verdade só funciona depois de cancelada', async () => {
+    const transaction = await createIncomeOrExpense(tenantId, {
+      type: 'EXPENSE',
+      description: 'Vai ser excluída',
+      amountCents: 1_000,
+      dueDate: new Date('2026-09-20'),
+      accountId,
+    });
+
+    await expect(deleteTransaction(tenantId, transaction.id)).rejects.toThrow(
+      'Só é possível excluir uma transação cancelada.',
+    );
+
+    await cancelTransaction(tenantId, transaction.id);
+    await deleteTransaction(tenantId, transaction.id);
+
+    const deleted = await findTransactionById(tenantId, transaction.id);
+    expect(deleted).toBeNull();
   });
 });

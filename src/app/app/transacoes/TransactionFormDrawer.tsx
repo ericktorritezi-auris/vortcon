@@ -30,6 +30,7 @@ const EMPTY_VALUES: TransactionFormValues = {
   tagIds: [],
   note: '',
   reminderEnabled: false,
+  affectsBalance: true,
 };
 
 /** Criação de despesa/receita (Seção 56-57) — "pode ser cadastrada já paga" via o toggle de liquidação. */
@@ -69,6 +70,9 @@ export function TransactionFormDrawer({
               defaultAccountId: values.accountId,
               defaultCategoryId: values.categoryId || undefined,
               defaultReminderEnabled: values.reminderEnabled,
+              defaultNote: values.note || undefined,
+              defaultTagIds: values.tagIds,
+              defaultAffectsBalance: values.affectsBalance,
               frequency: recurrence.frequency,
               interval: recurrence.interval,
               endDate: recurrence.endDate || undefined,
@@ -90,6 +94,7 @@ export function TransactionFormDrawer({
               tagIds: values.tagIds,
               note: values.note || undefined,
               reminderEnabled: values.reminderEnabled,
+              affectsBalance: values.affectsBalance,
               settlementDate: alreadySettled ? new Date().toISOString() : undefined,
             }),
           });

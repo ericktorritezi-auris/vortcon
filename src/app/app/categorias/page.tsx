@@ -27,7 +27,7 @@ export default async function CategoriasPage(): Promise<React.ReactElement> {
       break;
   }
 
-  const categories = await listCategories(access.context.tenantId);
+  const categories = await listCategories(access.context.tenantId, true);
 
   return (
     <AppShell>
@@ -37,6 +37,7 @@ export default async function CategoriasPage(): Promise<React.ReactElement> {
           id: category.id,
           name: category.name,
           iconKey: category.iconKey,
+          active: category.active,
         }))}
       />
     </AppShell>

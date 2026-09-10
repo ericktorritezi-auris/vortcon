@@ -42,6 +42,7 @@ export async function getAccountBalances(
               accountId: account.id,
               type: 'INCOME',
               status: 'RECEIVED',
+              affectsBalance: true,
               ...settlementCutoff,
             }),
             _sum: { amountCents: true },
@@ -51,6 +52,7 @@ export async function getAccountBalances(
               accountId: account.id,
               type: 'EXPENSE',
               status: 'PAID',
+              affectsBalance: true,
               ...settlementCutoff,
             }),
             _sum: { amountCents: true },
@@ -143,7 +145,11 @@ export async function getPeriodResult(tenantId: string, period: Period): Promise
 
 export async function getPendingPayables(tenantId: string): Promise<number> {
   const result = await prisma.financialTransaction.aggregate({
-    where: activeTransactionWhere(tenantId, { type: 'EXPENSE', status: 'PENDING' }),
+    where: activeTransactionWhere(tenantId, {
+      type: 'EXPENSE',
+      status: 'PENDING',
+      affectsBalance: true,
+    }),
     _sum: { amountCents: true },
   });
   return result._sum.amountCents ?? 0;
@@ -151,7 +157,11 @@ export async function getPendingPayables(tenantId: string): Promise<number> {
 
 export async function getPendingReceivables(tenantId: string): Promise<number> {
   const result = await prisma.financialTransaction.aggregate({
-    where: activeTransactionWhere(tenantId, { type: 'INCOME', status: 'PENDING' }),
+    where: activeTransactionWhere(tenantId, {
+      type: 'INCOME',
+      status: 'PENDING',
+      affectsBalance: true,
+    }),
     _sum: { amountCents: true },
   });
   return result._sum.amountCents ?? 0;

@@ -12,6 +12,7 @@ interface CreateTransactionInput {
   note?: string;
   reminderEnabled?: boolean;
   settlementDate?: Date;
+  affectsBalance?: boolean;
 }
 
 /**
@@ -65,6 +66,7 @@ interface UpdateTransactionInput {
   note?: string | null;
   reminderEnabled?: boolean;
   tagIds?: string[];
+  affectsBalance?: boolean;
 }
 
 export async function updateTransaction(
@@ -98,6 +100,10 @@ export async function unsettleTransaction(tenantId: string, transactionId: strin
 
 export async function reactivateTransaction(tenantId: string, transactionId: string) {
   return transactionRepository.reactivateTransaction(tenantId, transactionId);
+}
+
+export async function deleteTransaction(tenantId: string, transactionId: string): Promise<void> {
+  return transactionRepository.deleteTransaction(tenantId, transactionId);
 }
 
 export async function setIgnored(tenantId: string, transactionId: string, ignored: boolean) {

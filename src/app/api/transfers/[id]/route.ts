@@ -1,20 +1,17 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { evaluateAccessPolicy } from '@/modules/auth/access-policy.service';
-import { deleteTransaction, updateTransaction } from '@/modules/transactions/transaction.service';
+import { deleteTransfer, updateTransfer } from '@/modules/transfers/transfer.service';
 
-const updateTransactionSchema = z.object({
-  description: z.string().min(1).optional(),
+const updateTransferSchema = z.object({
+  sourceAccountId: z.string().min(1).optional(),
+  destinationAccountId: z.string().min(1).optional(),
   amountCents: z.number().int().positive().optional(),
-  dueDate: z.coerce.date().optional(),
-  accountId: z.string().min(1).optional(),
-  categoryId: z.string().min(1).nullable().optional(),
+  scheduledDate: z.coerce.date().optional(),
   note: z.string().nullable().optional(),
-  reminderEnabled: z.boolean().optional(),
-  tagIds: z.array(z.string().min(1)).optional(),
-  affectsBalance: z.boolean().optional(),
 });
 
+/** Editar (pedido do cliente) — mesma proteção de sempre: nunca aceita tenantId do corpo, sempre da sessão. */
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } },
@@ -24,7 +21,7 @@ export async function PATCH(
     return NextResponse.json({ error: access.kind }, { status: 401 });
   }
 
-  const parsed = updateTransactionSchema.safeParse(await request.json().catch(() => null));
+  const parsed = updateTransferSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json(
       { error: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? 'Dados inválidos.' },
@@ -33,15 +30,16 @@ export async function PATCH(
   }
 
   try {
-    await updateTransaction(access.context.tenantId, params.id, parsed.data);
+    await updateTransfer(access.context.tenantId, params.id, parsed.data);
     return NextResponse.json({ status: 'ok' });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Não foi possível editar a transação.';
+    const message =
+      error instanceof Error ? error.message : 'Não foi possível editar a transferência.';
     return NextResponse.json({ error: 'UPDATE_FAILED', message }, { status: 400 });
   }
 }
 
-/** Exclusão de verdade (pedido do cliente) — só funciona se a transação já estiver cancelada (deleteTransaction garante isso). */
+/** Exclusão de verdade (pedido do cliente) — só funciona se já estiver cancelada (deleteTransfer garante isso). */
 export async function DELETE(
   _request: Request,
   { params }: { params: { id: string } },
@@ -52,11 +50,11 @@ export async function DELETE(
   }
 
   try {
-    await deleteTransaction(access.context.tenantId, params.id);
+    await deleteTransfer(access.context.tenantId, params.id);
     return NextResponse.json({ status: 'ok' });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Não foi possível excluir a transação.';
+      error instanceof Error ? error.message : 'Não foi possível excluir a transferência.';
     return NextResponse.json({ error: 'DELETE_FAILED', message }, { status: 400 });
   }
 }

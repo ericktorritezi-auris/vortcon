@@ -978,6 +978,97 @@ sem ver acontecer:
       desenvolvimento nunca teve como pegar sozinho.
 - [ ] **Smoke production aprovado** — mesmo motivo do item de Healthcheck acima
 
+## CRUD completo + "influencia no saldo" — construído após o Estágio 18
+
+Pedido grande do cliente, usando a ferramenta de verdade pela primeira vez: 6
+pontos de uma vez, todos ligados entre si (contas, categorias, tags,
+transações, transferências e um conceito financeiro novo). Construído em
+etapas ao longo de várias rodadas — cada uma validada isoladamente (lint,
+typecheck, testes, build) antes de seguir pra próxima.
+
+### 1. "Influencia no saldo das contas" — conceito novo no Financial Engine
+
+Campo `affectsBalance` (padrão: `true`) em `FinancialTransaction`. Uma
+transação marcada como `false` fica só como histórico — nunca entra no saldo
+real, saldo projetado, nem em "Pendente a pagar/receber" — mas continua
+contando normalmente em relatórios, categorias, tags e no resultado do
+período. **Decisão de escopo, registrada aqui porque a frase do cliente foi
+ambígua**: apliquei isso especificamente aos números de **saldo** (a frase
+mais repetida e específica foi "principalmente nos saldos das contas"),
+nunca à contabilidade do período — se isso precisar mudar pra excluir também
+do resultado/relatórios, é um ajuste pontual, não uma reconstrução.
+
+- Editável tanto na criação quanto na edição de uma transação (toggle no
+  formulário compartilhado)
+- Editável por ocorrência de uma série recorrente — satisfaz o pedido "posso
+  criar uma recorrência de 20 parcelas, as 10 primeiras não influenciam, só
+  as 10 últimas" (edita cada ocorrência já materializada individualmente)
+- 2 testes de integração provando: não mexe no saldo mas continua no
+  relatório; e editável depois de já criada
+
+### 2. Bug real corrigido: recorrência não salvava tag nem observação
+
+Confirmei que o caminho normal de criação de transação sempre esteve certo
+(schema, rota e formulário já mandavam tag/observação corretamente) — o bug
+real estava só na recorrência: a série nunca capturava `note` nem `tagIds`
+no momento de criar, só a descrição. Corrigido com `defaultNote`,
+`defaultTagIds` (nova tabela `recurrence_series_tags`) e
+`defaultAffectsBalance` na série, propagados pra cada ocorrência
+materializada. Testado com integração real contra Postgres.
+
+### 3. Flag de propagar (ou remover) observação/saldo pras ocorrências futuras
+
+Pedido do cliente: "posso excluir nos lançamentos futuros essa observação,
+ou uma flag onde ela pode ir ou não". Implementado reaproveitando o
+mecanismo já existente de "alterar recorrência pra frente" (Seção 73) — não
+um mecanismo paralelo. `defaultNote: null` remove a observação de todas as
+ocorrências futuras elegíveis (ainda pendentes, com vencimento no futuro);
+uma string nova troca; nunca reescreve liquidadas/canceladas/históricas.
+Exposto via `/api/recurrencias/[id]/alterar` — a tela de gerenciamento de
+séries recorrentes em si ainda não existe (fica pra um próximo pedido, se
+fizer sentido).
+
+### 4. Transações e transferências — edição e exclusão de verdade
+
+Edição de transação já existia desde um estágio anterior (só não tinha sido
+percebida). Transferências não tinham edição nenhuma — construído do zero,
+reaproveitando o mesmo padrão (`TransferFormFields` extraído, igual
+`TransactionFormFields`). Exclusão de verdade (nunca só cancelamento) nos
+dois — **só funciona depois de cancelada**, nunca em cima de uma
+ativa/liquidada: "cancelar" é reversível (dá pra reativar), "excluir" é
+definitivo. Testado que a tentativa de excluir antes de cancelar é
+rejeitada, e que funciona depois.
+
+### 5-7. Contas, categorias e tags — CRUD completo
+
+Mesmo padrão nos três: editar, inativa continua aparecendo na listagem
+(nunca some, com selo "Inativa" + botão "Reativar"), e **exclusão de
+verdade quando nada estiver vinculado** — o backend confere transação,
+transferência (só contas) e série recorrente antes de decidir; havendo
+qualquer vínculo, rejeita com mensagem clara orientando a inativar.
+Tags são mais permissivas, como pedido: sem nenhum vínculo, nem precisam
+ficar no banco.
+
+**Cuidado importante preservado nos três**: os seletores de conta/categoria/
+tag em transação, transferência e relatório continuam mostrando só as
+ativas — a listagem com inativas incluídas é só nas telas de gerenciamento
+(`listAccounts`/`listCategories`/`listTags` ganharam um parâmetro
+`includeInactive`, default `false`, pra nunca quebrar nenhum seletor
+existente sem querer).
+
+**4 ícones novos** no catálogo (conferidos como realmente existentes no
+pacote antes de usar): `Ambulance` (saúde), `Briefcase` (trabalho — a
+mala), `Fuel` (combustível), `Dumbbell` (esporte) — editável na mesma tela
+de edição de categoria, reaproveitando o `IconPicker` que já existia.
+
+### Testes desta entrega
+
+`accounts-crud.test.ts`, `categories-crud.test.ts`, `tags-crud.test.ts`
+(novos) + extensões em `financial-engine-mandatory.test.ts`,
+`recurrence-flow.test.ts`, `transactions-flow.test.ts`,
+`transfers-flow.test.ts` — todos cobrindo o caminho feliz e o de rejeição
+(vinculado não deixa excluir).
+
 ## Busca (tenant e Admin) — construída após o Estágio 18
 
 O cliente notou que a busca, tanto do painel do tenant quanto do Admin, nunca

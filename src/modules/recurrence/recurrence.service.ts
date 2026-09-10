@@ -14,6 +14,13 @@ async function assertCategoryOwnedByTenant(tenantId: string, categoryId: string)
   if (!category) throw new Error('Categoria não encontrada neste tenant.');
 }
 
+async function assertTagsOwnedByTenant(tenantId: string, tagIds: string[]): Promise<void> {
+  if (tagIds.length === 0) return;
+  const count = await prisma.tag.count({ where: { id: { in: tagIds }, tenantId } });
+  if (count !== new Set(tagIds).size)
+    throw new Error('Uma ou mais tags não pertencem a este tenant.');
+}
+
 interface CreateTransactionSeriesInput {
   kind: 'TRANSACTION';
   transactionType: 'INCOME' | 'EXPENSE';
@@ -27,6 +34,12 @@ interface CreateTransactionSeriesInput {
   defaultAccountId: string;
   defaultCategoryId?: string;
   defaultReminderEnabled?: boolean;
+  // Bug real corrigido (pedido do cliente) — antes a série nunca
+  // propagava nota nem tags pras ocorrências materializadas, só a
+  // descrição. Agora propaga os três.
+  defaultNote?: string;
+  defaultAffectsBalance?: boolean;
+  defaultTagIds?: string[];
 }
 
 interface CreateTransferSeriesInput {
@@ -46,16 +59,19 @@ type CreateSeriesInput = CreateTransactionSeriesInput | CreateTransferSeriesInpu
 
 /**
  * Cria a série e já materializa a primeira janela de ocorrências (Seção
- * 75). Estágio 16C — agora aceita dois tipos (`kind`): TRANSACTION (o que
- * já existia) e TRANSFER (novo — transferência recorrente, ex.: aporte
- * mensal automático entre contas). Nunca aceita os dois grupos de campos
- * ao mesmo tempo — o discriminador `kind` decide qual validação roda.
+ * 75). Aceita dois tipos (`kind`): TRANSACTION e TRANSFER. Nunca aceita os
+ * dois grupos de campos ao mesmo tempo — o discriminador `kind` decide
+ * qual validação roda.
  */
 export async function createRecurrenceSeries(tenantId: string, input: CreateSeriesInput) {
   if (input.kind === 'TRANSACTION') {
     await assertAccountOwnedByTenant(tenantId, input.defaultAccountId);
-    if (input.defaultCategoryId)
+    if (input.defaultCategoryId) {
       await assertCategoryOwnedByTenant(tenantId, input.defaultCategoryId);
+    }
+    if (input.defaultTagIds && input.defaultTagIds.length > 0) {
+      await assertTagsOwnedByTenant(tenantId, input.defaultTagIds);
+    }
   } else {
     if (input.defaultSourceAccountId === input.defaultDestinationAccountId) {
       throw new Error('A conta de origem e destino não podem ser a mesma.');
@@ -75,9 +91,8 @@ export async function createRecurrenceSeries(tenantId: string, input: CreateSeri
  * (Seção 75). Idempotente: nunca duplica (a constraint única em
  * [recurrenceSeriesId, recurrenceOccurrenceKey] garante isso mesmo em
  * corrida — este check prévio só evita uma query de INSERT desnecessária).
- * Ramifica por `kind`: TRANSACTION cria FinancialTransaction (como sempre
- * fez); TRANSFER cria Transfer — lógica nova do Estágio 16C, seguindo
- * exatamente o mesmo padrão de idempotência.
+ * Ramifica por `kind`: TRANSACTION cria FinancialTransaction; TRANSFER cria
+ * Transfer — mesmo padrão de idempotência nos dois.
  */
 export async function materializeSeriesOccurrences(
   tenantId: string,
@@ -141,6 +156,16 @@ export async function materializeSeriesOccurrences(
   const pendingDates = occurrenceDates.filter((date) => !existingKeys.has(toOccurrenceKey(date)));
   if (pendingDates.length === 0) return 0;
 
+  // Tags padrão da série (Seção "correção de bug" — nunca eram
+  // propagadas antes). createMany não aceita relação aninhada, então
+  // criamos as transações primeiro e ligamos as tags depois, usando a
+  // recurrenceOccurrenceKey (única por série) pra identificar cada uma
+  // que acabamos de criar.
+  const defaultTags = await prisma.recurrenceSeriesTag.findMany({
+    where: { recurrenceSeriesId: seriesId },
+    select: { tagId: true },
+  });
+
   await prisma.financialTransaction.createMany({
     data: pendingDates.map((date) => ({
       tenantId,
@@ -151,11 +176,33 @@ export async function materializeSeriesOccurrences(
       accountId: series.defaultAccountId!,
       categoryId: series.defaultCategoryId,
       reminderEnabled: series.defaultReminderEnabled,
+      note: series.defaultNote,
+      affectsBalance: series.defaultAffectsBalance,
       recurrenceSeriesId: seriesId,
       recurrenceOccurrenceKey: toOccurrenceKey(date),
     })),
     skipDuplicates: true,
   });
+
+  if (defaultTags.length > 0) {
+    const createdOccurrences = await prisma.financialTransaction.findMany({
+      where: {
+        recurrenceSeriesId: seriesId,
+        recurrenceOccurrenceKey: { in: pendingDates.map((date) => toOccurrenceKey(date)) },
+      },
+      select: { id: true },
+    });
+
+    await prisma.financialTransactionTag.createMany({
+      data: createdOccurrences.flatMap((occurrence: { id: string }) =>
+        defaultTags.map((tag: { tagId: string }) => ({
+          transactionId: occurrence.id,
+          tagId: tag.tagId,
+        })),
+      ),
+      skipDuplicates: true,
+    });
+  }
 
   return pendingDates.length;
 }
@@ -172,6 +219,14 @@ interface AlterFutureOccurrencesInput {
   baseAmountCents?: number;
   defaultAccountId?: string;
   defaultCategoryId?: string;
+  // Pedido do cliente — "posso excluir nos lançamentos futuros essa
+  // observação, ou uma flag pra ela ir ou não pra lançamentos futuros".
+  // Implementado reaproveitando o mecanismo já existente de "alterar
+  // recorrência pra frente" (Seção 73) — nunca um mecanismo paralelo.
+  // `defaultNote: null` remove a observação de todas as ocorrências
+  // futuras elegíveis; uma string nova troca; `undefined` não mexe.
+  defaultNote?: string | null;
+  defaultAffectsBalance?: boolean;
 }
 
 /**
@@ -204,6 +259,10 @@ export async function alterRecurrenceForward(
       ...(input.baseAmountCents !== undefined ? { amountCents: input.baseAmountCents } : {}),
       ...(input.defaultAccountId ? { accountId: input.defaultAccountId } : {}),
       ...(input.defaultCategoryId !== undefined ? { categoryId: input.defaultCategoryId } : {}),
+      ...(input.defaultNote !== undefined ? { note: input.defaultNote } : {}),
+      ...(input.defaultAffectsBalance !== undefined
+        ? { affectsBalance: input.defaultAffectsBalance }
+        : {}),
     },
   });
 

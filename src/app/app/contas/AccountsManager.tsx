@@ -4,13 +4,14 @@ import { CreditCard } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { FinancialAccountType } from '@prisma/client';
-import { Button, DateInput, FinancialValue, Input, MoneyInput, Select } from '@/shared/ui';
+import { Badge, Button, DateInput, FinancialValue, Input, MoneyInput, Select } from '@/shared/ui';
 
 interface AccountView {
   id: string;
   name: string;
   type: FinancialAccountType;
   initialBalanceCents: number;
+  active: boolean;
 }
 
 const TYPE_LABEL: Record<FinancialAccountType, string> = {
@@ -20,6 +21,12 @@ const TYPE_LABEL: Record<FinancialAccountType, string> = {
   OTHER: 'Outra',
 };
 
+/**
+ * Gerenciamento de contas (pedido do cliente): editar nome/tipo, inativa
+ * continua aparecendo na listagem (com selo), e exclusão de verdade quando
+ * nada estiver vinculado — inativação continua sendo a opção segura
+ * quando há vínculo, o backend decide e explica por quê.
+ */
 export function AccountsManager({ accounts }: { accounts: AccountView[] }): React.ReactElement {
   const router = useRouter();
   const [name, setName] = useState('');
@@ -32,6 +39,10 @@ export function AccountsManager({ accounts }: { accounts: AccountView[] }): Reac
   const [error, setError] = useState<string | null>(null);
   const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
   const [newBalanceCents, setNewBalanceCents] = useState(0);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editType, setEditType] = useState<FinancialAccountType>('CHECKING');
+  const [rowError, setRowError] = useState<string | null>(null);
 
   async function handleCreate(event: React.FormEvent): Promise<void> {
     event.preventDefault();
@@ -59,12 +70,35 @@ export function AccountsManager({ accounts }: { accounts: AccountView[] }): Reac
   async function handleDeactivate(accountId: string): Promise<void> {
     if (
       !window.confirm(
-        'Inativar esta conta? O histórico é preservado, mas ela some das listas de seleção.',
+        'Inativar esta conta? O histórico é preservado, mas ela some dos seletores de conta.',
       )
     ) {
       return;
     }
-    await fetch(`/api/accounts/${accountId}`, { method: 'DELETE' });
+    await fetch(`/api/accounts/${accountId}/deactivate`, { method: 'POST' });
+    router.refresh();
+  }
+
+  async function handleReactivate(accountId: string): Promise<void> {
+    await fetch(`/api/accounts/${accountId}/reactivate`, { method: 'POST' });
+    router.refresh();
+  }
+
+  async function handleDelete(accountId: string): Promise<void> {
+    if (
+      !window.confirm(
+        'Excluir esta conta de vez? Só funciona se ela nunca tiver sido usada em nenhum lançamento, transferência ou recorrência.',
+      )
+    ) {
+      return;
+    }
+    setRowError(null);
+    const response = await fetch(`/api/accounts/${accountId}`, { method: 'DELETE' });
+    const body = (await response.json()) as { message?: string };
+    if (!response.ok) {
+      setRowError(body.message ?? 'Não foi possível excluir esta conta.');
+      return;
+    }
     router.refresh();
   }
 
@@ -81,6 +115,16 @@ export function AccountsManager({ accounts }: { accounts: AccountView[] }): Reac
     router.refresh();
   }
 
+  async function handleSaveEdit(accountId: string): Promise<void> {
+    await fetch(`/api/accounts/${accountId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: editName, type: editType }),
+    });
+    setEditingId(null);
+    router.refresh();
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-white">
@@ -94,12 +138,47 @@ export function AccountsManager({ accounts }: { accounts: AccountView[] }): Reac
                 <CreditCard className="h-4 w-4" aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-ink-primary">{account.name}</p>
-                <p className="text-xs text-ink-secondary">{TYPE_LABEL[account.type]}</p>
+                {editingId === account.id ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      label="Nome"
+                      hideLabel
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                    />
+                    <Select
+                      label="Tipo"
+                      hideLabel
+                      value={editType}
+                      onChange={(e) => setEditType(e.target.value as FinancialAccountType)}
+                      options={Object.entries(TYPE_LABEL).map(([value, label]) => ({
+                        value,
+                        label,
+                      }))}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <p className="flex items-center gap-1.5 truncate text-sm font-medium text-ink-primary">
+                      {account.name}
+                      {!account.active ? <Badge tone="neutral">Inativa</Badge> : null}
+                    </p>
+                    <p className="text-xs text-ink-secondary">{TYPE_LABEL[account.type]}</p>
+                  </>
+                )}
               </div>
             </div>
 
-            {editingBalanceId === account.id ? (
+            {editingId === account.id ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" onClick={() => handleSaveEdit(account.id)}>
+                  Salvar
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => setEditingId(null)}>
+                  Cancelar
+                </Button>
+              </div>
+            ) : editingBalanceId === account.id ? (
               <div className="flex flex-wrap items-center gap-2">
                 <MoneyInput
                   label="Novo saldo inicial"
@@ -121,14 +200,38 @@ export function AccountsManager({ accounts }: { accounts: AccountView[] }): Reac
                   size="sm"
                   variant="secondary"
                   onClick={() => {
+                    setEditingId(account.id);
+                    setEditName(account.name);
+                    setEditType(account.type);
+                  }}
+                >
+                  Editar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
                     setEditingBalanceId(account.id);
                     setNewBalanceCents(account.initialBalanceCents);
                   }}
                 >
                   Alterar saldo
                 </Button>
-                <Button size="sm" variant="danger" onClick={() => handleDeactivate(account.id)}>
-                  Inativar
+                {account.active ? (
+                  <Button size="sm" variant="danger" onClick={() => handleDeactivate(account.id)}>
+                    Inativar
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handleReactivate(account.id)}
+                  >
+                    Reativar
+                  </Button>
+                )}
+                <Button size="sm" variant="danger" onClick={() => handleDelete(account.id)}>
+                  Excluir
                 </Button>
               </div>
             )}
@@ -138,6 +241,8 @@ export function AccountsManager({ accounts }: { accounts: AccountView[] }): Reac
           <p className="px-4 py-6 text-sm text-ink-secondary">Nenhuma conta ainda.</p>
         ) : null}
       </div>
+
+      {rowError ? <p className="text-sm text-financial-danger">{rowError}</p> : null}
 
       <form
         onSubmit={handleCreate}
