@@ -2,7 +2,17 @@ import { prisma } from '@/shared/database/client';
 import { computeOccurrenceDates, toOccurrenceKey } from './date-sequence';
 import * as recurrenceRepository from './recurrence.repository';
 
-const MATERIALIZATION_WINDOW_DAYS = 90; // Seção 75: janela futura razoável, nunca infinita.
+// Seção 75: "janela futura razoável, nunca infinita". Achado real
+// (pedido do cliente): 90 dias era curto demais pra um app de finanças
+// pessoais — uma recorrência de 5-6 meses (comum: financiamento, parcela)
+// ficava truncada, sumindo mês a mês conforme a janela original (90 dias
+// = ~3 meses) não alcançava o fim da série. Aumentado pra 400 dias
+// (~13 meses) — cobre qualquer recorrência de até um ano de antecedência
+// de uma vez, continua bem longe de "infinito" pra series sem data de
+// término. A materialização é idempotente e aditiva (nunca duplica, nunca
+// mexe no que já existe) — esse aumento só passa a preencher, sozinho, os
+// meses que antes ficavam de fora, sem precisar relançar nada.
+const MATERIALIZATION_WINDOW_DAYS = 400;
 
 async function assertAccountOwnedByTenant(tenantId: string, accountId: string): Promise<void> {
   const account = await prisma.financialAccount.findFirst({ where: { id: accountId, tenantId } });

@@ -1,5 +1,5 @@
 import type { FinancialTransaction, FinancialTransactionTag, Transfer } from '@prisma/client';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { prisma } from '@/shared/database/client';
 import { provisionTenantWithOwner } from '@/modules/tenants/tenant.service';
 import { createAccount } from '@/modules/accounts/account.service';
@@ -12,6 +12,11 @@ import {
 import { createTag } from '@/modules/tags/tag.service';
 import { settleTransaction } from '@/modules/transactions/transaction.service';
 import { cleanupTenant, createTestPlan, deleteTestPlan } from '../helpers/commercial';
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 /**
  * Fluxo de recorrência (Seções 72-75), validado contra PostgreSQL real em
@@ -49,6 +54,7 @@ describe('fluxo de recorrência', () => {
   afterAll(async () => {
     await prisma.financialTransaction.deleteMany({ where: { tenantId } });
     await prisma.recurrenceSeries.deleteMany({ where: { tenantId } });
+    await prisma.tag.deleteMany({ where: { tenantId } });
     await prisma.financialAccount.deleteMany({ where: { tenantId } });
     await cleanupTenant(tenantId);
     await deleteTestPlan(planId);
@@ -259,6 +265,81 @@ describe('fluxo de recorrência', () => {
       where: { recurrenceSeriesId: series.id },
     });
     expect(countAfter).toBe(countBefore);
+  });
+
+  it('pedido do cliente — recorrência com data de término ~5 meses à frente materializa TODAS as ocorrências numa chamada só, sem truncar', async () => {
+    const now = new Date();
+    const endDate = new Date(now.getTime() + 150 * 24 * 60 * 60 * 1000); // ~5 meses à frente
+
+    const series = await createRecurrenceSeries(tenantId, {
+      kind: 'TRANSACTION',
+      transactionType: 'EXPENSE',
+      frequency: 'MONTHLY',
+      startDate: now,
+      endDate,
+      baseAmountCents: 45_000,
+      description: 'Parcela de 5 meses (cenário real reportado)',
+      defaultAccountId: accountId,
+    });
+
+    const occurrences = await prisma.financialTransaction.findMany({
+      where: { recurrenceSeriesId: series.id },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    // ~5 meses de intervalo mensal = pelo menos 5 ocorrências, todas numa
+    // única materialização (a que já roda na criação da série) — nunca
+    // truncado no meio, nunca precisando esperar dias passarem pra
+    // "completar" sozinho.
+    expect(occurrences.length).toBeGreaterThanOrEqual(5);
+    expect(occurrences[occurrences.length - 1]!.dueDate.getTime()).toBeLessThanOrEqual(
+      endDate.getTime(),
+    );
+
+    await prisma.financialTransaction.deleteMany({ where: { recurrenceSeriesId: series.id } });
+    await prisma.recurrenceSeries.delete({ where: { id: series.id } });
+  });
+
+  it('dúvida real do cliente — recorrência SEM data de término nunca "acaba": a janela anda junto com o tempo, pra sempre', async () => {
+    // Simula exatamente o que o job diário faz de verdade: chama
+    // materializeSeriesOccurrences() de novo a cada dia que passa. A
+    // janela usa Date.now() por dentro (nunca uma data travada na criação
+    // da série) — então cada nova chamada, em um "hoje" mais adiante,
+    // enxerga um pedaço novo do futuro.
+    const series = await createRecurrenceSeries(tenantId, {
+      kind: 'TRANSACTION',
+      transactionType: 'EXPENSE',
+      frequency: 'MONTHLY',
+      startDate: new Date(),
+      baseAmountCents: 10_000,
+      description: 'Recorrência sem fim (assinatura, aluguel...)',
+      defaultAccountId: accountId,
+      // Sem endDate de propósito — é exatamente o caso da dúvida.
+    });
+
+    const countRightAfterCreation = await prisma.financialTransaction.count({
+      where: { recurrenceSeriesId: series.id },
+    });
+
+    // Avança o relógio 500 dias (bem além da janela de 400 dias) e roda o
+    // job de novo — o mesmo que o cron do Railway faz sozinho, todo dia.
+    const realDateNow = Date.now;
+    vi.spyOn(Date, 'now').mockImplementation(() => realDateNow() + 500 * 24 * 60 * 60 * 1000);
+
+    const createdOnNextRun = await materializeSeriesOccurrences(tenantId, series.id);
+
+    const countAfter500Days = await prisma.financialTransaction.count({
+      where: { recurrenceSeriesId: series.id },
+    });
+
+    // A janela "andou" com o tempo — apareceram ocorrências novas, lá na
+    // frente, que não existiam (nem podiam existir) na primeira chamada.
+    expect(createdOnNextRun).toBeGreaterThan(0);
+    expect(countAfter500Days).toBeGreaterThan(countRightAfterCreation);
+
+    vi.spyOn(Date, 'now').mockRestore();
+    await prisma.financialTransaction.deleteMany({ where: { recurrenceSeriesId: series.id } });
+    await prisma.recurrenceSeries.delete({ where: { id: series.id } });
   });
 });
 

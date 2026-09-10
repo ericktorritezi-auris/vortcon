@@ -104,4 +104,53 @@ describe('geração de datas de recorrência (Seção 70, 75)', () => {
   it('toOccurrenceKey produz uma chave estável no formato YYYY-MM-DD', () => {
     expect(toOccurrenceKey(new Date('2026-09-14T00:00:00.000Z'))).toBe('2026-09-14');
   });
+
+  it('pedido do cliente — recorrência de ~5 meses (setembro a fevereiro) gera TODAS as ocorrências de uma vez com a janela de 400 dias (mesmo cenário real reportado: dezembro parcial, janeiro sumindo)', () => {
+    // Reproduz exatamente o relato: recorrência mensal que "vai até
+    // fevereiro de 2027" — antes (janela de 90 dias, ~3 meses a partir de
+    // "hoje") ficava truncada em dezembro; com 400 dias, cobre a série
+    // inteira numa materialização só.
+    const dates = computeOccurrenceDates(
+      {
+        frequency: 'MONTHLY',
+        interval: 1,
+        startDate: new Date('2026-09-10'),
+        endDate: new Date('2027-02-28'),
+        maxOccurrences: null,
+      },
+      new Date(new Date('2026-09-10').getTime() + 400 * 24 * 60 * 60 * 1000),
+    );
+
+    expect(dates.map(iso)).toEqual([
+      '2026-09-10',
+      '2026-10-10',
+      '2026-11-10',
+      '2026-12-10',
+      '2027-01-10',
+      '2027-02-10',
+    ]);
+  });
+
+  it('com a janela antiga de 90 dias, a mesma série ficava truncada em dezembro — documentando o bug real que foi corrigido', () => {
+    const dates = computeOccurrenceDates(
+      {
+        frequency: 'MONTHLY',
+        interval: 1,
+        startDate: new Date('2026-09-10'),
+        endDate: new Date('2027-02-28'),
+        maxOccurrences: null,
+      },
+      new Date(new Date('2026-09-10').getTime() + 90 * 24 * 60 * 60 * 1000),
+    );
+
+    // Só até novembro — 90 dias a partir de 10/set chega perto de 9/dez,
+    // então o dia 10/dez fica de fora por pouco (e outras datas de
+    // dezembro que "coubessem" no meio do mês apareceriam, mas
+    // janeiro/fevereiro nunca — exatamente o "dezembro só algumas, janeiro
+    // nada" relatado).
+    expect(dates.map(iso)).toEqual(['2026-09-10', '2026-10-10', '2026-11-10']);
+    expect(dates.map(iso)).not.toContain('2026-12-10');
+    expect(dates.map(iso)).not.toContain('2027-01-10');
+    expect(dates.map(iso)).not.toContain('2027-02-10');
+  });
 });

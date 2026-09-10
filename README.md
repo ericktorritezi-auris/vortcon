@@ -978,6 +978,47 @@ sem ver acontecer:
       desenvolvimento nunca teve como pegar sozinho.
 - [ ] **Smoke production aprovado** — mesmo motivo do item de Healthcheck acima
 
+## Janela de materialização de recorrência — bug real corrigido
+
+Cliente reportou: recorrências (parcelas, assinaturas) sumindo a partir de
+dezembro, mesmo configuradas pra ir até fevereiro de 2027. "Até novembro
+certinho, dezembro só algumas, janeiro nada."
+
+**Causa raiz encontrada**: a janela de materialização (Seção 75: "janela
+futura razoável, nunca infinita") estava em **90 dias a partir de hoje**,
+recalculada a cada execução do job. Com "hoje" em 10 de setembro, 90 dias
+chegam só até ~9 de dezembro — bate exatamente com o relato (novembro
+completo, dezembro truncado no meio do mês, janeiro/fevereiro nunca
+alcançados). Confirmado com um teste puro reproduzindo o cálculo exato: com
+90 dias, uma série de 10/set até 28/fev gera só 3 ocorrências (set/out/nov);
+com 400 dias, gera as 6 corretas (set a fev).
+
+**Correção**: janela aumentada de 90 para 400 dias (~13 meses) — cobre
+qualquer recorrência de até um ano de antecedência numa materialização só,
+continua "não infinita" (Seção 75) pra séries sem data de término.
+
+**Importante — não precisa relançar nada**: a materialização é aditiva e
+idempotente (nunca duplica, nunca mexe no que já existe — só preenche o que
+falta). Depois deste patch subir, a próxima vez que o job
+`RECURRENCE_MATERIALIZATION` rodar (o cron diário já configurado no
+Railway) ou for disparado manualmente via `/api/jobs/run`, ele vai
+preencher sozinho os meses que ficaram de fora — dezembro completo, janeiro,
+fevereiro — pra toda recorrência ativa de todo tenant, sem precisar apagar
+ou relançar nada do que já existe.
+
+**3 testes provando exatamente o cenário reportado**: um puro (sem banco,
+reproduzindo o cálculo com a janela antiga E a nova, lado a lado), um de
+integração (criando uma série real de ~5 meses e confirmando que todas as
+ocorrências nascem materializadas numa chamada só), e um terceiro
+respondendo a uma dúvida de acompanhamento do cliente: **"e quando os 400
+dias acabarem, numa recorrência sem data de término?"** — resposta: nunca
+acaba, porque a janela usa `Date.now()` recalculado a cada execução do job
+diário, nunca uma data travada na criação da série. Provado simulando o
+relógio avançando 500 dias de verdade (`vi.spyOn(Date, 'now')`) entre duas
+chamadas de materialização, e confirmando que ocorrências novas aparecem lá
+na frente — exatamente o que o cron do Railway faz sozinho, todo dia, pra
+sempre, contanto que a série continue ativa.
+
 ## CRUD completo + "influencia no saldo" — construído após o Estágio 18
 
 Pedido grande do cliente, usando a ferramenta de verdade pela primeira vez: 6
