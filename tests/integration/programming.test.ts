@@ -356,7 +356,7 @@ describe('Programações', () => {
       // Cancelar continua permitido (Seção 45), excluir não (Seção 31).
       await cancelEntry(tenantId, entry.id);
       await expect(reactivateEntry(tenantId, entry.id)).rejects.toThrow(
-        'já gerou uma transação — não pode ser reativada',
+        'já gerou uma transação — não pode ser reativado',
       );
       await expect(deleteEntry(tenantId, entry.id)).rejects.toThrow(
         'rastreabilidade precisa ser preservada',
