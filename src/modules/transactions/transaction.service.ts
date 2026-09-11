@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
 import * as transactionRepository from './transaction.repository';
 
@@ -52,9 +53,13 @@ async function assertOwnership(
   }
 }
 
-export async function createIncomeOrExpense(tenantId: string, input: CreateTransactionInput) {
+export async function createIncomeOrExpense(
+  tenantId: string,
+  input: CreateTransactionInput,
+  client?: Prisma.TransactionClient,
+) {
   await assertOwnership(tenantId, input);
-  return transactionRepository.createTransaction(tenantId, input);
+  return transactionRepository.createTransaction(tenantId, input, client);
 }
 
 interface UpdateTransactionInput {

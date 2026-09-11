@@ -978,6 +978,106 @@ sem ver acontecer:
       desenvolvimento nunca teve como pegar sozinho.
 - [ ] **Smoke production aprovado** — mesmo motivo do item de Healthcheck acima
 
+# VortCon 1.2.0 — Módulo Programações
+
+Evolução grande, pedida como um todo único (nunca em estágios) — controle
+auxiliar de compromissos/previsões, completamente separado do domínio
+financeiro. Regra central, repetida ao longo de toda a especificação do
+cliente: **PROGRAMAR NÃO É MOVIMENTAR**. Nenhum lançamento de Programação
+influencia saldo, resultado, relatório ou o Financial Engine — só depois de
+"Gerar transação", uma ação explícita, é que o efeito financeiro nasce, pelo
+domínio oficial de Transações já existente.
+
+## Arquitetura — dois universos, um único ponto de contato
+
+4 tabelas novas, todas isoladas do domínio financeiro:
+`programming_origins`, `programming_beneficiaries`,
+`programming_recurrence_series`, `programming_entries`. Nenhuma reaproveita
+uma tabela existente (nunca um campo `is_programming` numa
+`FinancialTransaction`, exatamente como o cliente pediu explicitamente para
+NÃO fazer).
+
+O único ponto de contato entre os dois universos é
+`programming_entries.generatedTransactionId` — escrito uma única vez, no
+momento explícito de "Gerar transação". Dois campos cuidam da
+rastreabilidade dessa conversão, com responsabilidades diferentes:
+
+- **`generatedTransactionId`** — o ponteiro atual pra navegação. Se a
+  Transação apontada for excluída depois (fluxo normal: cancelar → excluir,
+  já existente), volta a `null` (`onDelete: SetNull`).
+- **`convertedAt`** — permanente, nunca é limpo, mesmo que o ponteiro acima
+  suma. É ele, não o ponteiro, quem decide se uma ocorrência pode ser
+  editada, reativada, excluída ou gerar de novo. Sem essa separação, apagar
+  a Transação gerada deixaria a ocorrência "elegível" outra vez, arriscando
+  duplicidade — achei esse risco durante o desenho do schema e corrigi antes
+  de escrever qualquer linha de serviço.
+
+## Decisões tomadas em pontos que a especificação deixava implícitos
+
+1. **"Gerar transação" sempre consolida tudo** — nunca seleção manual
+   (confirmado explicitamente pelo cliente: "vai fechar tudo, não vou
+   escolher").
+2. **Recorrência de Programação reaproveita o mesmo componente/mecânica do
+   domínio financeiro, sem nenhuma mudança** — mesmas 4 frequências
+   (diária/semanal/mensal/anual), nada de "quinzenal" nova (confirmado
+   explicitamente).
+3. **Inativo aparece na listagem com selo, some do seletor pra lançamento
+   novo, editável/excluível se não vinculado** — mesmo padrão de
+   Contas/Categorias/Tags (confirmado explicitamente).
+4. **A tela de "Gerar transação" pede conta** — a especificação não lista
+   isso entre os campos mostrados, mas toda `FinancialTransaction` do
+   sistema exige uma conta (campo obrigatório desde o Estágio 5); não dá
+   pra criar a transação oficial sem isso. Categoria/tags ficam de fora de
+   propósito — o usuário complementa depois, editando a transação já
+   gerada, como a própria especificação sugere.
+5. **Descrição sugerida é editável** — "Repasse/Pagamento [Beneficiário]"
+   aparece pré-preenchida no modal, mas o usuário pode mudar antes de
+   confirmar (a especificação chama de "sugerida", nunca "fixa").
+6. **Posição X/N nunca inventa denominador** (pedido explícito) — só mostra
+   "/N" quando a série tem `maxOccurrences` definido; sem isso, mostra só a
+   posição, sem fração.
+
+## Idempotência da geração — corrigi um bug real de atomicidade antes de entregar
+
+A criação da Transação oficial precisa acontecer dentro da MESMA transação
+de banco que verifica elegibilidade e marca as ocorrências como convertidas
+— senão, numa corrida real (ex.: duplo clique), a Transação ficaria criada
+mesmo se a proteção contra duplicidade disparasse depois, deixando uma
+Transação "órfã" sem nenhum lançamento de Programação vinculado.
+`createIncomeOrExpense`/`createTransaction` (domínio financeiro, já
+existentes) ganharam um parâmetro opcional de cliente de transação —
+nenhum chamador existente muda de comportamento, só o novo serviço de
+geração passa isso explicitamente.
+
+## Testes
+
+Um arquivo dedicado (`tests/integration/programming.test.ts`) cobrindo os
+pontos mais críticos da especificação: neutralidade financeira absoluta
+(criar/materializar nunca muda saldo nem receita do período), exclusão de
+Origem/Beneficiário em uso rejeitada tanto pela aplicação quanto pelo
+próprio banco (rede de segurança em `RESTRICT`), ciclo de vida completo do
+lançamento (editar/cancelar/reativar/excluir), consolidação da geração
+(soma tudo do beneficiário+tipo+período), receita/despesa nunca se
+compensando, idempotência (segunda chamada sem nada elegível), e o ponto
+mais delicado — rastreabilidade preservada mesmo com a Transação gerada
+sendo excluída depois. Mais um arquivo de teste puro
+(`entry-grouping.test.ts`) provando a regra de agrupamento/separação
+receita-despesa sem precisar de banco. Regressão completa da suíte
+existente confirmada sem nenhuma quebra (Seção 57).
+
+## Telas
+
+Menu novo "Programações" (grupo próprio na barra lateral, separado do
+financeiro), com 4 submenus: **Origens** e **Beneficiários** (mesmo padrão
+de Categorias/Contas — editar, inativar/reativar, excluir se não
+vinculado), **Lançamentos** (navegação mensal idêntica à de Transações,
+agrupado por Beneficiário — nunca por data —, Receitas e Despesas sempre
+separadas dentro de cada grupo, com o botão "Gerar transação" por grupo) e
+**Recorrências** (gestão de série, mesma mecânica de seleção múltipla +
+exclusão em massa já construída no domínio financeiro, aqui isolada e com
+uma diferença crítica: ocorrências já convertidas em transação são sempre
+preservadas, nunca excluídas junto com a série).
+
 ## Tela de gestão de recorrências — construída a pedido do cliente
 
 Depois da correção da janela de materialização (acima), o cliente apontou um

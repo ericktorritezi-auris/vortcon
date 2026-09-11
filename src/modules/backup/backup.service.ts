@@ -13,7 +13,7 @@ import { recordAuditEvent } from '@/modules/audit/audit.service';
 import type { BackupData, BackupFile } from './backup-format';
 import { BACKUP_MANIFEST_VERSION, computeBackupChecksum, validateBackup } from './backup-format';
 
-const VORTCON_VERSION = '1.0.0';
+const VORTCON_VERSION = '1.2.0';
 
 /**
  * Exportação (Seção 142-144). tenantId sempre vem do backend (sessão do

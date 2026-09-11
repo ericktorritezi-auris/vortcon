@@ -70,10 +70,14 @@ interface CreateTransactionData {
   affectsBalance?: boolean;
 }
 
-export async function createTransaction(tenantId: string, data: CreateTransactionData) {
+export async function createTransaction(
+  tenantId: string,
+  data: CreateTransactionData,
+  client: Prisma.TransactionClient | typeof prisma = prisma,
+) {
   const status = data.settlementDate ? (data.type === 'INCOME' ? 'RECEIVED' : 'PAID') : 'PENDING';
 
-  return prisma.financialTransaction.create({
+  return client.financialTransaction.create({
     data: {
       tenantId,
       type: data.type,

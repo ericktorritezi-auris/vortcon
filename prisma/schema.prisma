@@ -105,6 +105,12 @@ model Tenant {
   cockpitAcknowledgements CockpitAcknowledgement[]
   notifications           Notification[]
   pushSubscriptions       PushSubscription[]
+  // Seção "Programações" — universo separado, nunca contamina o
+  // financeiro. Ver os 4 modelos dedicados abaixo de RecurrenceSeries.
+  programmingOrigins        ProgrammingOrigin[]
+  programmingBeneficiaries  ProgrammingBeneficiary[]
+  programmingEntries        ProgrammingEntry[]
+  programmingRecurrenceSeries ProgrammingRecurrenceSeries[]
 
   @@map("tenants")
 }
@@ -531,6 +537,10 @@ model FinancialTransaction {
   category         Category?                 @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   tags             FinancialTransactionTag[]
   recurrenceSeries RecurrenceSeries?         @relation(fields: [recurrenceSeriesId], references: [id], onDelete: SetNull)
+  // Universo de Programações (separado) — ocorrências que geraram esta
+  // transação. Nunca o inverso: uma transação nunca sabe nada sobre
+  // Programações a não ser este vínculo de rastreabilidade.
+  generatedFromProgrammingEntries ProgrammingEntry[]
 
   @@unique([recurrenceSeriesId, recurrenceOccurrenceKey])
   @@index([tenantId, status])
@@ -688,6 +698,126 @@ model RecurrenceSeriesTag {
 
   @@id([recurrenceSeriesId, tagId])
   @@map("recurrence_series_tags")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PROGRAMAÇÕES — universo separado do financeiro (evolução v1.2)
+//
+// Regra central: PROGRAMAR NÃO É MOVIMENTAR. Nenhum modelo abaixo é lido
+// pelo Financial Engine, Dashboard, Cockpit ou Relatórios — o único ponto
+// de contato com o universo financeiro é `ProgrammingEntry.generatedTransactionId`,
+// escrito uma única vez no momento explícito de "Gerar transação".
+// ─────────────────────────────────────────────────────────────────────────
+
+// Cadastro auxiliar (Empréstimo, Financiamento...) — mesmo padrão de
+// Category, porém sem iconografia (pedido explícito do cliente).
+model ProgrammingOrigin {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  entries ProgrammingEntry[]
+
+  @@index([tenantId])
+  @@map("programming_origins")
+}
+
+// Pessoa/empresa/instituição relacionada à Programação. Cadastro
+// deliberadamente simples (nunca um CRM) — só o nome.
+model ProgrammingBeneficiary {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  entries ProgrammingEntry[]
+
+  @@index([tenantId])
+  @@map("programming_beneficiaries")
+}
+
+// Série de recorrência — domínio próprio, nunca a mesma tabela de
+// RecurrenceSeries (Seção 19/57: nunca contaminar as recorrências
+// financeiras). `defaultOriginId`/`defaultBeneficiaryId` são FKs "soltas"
+// (sem @relation formal), mesmo padrão de RecurrenceSeries.defaultAccountId
+// — são só o molde usado na materialização, validadas em código.
+model ProgrammingRecurrenceSeries {
+  id                   String                    @id @default(cuid())
+  tenantId             String
+  type                 FinancialTransactionType
+  frequency            RecurrenceFrequency
+  interval             Int                       @default(1)
+  startDate            DateTime                  @db.Date
+  endDate              DateTime?                 @db.Date
+  maxOccurrences       Int?
+  baseAmountCents      Int
+  description          String
+  defaultOriginId      String?
+  defaultBeneficiaryId String
+  active               Boolean                   @default(true)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  tenant  Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  entries ProgrammingEntry[]
+
+  @@index([tenantId, active])
+  @@map("programming_recurrence_series")
+}
+
+enum ProgrammingEntryStatus {
+  ACTIVE
+  CANCELLED
+}
+
+// A ocorrência/lançamento em si (Seção 23: "ocorrência x série"). Nunca
+// influencia saldo, resultado, relatório ou o Financial Engine (Seção 1) —
+// só depois de "Gerar transação" (Seção 36-40) é que
+// `generatedTransactionId`/`convertedAt` passam a existir.
+//
+// `convertedAt` é permanente e nunca é limpo, mesmo que a transação gerada
+// seja excluída depois (Seção 46: nunca perder rastreabilidade, nunca
+// permitir gerar de novo por engano) — é ele, não `generatedTransactionId`,
+// quem decide elegibilidade pra "Gerar transação" (Seção 43: idempotência).
+// `generatedTransactionId` é só o ponteiro atual pra navegação (Seção 42);
+// se a transação apontada for excluída, ele volta a `null` (SetNull), mas
+// `convertedAt` continua marcando que esta ocorrência já foi convertida.
+model ProgrammingEntry {
+  id                      String                 @id @default(cuid())
+  tenantId                String
+  type                    FinancialTransactionType
+  originId                String?
+  beneficiaryId           String
+  description             String
+  amountCents             Int
+  entryDate               DateTime               @db.Date
+  status                  ProgrammingEntryStatus @default(ACTIVE)
+  cancelledAt             DateTime?
+  recurrenceSeriesId      String?
+  recurrenceOccurrenceKey String?
+  generatedTransactionId  String?
+  convertedAt             DateTime?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+
+  tenant              Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  origin              ProgrammingOrigin?           @relation(fields: [originId], references: [id], onDelete: Restrict)
+  beneficiary         ProgrammingBeneficiary       @relation(fields: [beneficiaryId], references: [id], onDelete: Restrict)
+  recurrenceSeries    ProgrammingRecurrenceSeries? @relation(fields: [recurrenceSeriesId], references: [id], onDelete: SetNull)
+  generatedTransaction FinancialTransaction?       @relation(fields: [generatedTransactionId], references: [id], onDelete: SetNull)
+
+  @@unique([recurrenceSeriesId, recurrenceOccurrenceKey])
+  @@index([tenantId, entryDate])
+  @@index([tenantId, beneficiaryId])
+  @@index([tenantId, status])
+  @@map("programming_entries")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

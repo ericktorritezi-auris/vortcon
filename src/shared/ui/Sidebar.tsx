@@ -2,6 +2,7 @@
 
 import {
   ArrowLeftRight,
+  Building2,
   CreditCard,
   Gauge,
   HelpCircle,
@@ -12,6 +13,7 @@ import {
   Repeat,
   Tag,
   User,
+  Users,
 } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
 
@@ -27,6 +29,18 @@ const NAV_GROUPS = [
       { href: '/app/categorias', label: 'Categorias', icon: LayoutGrid },
       { href: '/app/tags', label: 'Tags', icon: Tag },
       { href: '/app/relatorios', label: 'Relatórios', icon: PieChart },
+    ],
+  },
+  {
+    // Universo separado do financeiro (evolução v1.2) — PROGRAMAR NÃO É
+    // MOVIMENTAR. Grupo próprio de propósito, pra nunca parecer que
+    // esses itens fazem parte do domínio financeiro oficial.
+    label: 'Programações',
+    items: [
+      { href: '/app/programacoes/origens', label: 'Origens', icon: Building2 },
+      { href: '/app/programacoes/beneficiarios', label: 'Beneficiários', icon: Users },
+      { href: '/app/programacoes/lancamentos', label: 'Lançamentos', icon: ListChecks },
+      { href: '/app/programacoes/recorrencias', label: 'Recorrências', icon: Repeat },
     ],
   },
   {
