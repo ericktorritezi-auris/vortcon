@@ -8,6 +8,7 @@ import {
   Download,
   Fingerprint,
   Gauge,
+  Home,
   LayoutGrid,
   ListChecks,
   PieChart,
@@ -25,6 +26,24 @@ interface HelpSection {
 }
 
 const SECTIONS: HelpSection[] = [
+  {
+    id: 'inicio',
+    icon: Home,
+    title: 'Início',
+    items: [
+      {
+        question:
+          'O que significam os cards "Pendente a pagar", "Pendente a receber" e "Saldo projetado"?',
+        answer:
+          'São uma visão do que ainda está por vir: quanto você tem de despesa pendente, quanto tem de receita pendente, e qual seria o saldo das suas contas se tudo isso acontecesse. O ano aparece no próprio nome do card (ex.: "Pendente a pagar 2026") porque esses três números olham só o ano vigente — nunca somam recorrências até o fim delas, mesmo as que continuam por vários anos. Isso evita que uma assinatura sem data de término, por exemplo, infle esses cards com valores de anos que ainda nem chegaram perto.',
+      },
+      {
+        question: 'Por que o "Saldo real" não tem ano no nome, mas os outros três têm?',
+        answer:
+          '"Saldo real" soma só o que já foi pago ou recebido de fato — nunca "estica" pro futuro, então não precisa de um recorte de ano. Já "Pendente a pagar/receber" e "Saldo projetado" olham pra frente, e é aí que o ano vigente entra pra manter a visão sempre focada no ano corrente.',
+      },
+    ],
+  },
   {
     id: 'contas',
     icon: CreditCard,
@@ -172,10 +191,20 @@ const SECTIONS: HelpSection[] = [
           'É onde você vê, de uma vez, todas as suas transações e transferências recorrentes — aluguel, assinatura, salário, aporte mensal, o que for. Cada uma mostra a frequência, a conta usada, quando começou e termina (se tiver data marcada), e quantos lançamentos ela já gerou.',
       },
       {
-        question:
-          'Criei uma recorrência errada e lancei um monte de coisa sem querer — como eu limpo isso rápido?',
+        question: 'Como eu excluo uma série recorrente inteira?',
         answer:
-          'Na tela de Recorrências, marque a(s) série(s) que quer remover (ou "Selecionar todas") e clique em "Excluir selecionadas". Isso apaga a série inteira de uma vez, com todos os lançamentos que ela já gerou — pagos, pendentes, cancelados, todos — sem você precisar entrar em cada lançamento individualmente e excluir um por um.',
+          'Marque a(s) série(s) que quer remover (ou "Selecionar todas") e clique em "Excluir selecionadas". Um modal pergunta qual dos dois modos você quer: "Do mês seguinte em diante" (o padrão — nunca mexe no mês vigente nem no que já aconteceu, só remove o que ainda não chegou) ou "Tudo, inclusive o que já aconteceu" (só funciona se nenhum lançamento da série estiver pago/recebido — se tiver, desfaça isso primeiro, ou use a outra opção).',
+      },
+      {
+        question:
+          'Como eu edito uma série recorrente inteira (mudar valor, conta ou categoria de todas as parcelas)?',
+        answer:
+          'Clique em "Editar" na série (disponível pra receita/despesa recorrente; transferência recorrente ainda não tem edição de série). O mesmo modal de dois modos aparece: por padrão, a mudança vale só do mês seguinte em diante — o mês vigente e o passado nunca são reescritos. Se quiser mudar tudo, inclusive parcelas antigas, escolha "Tudo" — só funciona se nada estiver pago/recebido ainda.',
+      },
+      {
+        question: 'Por que às vezes não consigo excluir ou editar "tudo"?',
+        answer:
+          'Porque alguma parcela da série já foi paga ou recebida — mexer nela destruiria um registro financeiro que já aconteceu de verdade. O VortCon avisa quantas parcelas estão nessa situação. Pra liberar o modo "Tudo", desfaça o pagamento/recebimento delas primeiro (na própria transação, "Marcar como paga" de novo pra voltar a pendente). Ou, mais simples: use "Do mês seguinte em diante", que nunca esbarra nessa trava.',
       },
     ],
   },
@@ -308,9 +337,15 @@ const SECTIONS: HelpSection[] = [
           'Exatamente igual à recorrência de Transações (mesma tela, mesmas opções de frequência) — só que gera Lançamentos de Programação, nunca Transações automaticamente. Numa recorrência com número de vezes definido, cada ocorrência mostra sua posição (ex.: "3/10").',
       },
       {
-        question: 'Criei uma recorrência de Programação errada — como excluo tudo de uma vez?',
+        question: 'Criei uma recorrência de Programação errada — como excluo de uma vez?',
         answer:
-          'Vá em Programações > Recorrências — mesmo conceito da tela de Recorrências financeiras, mas separada, só com séries de Programações. Selecione a(s) série(s) e clique em "Excluir selecionadas". Uma diferença importante aqui: qualquer ocorrência que já tenha gerado uma transação é sempre preservada, mesmo que você exclua a série inteira — só as ocorrências ainda não convertidas somem junto com a série.',
+          'Vá em Programações > Recorrências — mesmo conceito da tela de Recorrências financeiras, mas separada, só com séries de Programações. Selecione a(s) série(s), clique em "Excluir selecionadas" e escolha o modo: "Do mês seguinte em diante" (padrão, nunca mexe no vigente) ou "Tudo, inclusive o que já aconteceu". Nos dois modos, qualquer ocorrência que já tenha gerado uma transação é sempre preservada — nunca some, nem no modo "Tudo".',
+      },
+      {
+        question:
+          'Posso editar uma série de Programação inteira (mudar valor, origem ou beneficiário de todas as ocorrências)?',
+        answer:
+          'Sim, com "Editar" na série, na tela Programações > Recorrências. Mesmo modal de dois modos: por padrão, a mudança vale só do mês seguinte em diante; "Tudo" também é possível, mas só funciona se nenhuma ocorrência da série já tiver virado uma transação — se tiver, o VortCon avisa e bloqueia esse modo (nesse caso, use "Do mês seguinte em diante").',
       },
       {
         question: 'Posso excluir uma Origem ou Beneficiário?',
