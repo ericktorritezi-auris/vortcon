@@ -125,6 +125,10 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
 
   const periodResultCents = periodIncomeCents - periodExpensesCents;
   const showProjected = pendingPayablesCents > 0 || pendingReceivablesCents > 0;
+  // Pedido do cliente — os 3 cards abaixo ficam sempre dentro do ANO
+  // VIGENTE (nunca olhando recorrências até o fim delas). O ano no
+  // rótulo é sempre o real de hoje, nunca fixado.
+  const currentYear = new Date().getFullYear();
 
   const accountsById = new Map<string, FinancialAccount>(
     accounts.map((account: FinancialAccount) => [account.id, account]),
@@ -180,20 +184,20 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
           icon={Wallet}
         />
         <MetricCard
-          label="Pendente a pagar"
+          label={`Pendente a pagar ${currentYear}`}
           value={<FinancialValue cents={pendingPayablesCents} />}
           icon={TrendingDown}
           iconToneClassName="bg-financial-warning"
         />
         <MetricCard
-          label="Pendente a receber"
+          label={`Pendente a receber ${currentYear}`}
           value={<FinancialValue cents={pendingReceivablesCents} />}
           icon={TrendingUp}
           iconToneClassName="bg-financial-info"
         />
         {showProjected ? (
           <MetricCard
-            label="Saldo projetado"
+            label={`Saldo projetado ${currentYear}`}
             value={<FinancialValue cents={projectedBalanceCents} />}
             icon={Wallet}
           />

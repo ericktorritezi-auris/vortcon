@@ -75,3 +75,13 @@ export function computeOccurrenceDates(params: SeriesDateParams, windowEnd: Date
 export function toOccurrenceKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
+
+/**
+ * Primeiro dia do mês seguinte ao de `reference` (pedido do cliente,
+ * evolução v1.3): fronteira usada por excluir/editar recorrência — nunca
+ * mexe no mês vigente, só do mês seguinte em diante. Função pura,
+ * reaproveitada pelos dois domínios (financeiro e Programações).
+ */
+export function firstDayOfNextMonth(reference: Date): Date {
+  return new Date(Date.UTC(reference.getUTCFullYear(), reference.getUTCMonth() + 1, 1));
+}

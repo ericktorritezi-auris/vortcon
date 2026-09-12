@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { evaluateAccessPolicy } from '@/modules/auth/access-policy.service';
 import { listAllProgrammingSeries } from '@/modules/programming/programming-recurrence.service';
+import { listOrigins } from '@/modules/programming/programming-origin.service';
+import { listBeneficiaries } from '@/modules/programming/programming-beneficiary.service';
 import { AppShell } from '../../AppShell';
 import { ProgrammingRecurrenceManager } from './ProgrammingRecurrenceManager';
 
@@ -31,7 +33,11 @@ export default async function ProgrammingRecurrencePage(): Promise<React.ReactEl
       break;
   }
 
-  const series = await listAllProgrammingSeries(access.context.tenantId);
+  const [series, origins, beneficiaries] = await Promise.all([
+    listAllProgrammingSeries(access.context.tenantId),
+    listOrigins(access.context.tenantId),
+    listBeneficiaries(access.context.tenantId),
+  ]);
 
   return (
     <AppShell>
@@ -40,7 +46,14 @@ export default async function ProgrammingRecurrencePage(): Promise<React.ReactEl
         Todas as suas séries recorrentes de Programações, num lugar só — separado das recorrências
         financeiras.
       </p>
-      <ProgrammingRecurrenceManager series={series} />
+      <ProgrammingRecurrenceManager
+        series={series}
+        origins={origins.map((o: { id: string; name: string }) => ({ id: o.id, name: o.name }))}
+        beneficiaries={beneficiaries.map((b: { id: string; name: string }) => ({
+          id: b.id,
+          name: b.name,
+        }))}
+      />
     </AppShell>
   );
 }

@@ -143,35 +143,55 @@ export async function getPeriodResult(tenantId: string, period: Period): Promise
   return income - expenses;
 }
 
-export async function getPendingPayables(tenantId: string): Promise<number> {
+/**
+ * Intervalo do ano vigente (pedido do cliente, evolução v1.3) — Pendente a
+ * pagar/receber e Saldo projetado precisam ficar dentro do ANO VIGENTE,
+ * nunca olhando recorrências até o fim delas (que, com a janela de
+ * materialização de ~13 meses, já entrava bem no ano seguinte e distorcia
+ * os cards). `year` é opcional (default: ano real de hoje) — só existe
+ * pra permitir teste determinístico, nunca fixado no código de produção.
+ */
+function currentYearRange(year?: number): { from: Date; to: Date } {
+  const targetYear = year ?? new Date().getUTCFullYear();
+  return {
+    from: new Date(Date.UTC(targetYear, 0, 1)),
+    to: new Date(Date.UTC(targetYear, 11, 31, 23, 59, 59, 999)),
+  };
+}
+
+export async function getPendingPayables(tenantId: string, year?: number): Promise<number> {
+  const { from, to } = currentYearRange(year);
   const result = await prisma.financialTransaction.aggregate({
     where: activeTransactionWhere(tenantId, {
       type: 'EXPENSE',
       status: 'PENDING',
       affectsBalance: true,
+      dueDate: { gte: from, lte: to },
     }),
     _sum: { amountCents: true },
   });
   return result._sum.amountCents ?? 0;
 }
 
-export async function getPendingReceivables(tenantId: string): Promise<number> {
+export async function getPendingReceivables(tenantId: string, year?: number): Promise<number> {
+  const { from, to } = currentYearRange(year);
   const result = await prisma.financialTransaction.aggregate({
     where: activeTransactionWhere(tenantId, {
       type: 'INCOME',
       status: 'PENDING',
       affectsBalance: true,
+      dueDate: { gte: from, lte: to },
     }),
     _sum: { amountCents: true },
   });
   return result._sum.amountCents ?? 0;
 }
 
-export async function getProjectedBalance(tenantId: string): Promise<number> {
+export async function getProjectedBalance(tenantId: string, year?: number): Promise<number> {
   const [realBalance, pendingReceivables, pendingPayables] = await Promise.all([
     getRealBalance(tenantId),
-    getPendingReceivables(tenantId),
-    getPendingPayables(tenantId),
+    getPendingReceivables(tenantId, year),
+    getPendingPayables(tenantId, year),
   ]);
   return realBalance + pendingReceivables - pendingPayables;
 }

@@ -1,6 +1,10 @@
 import type { FinancialTransactionType, Prisma } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
-import { computeOccurrenceDates, toOccurrenceKey } from '@/modules/recurrence/date-sequence';
+import {
+  computeOccurrenceDates,
+  firstDayOfNextMonth,
+  toOccurrenceKey,
+} from '@/modules/recurrence/date-sequence';
 
 // Mesma janela do domínio financeiro (Seção 75 lá, reaproveitada aqui —
 // Seção 21 aqui pede reaproveitar "filosofia atual do VortCon pra séries
@@ -141,6 +145,8 @@ export async function materializeAllProgrammingSeries(tenantId: string): Promise
   }
 }
 
+export type AlterProgrammingSeriesMode = 'ALL' | 'FROM_NEXT_MONTH';
+
 interface AlterProgrammingSeriesInput {
   baseAmountCents?: number;
   defaultOriginId?: string | null;
@@ -148,20 +154,38 @@ interface AlterProgrammingSeriesInput {
 }
 
 /**
- * "Alterar recorrência" (Seção 27) — muda o padrão da série e as
- * ocorrências futuras ELEGÍVEIS (ainda ACTIVE, não convertidas, com data
- * no futuro) — nunca reescreve histórico nem ocorrência já convertida em
- * transação (Seção 27: "nunca alterar retroativamente uma ocorrência que
- * já tenha sido utilizada para gerar uma Transação Financeira").
+ * "Alterar recorrência" (Seção 27, evolução v1.3) — dois modos, mesmo
+ * racional do domínio financeiro:
+ *
+ * `FROM_NEXT_MONTH` (padrão): nunca mexe no mês vigente nem no passado —
+ * só ocorrências ACTIVE e nunca convertidas, a partir do dia 1 do mês
+ * seguinte.
+ *
+ * `ALL`: edita ocorrências ACTIVE de qualquer data — só permitido se
+ * nenhuma ocorrência da série já tiver sido convertida em transação
+ * (Seção 27: "nunca alterar retroativamente uma ocorrência que já tenha
+ * sido utilizada pra gerar uma Transação Financeira").
  */
 export async function alterProgrammingSeriesForward(
   tenantId: string,
   seriesId: string,
   input: AlterProgrammingSeriesInput,
-): Promise<{ updatedOccurrences: number }> {
+  mode: AlterProgrammingSeriesMode = 'FROM_NEXT_MONTH',
+): Promise<{ updatedOccurrences: number; mode: AlterProgrammingSeriesMode }> {
   if (input.defaultOriginId) await assertOriginOwnedByTenant(tenantId, input.defaultOriginId);
   if (input.defaultBeneficiaryId)
     await assertBeneficiaryOwnedByTenant(tenantId, input.defaultBeneficiaryId);
+
+  if (mode === 'ALL') {
+    const convertedCount = await prisma.programmingEntry.count({
+      where: { recurrenceSeriesId: seriesId, tenantId, convertedAt: { not: null } },
+    });
+    if (convertedCount > 0) {
+      throw new Error(
+        `Esta série tem ${convertedCount} ocorrência(s) já convertida(s) em transação — nunca podem ser reescritas. Edite só do mês seguinte em diante.`,
+      );
+    }
+  }
 
   await prisma.programmingRecurrenceSeries.updateMany({
     where: { id: seriesId, tenantId },
@@ -172,13 +196,15 @@ export async function alterProgrammingSeriesForward(
     },
   });
 
+  const dateFilter = mode === 'ALL' ? {} : { entryDate: { gte: firstDayOfNextMonth(new Date()) } };
+
   const result = await prisma.programmingEntry.updateMany({
     where: {
       tenantId,
       recurrenceSeriesId: seriesId,
       status: 'ACTIVE',
       convertedAt: null,
-      entryDate: { gt: new Date() },
+      ...dateFilter,
     },
     data: {
       ...(input.baseAmountCents !== undefined ? { amountCents: input.baseAmountCents } : {}),
@@ -187,7 +213,7 @@ export async function alterProgrammingSeriesForward(
     },
   });
 
-  return { updatedOccurrences: result.count };
+  return { updatedOccurrences: result.count, mode };
 }
 
 export async function endProgrammingSeries(
@@ -233,46 +259,87 @@ export async function listAllProgrammingSeries(tenantId: string) {
     endDate: s.endDate,
     active: s.active,
     occurrenceCount: s._count.entries,
+    baseAmountCents: s.baseAmountCents,
+    defaultOriginId: s.defaultOriginId,
+    defaultBeneficiaryId: s.defaultBeneficiaryId,
     beneficiaryName: beneficiaryNameById.get(s.defaultBeneficiaryId) ?? '—',
   }));
 }
 
+export type DeleteProgrammingSeriesMode = 'ALL' | 'FROM_NEXT_MONTH';
+
 /**
- * Excluir uma série inteira (Seção 32) — PRESERVA ocorrências já
- * convertidas em transação (nunca as apaga, nunca desfaz o vínculo).
- * Ocorrências ainda não convertidas são removidas junto com a série
- * (Seção 32: "ocorrências futuras ainda não convertidas podem ser
- * removidas conforme a operação escolhida").
+ * Excluir uma série (Seção 32, evolução v1.3) — dois modos:
+ *
+ * `ALL`: exclui a série inteira e todas as ocorrências ainda não
+ * convertidas, de qualquer data. Ocorrências já convertidas em transação
+ * são SEMPRE preservadas (Seção 32), mesmo neste modo — nunca há como
+ * "forçar" a exclusão delas por aqui; pra isso, seria preciso primeiro
+ * cancelar/excluir a Transação gerada.
+ *
+ * `FROM_NEXT_MONTH` (padrão): nunca mexe no mês vigente nem no passado —
+ * só remove ocorrências não convertidas a partir do dia 1 do mês
+ * seguinte. A série em si nunca é apagada nesse modo, só encerrada
+ * (`active: false`), pra garantir que a materialização diária nunca
+ * recrie o que acabou de ser excluído.
  */
 export async function deleteProgrammingSeriesWithOccurrences(
   tenantId: string,
   seriesId: string,
-): Promise<{ deletedOccurrences: number; preservedConvertedOccurrences: number }> {
+  mode: DeleteProgrammingSeriesMode = 'FROM_NEXT_MONTH',
+): Promise<{
+  deletedOccurrences: number;
+  preservedConvertedOccurrences: number;
+  mode: DeleteProgrammingSeriesMode;
+}> {
   const series = await prisma.programmingRecurrenceSeries.findFirst({
     where: { id: seriesId, tenantId },
   });
   if (!series) throw new Error('Série não encontrada neste tenant.');
 
+  if (mode === 'ALL') {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const preserved = await tx.programmingEntry.count({
+        where: { recurrenceSeriesId: seriesId, convertedAt: { not: null } },
+      });
+
+      const deleted = await tx.programmingEntry.deleteMany({
+        where: { recurrenceSeriesId: seriesId, convertedAt: null },
+      });
+
+      await tx.programmingEntry.updateMany({
+        where: { recurrenceSeriesId: seriesId, convertedAt: { not: null } },
+        data: { recurrenceSeriesId: null, recurrenceOccurrenceKey: null },
+      });
+
+      await tx.programmingRecurrenceSeries.delete({ where: { id: seriesId } });
+
+      return { deletedOccurrences: deleted.count, preservedConvertedOccurrences: preserved, mode };
+    });
+  }
+
+  // FROM_NEXT_MONTH — nunca mexe no mês vigente nem no passado.
+  const boundary = firstDayOfNextMonth(new Date());
+  const currentMonthEnd = new Date(boundary.getTime() - 1);
+
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const preserved = await tx.programmingEntry.count({
-      where: { recurrenceSeriesId: seriesId, convertedAt: { not: null } },
+      where: {
+        recurrenceSeriesId: seriesId,
+        entryDate: { gte: boundary },
+        convertedAt: { not: null },
+      },
     });
 
-    // Nunca convertidas — podem ser removidas junto com a série de verdade.
     const deleted = await tx.programmingEntry.deleteMany({
-      where: { recurrenceSeriesId: seriesId, convertedAt: null },
+      where: { recurrenceSeriesId: seriesId, entryDate: { gte: boundary }, convertedAt: null },
     });
 
-    // Ocorrências já convertidas ficam soltas (recurrenceSeriesId -> null),
-    // preservando a transação gerada e a rastreabilidade, mesmo com a
-    // série excluída.
-    await tx.programmingEntry.updateMany({
-      where: { recurrenceSeriesId: seriesId, convertedAt: { not: null } },
-      data: { recurrenceSeriesId: null, recurrenceOccurrenceKey: null },
+    await tx.programmingRecurrenceSeries.update({
+      where: { id: seriesId },
+      data: { active: false, endDate: currentMonthEnd },
     });
 
-    await tx.programmingRecurrenceSeries.delete({ where: { id: seriesId } });
-
-    return { deletedOccurrences: deleted.count, preservedConvertedOccurrences: preserved };
+    return { deletedOccurrences: deleted.count, preservedConvertedOccurrences: preserved, mode };
   });
 }

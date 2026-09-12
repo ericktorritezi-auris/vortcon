@@ -978,6 +978,80 @@ sem ver acontecer:
       desenvolvimento nunca teve como pegar sozinho.
 - [ ] **Smoke production aprovado** — mesmo motivo do item de Healthcheck acima
 
+# VortCon 1.3.0 — Recorrência com dois modos + ano vigente no início
+
+Evolução pedida em cima da v1.2, tocando os dois domínios de recorrência
+(financeiro e Programações) e a tela de início.
+
+## Excluir e editar recorrência — dois modos, nos dois domínios
+
+Pedido do cliente: excluir/editar uma série sempre pergunta **qual** dos
+dois modos, nunca mais um "excluir tudo" só por padrão:
+
+- **"Do mês seguinte em diante"** (padrão, recomendado) — nunca mexe no mês
+  vigente nem no passado. Só afeta ocorrências a partir do dia 1 do mês
+  seguinte. A série nunca é apagada nesse modo, só encerrada
+  (`active: false` + `endDate` no fim do mês vigente) — sem isso, a
+  materialização diária recriaria sozinha o que acabou de ser removido.
+- **"Tudo, inclusive o que já aconteceu"** — só libera se nada estiver
+  liquidado (financeiro: nenhuma ocorrência PAID/RECEIVED/COMPLETED em toda
+  a série) ou convertido (Programações: nenhuma ocorrência já virou
+  Transação). Bloqueado com uma mensagem clara orientando a desfazer isso
+  primeiro, ou usar a outra opção.
+
+Mesma regra vale pra **editar** — o padrão nunca reescreve o mês vigente
+nem o passado; "editar tudo" tem a mesma trava de "editar tudo" do
+domínio financeiro.
+
+**Fronteira "mês seguinte"** extraída como função pura
+(`firstDayOfNextMonth`, em `date-sequence.ts`), reaproveitada pelos dois
+domínios e testada isoladamente (4 casos, incluindo virada de ano).
+
+**UI**: um modal de escolha compartilhado (`DeleteSeriesModal` +
+`SeriesModeRadios`) entre as duas telas de gestão de recorrência — excluir
+e editar sempre pedem o modo antes de agir, com o motivo do bloqueio
+explicado quando aplicável. Botão "Editar" novo em cada série de
+transação (financeiro) ou de Programação, abrindo um modal com valor,
+conta/categoria ou origem/beneficiário, e a escolha de modo.
+
+**Fora do escopo desta entrega**: edição de série de transferência
+recorrente — o motor de alterar nunca lidou com conta de origem/destino de
+transferência (só foi construído pra transação); o botão "Editar" nem
+aparece pra série de transferência na tela.
+
+## Tela de início — os 3 cards de futuro respeitam o ano vigente
+
+Pedido do cliente: "Pendente a pagar", "Pendente a receber" e "Saldo
+projetado" olhavam TODAS as ocorrências pendentes, sem limite de data — com
+a janela de materialização de ~13 meses (v1.3), isso já entrava bem no ano
+seguinte e distorcia os três números. Agora ficam sempre dentro do **ano
+vigente**:
+
+- `getPendingPayables`/`getPendingReceivables`/`getProjectedBalance`
+  ganharam um parâmetro `year` opcional (default: ano real de hoje — nunca
+  fixado em produção, só existe pra permitir teste determinístico)
+- Rótulos viram **"Pendente a pagar 2026"**, **"Pendente a receber
+  2026"**, **"Saldo projetado 2026"** — o ano é sempre `new
+Date().getFullYear()`, nunca hardcoded, então vira sozinho na virada do
+  ano
+- `getRealBalance` (saldo real, liquidado) nunca precisou dessa mudança —
+  só soma o que já aconteceu, nunca "estica" pro futuro
+
+Único consumidor dessas 3 funções em todo o projeto é a própria tela de
+início — confirmado antes de mudar o comportamento padrão, pra nunca
+quebrar Cockpit ou Relatórios sem perceber.
+
+## Testes desta entrega
+
+Testes de integração cobrindo os pontos mais arriscados: modo "tudo"
+bloqueado com algo liquidado/convertido (nos dois domínios), modo padrão
+nunca tocando o mês vigente, série encerrada (nunca apagada) depois do
+modo padrão, e o cenário completo de ano vigente (uma conta dentro do ano
+e outra já no ano seguinte, confirmando que só a primeira entra na soma).
+2 testes pré-existentes que dependiam do comportamento antigo (excluir/
+editar tudo por padrão) foram corrigidos para pedir `mode: 'ALL'`
+explicitamente, já que isso deixou de ser o padrão.
+
 # VortCon 1.2.0 — Módulo Programações
 
 Evolução grande, pedida como um todo único (nunca em estágios) — controle

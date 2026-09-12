@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { computeOccurrenceDates, toOccurrenceKey } from '@/modules/recurrence/date-sequence';
+import {
+  computeOccurrenceDates,
+  firstDayOfNextMonth,
+  toOccurrenceKey,
+} from '@/modules/recurrence/date-sequence';
 
 const iso = (date: Date): string => date.toISOString().slice(0, 10);
 
@@ -152,5 +156,31 @@ describe('geração de datas de recorrência (Seção 70, 75)', () => {
     expect(dates.map(iso)).not.toContain('2026-12-10');
     expect(dates.map(iso)).not.toContain('2027-01-10');
     expect(dates.map(iso)).not.toContain('2027-02-10');
+  });
+
+  describe('firstDayOfNextMonth (pedido do cliente, evolução v1.3 — fronteira de excluir/editar recorrência)', () => {
+    it('meio do mês vai pro dia 1 do mês seguinte', () => {
+      expect(
+        firstDayOfNextMonth(new Date('2026-09-15T12:00:00.000Z')).toISOString().slice(0, 10),
+      ).toBe('2026-10-01');
+    });
+
+    it('já no dia 1 do mês ainda avança pro mês seguinte (nunca o vigente)', () => {
+      expect(
+        firstDayOfNextMonth(new Date('2026-09-01T00:00:00.000Z')).toISOString().slice(0, 10),
+      ).toBe('2026-10-01');
+    });
+
+    it('último dia do mês também avança certo', () => {
+      expect(
+        firstDayOfNextMonth(new Date('2026-09-30T23:59:59.000Z')).toISOString().slice(0, 10),
+      ).toBe('2026-10-01');
+    });
+
+    it('virada de ano funciona (dezembro -> janeiro)', () => {
+      expect(
+        firstDayOfNextMonth(new Date('2026-12-15T00:00:00.000Z')).toISOString().slice(0, 10),
+      ).toBe('2027-01-01');
+    });
   });
 });

@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { evaluateAccessPolicy } from '@/modules/auth/access-policy.service';
 import { alterProgrammingSeriesForward } from '@/modules/programming/programming-recurrence.service';
+import type { AlterProgrammingSeriesMode } from '@/modules/programming/programming-recurrence.service';
 
 const alterSchema = z.object({
   baseAmountCents: z.number().int().positive().optional(),
   defaultOriginId: z.string().min(1).nullable().optional(),
   defaultBeneficiaryId: z.string().min(1).optional(),
+  mode: z.enum(['ALL', 'FROM_NEXT_MONTH']).optional(),
 });
 
 export async function POST(
@@ -23,11 +25,15 @@ export async function POST(
     return NextResponse.json({ error: 'VALIDATION_ERROR' }, { status: 400 });
   }
 
+  const { mode, ...input } = parsed.data;
+  const resolvedMode: AlterProgrammingSeriesMode = mode ?? 'FROM_NEXT_MONTH';
+
   try {
     const result = await alterProgrammingSeriesForward(
       access.context.tenantId,
       params.id,
-      parsed.data,
+      input,
+      resolvedMode,
     );
     return NextResponse.json({ status: 'ok', ...result });
   } catch (error) {

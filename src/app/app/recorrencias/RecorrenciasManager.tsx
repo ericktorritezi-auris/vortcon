@@ -1,9 +1,17 @@
 'use client';
 
-import { AlertTriangle, ArrowLeftRight, Repeat } from 'lucide-react';
+import { ArrowLeftRight, Repeat } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Badge, Button } from '@/shared/ui';
+import { DeleteSeriesModal } from '@/shared/recurrence/DeleteSeriesModal';
+import type { SeriesActionMode } from '@/shared/recurrence/DeleteSeriesModal';
+import { EditRecurrenceSeriesModal } from './EditRecurrenceSeriesModal';
+
+interface SimpleOption {
+  id: string;
+  name: string;
+}
 
 interface SeriesView {
   id: string;
@@ -16,6 +24,9 @@ interface SeriesView {
   endDate: string | Date | null;
   active: boolean;
   occurrenceCount: number;
+  baseAmountCents: number;
+  defaultAccountId: string | null;
+  defaultCategoryId: string | null;
   accountName: string | null;
 }
 
@@ -31,18 +42,29 @@ const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', tim
 
 /**
  * Gestão de recorrências (pedido do cliente) — lista todas as séries
- * (transação e transferência), permite selecionar várias e excluir tudo
- * de uma vez, com a série inteira e todas as ocorrências, de qualquer
- * status. Ação destrutiva e irreversível — confirmação obrigatória antes
- * de qualquer exclusão.
+ * (transação e transferência), permite selecionar várias e excluir em
+ * massa, e editar cada série de transação individualmente (evolução
+ * v1.3 — edição de transferência recorrente fica de fora por enquanto: o
+ * motor de alterar nunca lidou com origem/destino de transferência).
+ * Excluir e editar sempre com escolha de modo — tudo ou do mês seguinte
+ * em diante.
  */
-export function RecorrenciasManager({ series }: { series: SeriesView[] }): React.ReactElement {
+export function RecorrenciasManager({
+  series,
+  accounts,
+  categories,
+}: {
+  series: SeriesView[];
+  accounts: SimpleOption[];
+  categories: SimpleOption[];
+}): React.ReactElement {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [editingSeriesId, setEditingSeriesId] = useState<string | null>(null);
 
   const allSelected = series.length > 0 && selected.size === series.length;
+  const editingSeries = series.find((s) => s.id === editingSeriesId) ?? null;
 
   function toggleOne(id: string): void {
     setSelected((prev) => {
@@ -57,34 +79,19 @@ export function RecorrenciasManager({ series }: { series: SeriesView[] }): React
     setSelected(allSelected ? new Set() : new Set(series.map((s) => s.id)));
   }
 
-  async function handleDeleteSelected(): Promise<void> {
-    if (selected.size === 0) return;
-
-    const totalOccurrences = series
-      .filter((s) => selected.has(s.id))
-      .reduce((sum, s) => sum + s.occurrenceCount, 0);
-
-    const confirmed = window.confirm(
-      `Excluir ${selected.size} série(s) recorrente(s) e TODOS os ${totalOccurrences} lançamentos que elas já geraram — pagos, pendentes, cancelados, todos? Essa ação não pode ser desfeita.`,
-    );
-    if (!confirmed) return;
-
-    setLoading(true);
-    setError(null);
-    try {
-      for (const seriesId of selected) {
-        const response = await fetch(`/api/recurrencias/${seriesId}`, { method: 'DELETE' });
-        if (!response.ok) {
-          const body = (await response.json()) as { message?: string };
-          setError(body.message ?? 'Não foi possível excluir uma das séries selecionadas.');
-          return;
-        }
+  async function handleConfirmDelete(mode: SeriesActionMode): Promise<void> {
+    for (const seriesId of selected) {
+      const response = await fetch(`/api/recurrencias/${seriesId}?mode=${mode}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const body = (await response.json()) as { message?: string };
+        throw new Error(body.message ?? 'Não foi possível excluir uma das séries selecionadas.');
       }
-      setSelected(new Set());
-      router.refresh();
-    } finally {
-      setLoading(false);
     }
+    setSelected(new Set());
+    setDeleteModalOpen(false);
+    router.refresh();
   }
 
   if (series.length === 0) {
@@ -111,35 +118,22 @@ export function RecorrenciasManager({ series }: { series: SeriesView[] }): React
         <Button
           variant="danger"
           size="sm"
-          onClick={handleDeleteSelected}
-          loading={loading}
+          onClick={() => setDeleteModalOpen(true)}
           disabled={selected.size === 0}
         >
           Excluir selecionadas ({selected.size})
         </Button>
       </div>
 
-      {error ? (
-        <p
-          role="alert"
-          className="flex items-center gap-2 text-sm font-medium text-financial-danger"
-        >
-          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {error}
-        </p>
-      ) : null}
-
       <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-white">
         {series.map((item) => (
-          <label
-            key={item.id}
-            className="flex cursor-pointer items-start gap-3 px-4 py-3 hover:bg-surface-page"
-          >
+          <div key={item.id} className="flex items-start gap-3 px-4 py-3 hover:bg-surface-page">
             <input
               type="checkbox"
               checked={selected.has(item.id)}
               onChange={() => toggleOne(item.id)}
               className="mt-1 h-4 w-4 shrink-0 rounded border-ink-secondary/40"
+              aria-label={`Selecionar ${item.description ?? 'série'}`}
             />
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-page text-ink-secondary">
               {item.kind === 'TRANSFER' ? (
@@ -170,9 +164,40 @@ export function RecorrenciasManager({ series }: { series: SeriesView[] }): React
                 · {item.occurrenceCount} lançamento(s) gerado(s)
               </span>
             </span>
-          </label>
+            {item.kind === 'TRANSACTION' ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setEditingSeriesId(item.id)}
+                className="shrink-0"
+              >
+                Editar
+              </Button>
+            ) : null}
+          </div>
         ))}
       </div>
+
+      <DeleteSeriesModal
+        open={deleteModalOpen}
+        seriesCount={selected.size}
+        settledLabel="pago/recebido"
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleteModalOpen(false)}
+      />
+
+      {editingSeries ? (
+        <EditRecurrenceSeriesModal
+          seriesId={editingSeries.id}
+          seriesDescription={editingSeries.description}
+          initialAmountCents={editingSeries.baseAmountCents}
+          initialAccountId={editingSeries.defaultAccountId}
+          initialCategoryId={editingSeries.defaultCategoryId}
+          accounts={accounts}
+          categories={categories}
+          onClose={() => setEditingSeriesId(null)}
+        />
+      ) : null}
     </div>
   );
 }

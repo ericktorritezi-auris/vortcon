@@ -49,6 +49,9 @@ export async function listAllSeriesForTenant(tenantId: string) {
     endDate: s.endDate,
     active: s.active,
     occurrenceCount: s._count.occurrences + s._count.transfers,
+    baseAmountCents: s.baseAmountCents,
+    defaultAccountId: s.defaultAccountId,
+    defaultCategoryId: s.defaultCategoryId,
     accountName:
       accountNameById.get(s.defaultAccountId ?? '') ??
       (s.defaultSourceAccountId && s.defaultDestinationAccountId

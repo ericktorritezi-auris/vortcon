@@ -13,8 +13,11 @@ import {
 import { createTransfer } from '@/modules/transfers/transfer.service';
 import {
   getCategoryBreakdown,
+  getPendingPayables,
+  getPendingReceivables,
   getPeriodIncome,
   getPeriodResult,
+  getProjectedBalance,
   getRealBalance,
 } from '@/modules/financial-engine/financial-engine.service';
 import { cleanupTenant, createTestPlan, deleteTestPlan } from '../helpers/commercial';
@@ -381,5 +384,69 @@ describe('Financial Engine — testes obrigatórios (Seções 170-172)', () => {
 
     const balanceWithInfluence = await getRealBalance(tenantId);
     expect(balanceWithInfluence).toBe(balanceWithoutInfluence - 100_000);
+  });
+
+  it('pedido do cliente (evolução v1.3) — Pendente a pagar/receber e Saldo projetado ficam dentro do ANO VIGENTE, nunca olhando pro ano seguinte', async () => {
+    // Usa um ano fixo e isolado (2030) pra nunca depender da data real de
+    // "hoje" nem interferir com outros testes deste arquivo.
+    const account = await createAccount(tenantId, {
+      name: 'Conta ano vigente',
+      initialBalanceCents: 0,
+      initialBalanceDate: new Date('2030-01-01'),
+    });
+
+    const payableThisYear = await createIncomeOrExpense(tenantId, {
+      type: 'EXPENSE',
+      description: 'Conta dentro de 2030',
+      amountCents: 50_000,
+      dueDate: new Date('2030-12-20'),
+      accountId: account.id,
+    });
+    const payableNextYear = await createIncomeOrExpense(tenantId, {
+      type: 'EXPENSE',
+      description: 'Conta já em 2031 (recorrência esticada)',
+      amountCents: 30_000,
+      dueDate: new Date('2031-02-10'),
+      accountId: account.id,
+    });
+    const receivableThisYear = await createIncomeOrExpense(tenantId, {
+      type: 'INCOME',
+      description: 'Receita dentro de 2030',
+      amountCents: 80_000,
+      dueDate: new Date('2030-11-15'),
+      accountId: account.id,
+    });
+    const receivableNextYear = await createIncomeOrExpense(tenantId, {
+      type: 'INCOME',
+      description: 'Receita já em 2031',
+      amountCents: 20_000,
+      dueDate: new Date('2031-01-05'),
+      accountId: account.id,
+    });
+
+    const payables2030 = await getPendingPayables(tenantId, 2030);
+    const receivables2030 = await getPendingReceivables(tenantId, 2030);
+    const projected2030 = await getProjectedBalance(tenantId, 2030);
+
+    expect(payables2030).toBe(50_000); // só a de 2030, nunca a de 2031
+    expect(receivables2030).toBe(80_000);
+    expect(projected2030).toBe(0 + 80_000 - 50_000); // saldo real (0) + a receber - a pagar, só 2030
+
+    const payables2031 = await getPendingPayables(tenantId, 2031);
+    expect(payables2031).toBe(30_000); // a de 2031 só conta pro ano dela
+
+    await prisma.financialTransaction.deleteMany({
+      where: {
+        id: {
+          in: [
+            payableThisYear.id,
+            payableNextYear.id,
+            receivableThisYear.id,
+            receivableNextYear.id,
+          ],
+        },
+      },
+    });
+    await prisma.financialAccount.delete({ where: { id: account.id } });
   });
 });

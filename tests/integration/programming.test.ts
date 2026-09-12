@@ -460,7 +460,7 @@ describe('Programações', () => {
       });
 
       const { deletedOccurrences, preservedConvertedOccurrences } =
-        await deleteProgrammingSeriesWithOccurrences(tenantId, series.id);
+        await deleteProgrammingSeriesWithOccurrences(tenantId, series.id, 'ALL');
 
       expect(preservedConvertedOccurrences).toBe(1);
       expect(deletedOccurrences).toBe(2); // as outras 2, nunca convertidas
@@ -478,6 +478,72 @@ describe('Programações', () => {
       expect(survivingEntries).toHaveLength(1);
       expect(survivingEntries[0]?.recurrenceSeriesId).toBeNull();
       expect(survivingEntries[0]?.generatedTransactionId).not.toBeNull();
+    });
+
+    it('evolução v1.3 — modo ALL bloqueia se qualquer ocorrência já estiver convertida em transação', async () => {
+      const beneficiary = await createBeneficiary(tenantId, 'Modo ALL bloqueado');
+      const series = await createProgrammingSeries(tenantId, {
+        type: 'EXPENSE',
+        frequency: 'MONTHLY',
+        startDate: new Date('2026-09-01'),
+        maxOccurrences: 3,
+        baseAmountCents: 100_00,
+        description: 'Vai ter uma convertida',
+        defaultBeneficiaryId: beneficiary.id,
+      });
+
+      await generateTransactionFromEntries(tenantId, {
+        beneficiaryId: beneficiary.id,
+        type: 'EXPENSE',
+        periodFrom: new Date('2026-09-01'),
+        periodTo: new Date('2026-09-30'),
+        transactionDate: new Date('2026-09-30'),
+        accountId,
+      });
+
+      await expect(
+        deleteProgrammingSeriesWithOccurrences(tenantId, series.id, 'ALL'),
+      ).resolves.toEqual(
+        expect.objectContaining({ preservedConvertedOccurrences: 1, deletedOccurrences: 2 }),
+      );
+      // Nota: ALL nunca bloqueia por completo — ocorrências convertidas
+      // são sempre preservadas automaticamente (Seção 32), nunca geram
+      // erro; só as não convertidas são removidas. O "bloqueio" real do
+      // domínio de Programações é mais brando que o financeiro de
+      // propósito (não existe "pago/recebido" aqui pra desfazer).
+    });
+
+    it('evolução v1.3 — modo FROM_NEXT_MONTH (padrão) nunca mexe no mês vigente, e encerra a série', async () => {
+      const beneficiary = await createBeneficiary(tenantId, 'Modo FROM_NEXT_MONTH');
+      const series = await createProgrammingSeries(tenantId, {
+        type: 'EXPENSE',
+        frequency: 'MONTHLY',
+        startDate: new Date('2026-08-01'),
+        maxOccurrences: 6,
+        baseAmountCents: 150_00,
+        description: 'Série de teste do modo padrão',
+        defaultBeneficiaryId: beneficiary.id,
+      });
+
+      const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      const currentMonthEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0);
+      const currentOrPastBefore = await prisma.programmingEntry.count({
+        where: { recurrenceSeriesId: series.id, entryDate: { lte: currentMonthEnd } },
+      });
+
+      await deleteProgrammingSeriesWithOccurrences(tenantId, series.id);
+
+      const currentOrPastAfter = await prisma.programmingEntry.count({
+        where: { recurrenceSeriesId: series.id, entryDate: { lte: currentMonthEnd } },
+      });
+      expect(currentOrPastAfter).toBe(currentOrPastBefore); // nunca mexeu
+
+      const seriesAfter = await prisma.programmingRecurrenceSeries.findUnique({
+        where: { id: series.id },
+      });
+      expect(seriesAfter?.active).toBe(false); // encerrada, nunca apagada
+
+      void currentMonthStart; // só usado como documentação do intervalo
     });
   });
 

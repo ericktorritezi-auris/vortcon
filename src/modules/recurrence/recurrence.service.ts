@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
-import { computeOccurrenceDates, toOccurrenceKey } from './date-sequence';
+import { computeOccurrenceDates, firstDayOfNextMonth, toOccurrenceKey } from './date-sequence';
 import * as recurrenceRepository from './recurrence.repository';
 
 // Seção 75: "janela futura razoável, nunca infinita". Achado real
@@ -226,6 +226,8 @@ export async function materializeAllActiveSeries(tenantId: string): Promise<void
   }
 }
 
+export type AlterSeriesMode = 'ALL' | 'FROM_NEXT_MONTH';
+
 interface AlterFutureOccurrencesInput {
   baseAmountCents?: number;
   defaultAccountId?: string;
@@ -241,30 +243,47 @@ interface AlterFutureOccurrencesInput {
 }
 
 /**
- * "Alterar recorrência" (Seção 73) — ação explícita e distinta de editar
- * uma ocorrência isolada (Seção 72). Muda o padrão da série E as
- * ocorrências futuras ELEGÍVEIS (já materializadas, ainda PENDING, com
- * vencimento no futuro) — nunca reescreve liquidadas, canceladas ou
- * históricas (Seção 73: "nunca reescrever"). Só se aplica a séries de
- * transação — transferência recorrente altera só valor/contas via
- * `updateSeriesBase` direto, sem essa propagação retroativa (V1).
+ * "Alterar recorrência" (pedido do cliente, evolução v1.3) — dois modos,
+ * mesma lógica de `deleteSeriesWithOccurrences`:
+ *
+ * `FROM_NEXT_MONTH` (padrão): nunca mexe no mês vigente nem no passado —
+ * só ocorrências PENDING a partir do dia 1 do mês seguinte.
+ *
+ * `ALL`: edita ocorrências PENDING de qualquer data, inclusive passadas —
+ * só permitido se nenhuma ocorrência estiver liquidada em toda a série
+ * (mesma trava de "higiene de cálculo" da exclusão). Nunca reescreve uma
+ * ocorrência liquidada ou cancelada, nos dois modos.
  */
 export async function alterRecurrenceForward(
   tenantId: string,
   seriesId: string,
   input: AlterFutureOccurrencesInput,
-): Promise<{ updatedOccurrences: number }> {
+  mode: AlterSeriesMode = 'FROM_NEXT_MONTH',
+): Promise<{ updatedOccurrences: number; mode: AlterSeriesMode }> {
   if (input.defaultAccountId) await assertAccountOwnedByTenant(tenantId, input.defaultAccountId);
   if (input.defaultCategoryId) await assertCategoryOwnedByTenant(tenantId, input.defaultCategoryId);
 
+  if (mode === 'ALL') {
+    const settledCount = await prisma.financialTransaction.count({
+      where: { recurrenceSeriesId: seriesId, tenantId, status: { in: ['PAID', 'RECEIVED'] } },
+    });
+    if (settledCount > 0) {
+      throw new Error(
+        `Esta série tem ${settledCount} ocorrência(s) já paga(s)/recebida(s) — desfaça a liquidação delas antes de editar tudo, ou edite só do mês seguinte em diante.`,
+      );
+    }
+  }
+
   await recurrenceRepository.updateSeriesBase(tenantId, seriesId, input);
+
+  const dateFilter = mode === 'ALL' ? {} : { dueDate: { gte: firstDayOfNextMonth(new Date()) } };
 
   const result = await prisma.financialTransaction.updateMany({
     where: {
       tenantId,
       recurrenceSeriesId: seriesId,
       status: 'PENDING',
-      dueDate: { gt: new Date() },
+      ...dateFilter,
     },
     data: {
       ...(input.baseAmountCents !== undefined ? { amountCents: input.baseAmountCents } : {}),
@@ -277,7 +296,7 @@ export async function alterRecurrenceForward(
     },
   });
 
-  return { updatedOccurrences: result.count };
+  return { updatedOccurrences: result.count, mode };
 }
 
 export async function endRecurrenceSeries(
@@ -296,34 +315,122 @@ export async function endRecurrenceSeries(
  * é uma ação de reset em massa, consentida explicitamente na tela de
  * gestão de recorrências, nunca disparada sem confirmação clara.
  */
+export type DeleteSeriesMode = 'ALL' | 'FROM_NEXT_MONTH';
+
+/**
+ * Excluir uma série (pedido do cliente, evolução v1.3) — dois modos:
+ *
+ * `ALL`: exclui a série inteira e TODAS as ocorrências, de qualquer data.
+ * Só permitido se NENHUMA ocorrência estiver liquidada (PAID/RECEIVED em
+ * transação, COMPLETED em transferência) — "higiene de cálculo": uma
+ * ocorrência liquidada já mexeu no saldo/motor de verdade, então precisa
+ * ser desfeita (voltar a pendente) antes de poder ser apagada. Lança erro
+ * explicando quantas ocorrências ainda estão liquidadas, sem executar
+ * nada.
+ *
+ * `FROM_NEXT_MONTH` (padrão): NUNCA mexe no mês vigente nem no passado —
+ * só exclui ocorrências a partir do dia 1 do mês seguinte, e só as que
+ * ainda não foram liquidadas (uma liquidada no futuro seria um caso raro,
+ * mas ainda assim preservada, nunca apagada). A série em si NUNCA é
+ * apagada nesse modo — fica com `active: false` e `endDate` no fim do mês
+ * vigente, pra garantir que a materialização diária nunca recrie o que
+ * acabou de ser excluído.
+ */
 export async function deleteSeriesWithOccurrences(
   tenantId: string,
   seriesId: string,
-): Promise<{ deletedOccurrences: number }> {
+  mode: DeleteSeriesMode = 'FROM_NEXT_MONTH',
+): Promise<{ deletedOccurrences: number; mode: DeleteSeriesMode }> {
   const series = await recurrenceRepository.findSeriesById(tenantId, seriesId);
   if (!series) throw new Error('Série não encontrada neste tenant.');
+
+  if (mode === 'ALL') {
+    const settledCount =
+      series.kind === 'TRANSFER'
+        ? await prisma.transfer.count({
+            where: { recurrenceSeriesId: seriesId, tenantId, status: 'COMPLETED' },
+          })
+        : await prisma.financialTransaction.count({
+            where: { recurrenceSeriesId: seriesId, tenantId, status: { in: ['PAID', 'RECEIVED'] } },
+          });
+
+    if (settledCount > 0) {
+      throw new Error(
+        `Esta série tem ${settledCount} ocorrência(s) já paga(s)/recebida(s) — desfaça a liquidação delas antes de excluir tudo, ou exclua só do mês seguinte em diante.`,
+      );
+    }
+
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      let deletedOccurrences = 0;
+
+      if (series.kind === 'TRANSFER') {
+        const result = await tx.transfer.deleteMany({
+          where: { recurrenceSeriesId: seriesId, tenantId },
+        });
+        deletedOccurrences = result.count;
+      } else {
+        await tx.financialTransactionTag.deleteMany({
+          where: { transaction: { recurrenceSeriesId: seriesId, tenantId } },
+        });
+        const result = await tx.financialTransaction.deleteMany({
+          where: { recurrenceSeriesId: seriesId, tenantId },
+        });
+        deletedOccurrences = result.count;
+      }
+
+      await tx.recurrenceSeriesTag.deleteMany({ where: { recurrenceSeriesId: seriesId } });
+      await tx.recurrenceSeries.delete({ where: { id: seriesId } });
+
+      return { deletedOccurrences, mode };
+    });
+  }
+
+  // FROM_NEXT_MONTH — nunca mexe no mês vigente nem no passado.
+  const boundary = firstDayOfNextMonth(new Date());
+  const currentMonthEnd = new Date(boundary.getTime() - 1);
 
   return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     let deletedOccurrences = 0;
 
     if (series.kind === 'TRANSFER') {
       const result = await tx.transfer.deleteMany({
-        where: { recurrenceSeriesId: seriesId, tenantId },
+        where: {
+          recurrenceSeriesId: seriesId,
+          tenantId,
+          scheduledDate: { gte: boundary },
+          status: { not: 'COMPLETED' },
+        },
       });
       deletedOccurrences = result.count;
     } else {
       await tx.financialTransactionTag.deleteMany({
-        where: { transaction: { recurrenceSeriesId: seriesId, tenantId } },
+        where: {
+          transaction: {
+            recurrenceSeriesId: seriesId,
+            tenantId,
+            dueDate: { gte: boundary },
+            status: { notIn: ['PAID', 'RECEIVED'] },
+          },
+        },
       });
       const result = await tx.financialTransaction.deleteMany({
-        where: { recurrenceSeriesId: seriesId, tenantId },
+        where: {
+          recurrenceSeriesId: seriesId,
+          tenantId,
+          dueDate: { gte: boundary },
+          status: { notIn: ['PAID', 'RECEIVED'] },
+        },
       });
       deletedOccurrences = result.count;
     }
 
-    await tx.recurrenceSeriesTag.deleteMany({ where: { recurrenceSeriesId: seriesId } });
-    await tx.recurrenceSeries.delete({ where: { id: seriesId } });
+    // Encerra a série no mês vigente — sem isso, a materialização diária
+    // recriaria sozinha o que acabou de ser excluído.
+    await tx.recurrenceSeries.update({
+      where: { id: seriesId },
+      data: { active: false, endDate: currentMonthEnd },
+    });
 
-    return { deletedOccurrences };
+    return { deletedOccurrences, mode };
   });
 }

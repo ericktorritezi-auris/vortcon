@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { evaluateAccessPolicy } from '@/modules/auth/access-policy.service';
 import { listAllSeriesForTenant } from '@/modules/recurrence/recurrence.repository';
+import { listAccounts } from '@/modules/accounts/account.service';
+import { listCategories } from '@/modules/categories/category.service';
 import { AppShell } from '../AppShell';
 import { RecorrenciasManager } from './RecorrenciasManager';
 
@@ -8,8 +10,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Gestão de recorrências (pedido do cliente) — ver todas as séries de uma
- * vez, selecionar e excluir em massa. Nunca existia antes: a única forma
- * de mexer numa série recorrente era via API direta.
+ * vez, selecionar e excluir em massa, e editar cada uma (evolução v1.3,
+ * com os dois modos: tudo ou do mês seguinte em diante).
  */
 export default async function RecorrenciasPage(): Promise<React.ReactElement> {
   const access = await evaluateAccessPolicy();
@@ -31,7 +33,11 @@ export default async function RecorrenciasPage(): Promise<React.ReactElement> {
       break;
   }
 
-  const series = await listAllSeriesForTenant(access.context.tenantId);
+  const [series, accounts, categories] = await Promise.all([
+    listAllSeriesForTenant(access.context.tenantId),
+    listAccounts(access.context.tenantId),
+    listCategories(access.context.tenantId),
+  ]);
 
   return (
     <AppShell>
@@ -39,7 +45,14 @@ export default async function RecorrenciasPage(): Promise<React.ReactElement> {
       <p className="mb-6 text-sm text-ink-secondary">
         Todas as suas transações e transferências recorrentes, num lugar só.
       </p>
-      <RecorrenciasManager series={series} />
+      <RecorrenciasManager
+        series={series}
+        accounts={accounts.map((a: { id: string; name: string }) => ({ id: a.id, name: a.name }))}
+        categories={categories.map((c: { id: string; name: string }) => ({
+          id: c.id,
+          name: c.name,
+        }))}
+      />
     </AppShell>
   );
 }

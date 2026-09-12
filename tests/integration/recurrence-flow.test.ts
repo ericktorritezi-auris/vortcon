@@ -12,7 +12,7 @@ import {
 } from '@/modules/recurrence/recurrence.service';
 import { listAllSeriesForTenant } from '@/modules/recurrence/recurrence.repository';
 import { createTag } from '@/modules/tags/tag.service';
-import { settleTransaction } from '@/modules/transactions/transaction.service';
+import { settleTransaction, unsettleTransaction } from '@/modules/transactions/transaction.service';
 import { cleanupTenant, createTestPlan, deleteTestPlan } from '../helpers/commercial';
 
 afterEach(() => {
@@ -394,12 +394,12 @@ describe('fluxo de recorrência', () => {
     });
     expect(occurrencesBefore.length).toBeGreaterThan(0);
 
-    // Uma das ocorrências já paga — a exclusão em massa precisa funcionar
-    // mesmo assim, sem exigir cancelar uma por uma antes (diferente de
-    // deleteTransaction).
+    // Uma das ocorrências já paga — precisa desfazer a liquidação antes
+    // do modo 'ALL' permitir excluir (higiene de cálculo, evolução v1.3).
     await settleTransaction(tenantId, occurrencesBefore[0]!.id, new Date());
+    await unsettleTransaction(tenantId, occurrencesBefore[0]!.id);
 
-    const { deletedOccurrences } = await deleteSeriesWithOccurrences(tenantId, series.id);
+    const { deletedOccurrences } = await deleteSeriesWithOccurrences(tenantId, series.id, 'ALL');
     expect(deletedOccurrences).toBe(occurrencesBefore.length);
 
     const occurrencesAfter = await prisma.financialTransaction.count({
@@ -409,6 +409,116 @@ describe('fluxo de recorrência', () => {
 
     const seriesAfter = await prisma.recurrenceSeries.findUnique({ where: { id: series.id } });
     expect(seriesAfter).toBeNull();
+  });
+
+  it('evolução v1.3 — excluir modo ALL bloqueia se qualquer ocorrência estiver paga/recebida em qualquer lugar da série', async () => {
+    const series = await createRecurrenceSeries(tenantId, {
+      kind: 'TRANSACTION',
+      transactionType: 'EXPENSE',
+      frequency: 'MONTHLY',
+      startDate: new Date('2026-09-01'),
+      maxOccurrences: 3,
+      baseAmountCents: 10_000,
+      description: 'Modo ALL bloqueado',
+      defaultAccountId: accountId,
+    });
+    const occurrences = await prisma.financialTransaction.findMany({
+      where: { recurrenceSeriesId: series.id },
+    });
+    await settleTransaction(tenantId, occurrences[0]!.id, new Date());
+
+    await expect(deleteSeriesWithOccurrences(tenantId, series.id, 'ALL')).rejects.toThrow(
+      'já paga(s)/recebida(s)',
+    );
+
+    // Limpeza — desfaz a liquidação e exclui de verdade.
+    await unsettleTransaction(tenantId, occurrences[0]!.id);
+    await prisma.financialTransaction.deleteMany({ where: { recurrenceSeriesId: series.id } });
+    await prisma.recurrenceSeries.delete({ where: { id: series.id } });
+  });
+
+  it('evolução v1.3 — excluir modo FROM_NEXT_MONTH (padrão) nunca mexe no mês vigente nem no passado, e encerra a série pra nunca recriar o que apagou', async () => {
+    const series = await createRecurrenceSeries(tenantId, {
+      kind: 'TRANSACTION',
+      transactionType: 'EXPENSE',
+      frequency: 'MONTHLY',
+      startDate: new Date('2026-08-01'),
+      maxOccurrences: 6,
+      baseAmountCents: 20_000,
+      description: 'Modo FROM_NEXT_MONTH',
+      defaultAccountId: accountId,
+    });
+
+    const before = await prisma.financialTransaction.findMany({
+      where: { recurrenceSeriesId: series.id },
+    });
+    const currentMonthKey = new Date().toISOString().slice(0, 7);
+    const currentOrPastBefore = before.filter(
+      (o: FinancialTransaction) => o.dueDate.toISOString().slice(0, 7) <= currentMonthKey,
+    );
+
+    const { deletedOccurrences } = await deleteSeriesWithOccurrences(tenantId, series.id);
+
+    const currentOrPastAfter = await prisma.financialTransaction.findMany({
+      where: {
+        recurrenceSeriesId: series.id,
+        dueDate: { lte: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0) },
+      },
+    });
+    // Nada do mês vigente ou passado foi tocado.
+    expect(currentOrPastAfter.length).toBe(currentOrPastBefore.length);
+    expect(deletedOccurrences).toBeGreaterThan(0);
+
+    // A série foi encerrada — nunca mais materializa nada novo sozinha.
+    const seriesAfter = await prisma.recurrenceSeries.findUnique({ where: { id: series.id } });
+    expect(seriesAfter?.active).toBe(false);
+    const materializedAgain = await materializeSeriesOccurrences(tenantId, series.id);
+    expect(materializedAgain).toBe(0);
+
+    await prisma.financialTransaction.deleteMany({ where: { recurrenceSeriesId: series.id } });
+    await prisma.recurrenceSeries.delete({ where: { id: series.id } });
+  });
+
+  it('evolução v1.3 — alterar modo ALL bloqueia se algo estiver pago/recebido; modo FROM_NEXT_MONTH nunca edita o mês vigente', async () => {
+    const series = await createRecurrenceSeries(tenantId, {
+      kind: 'TRANSACTION',
+      transactionType: 'EXPENSE',
+      frequency: 'MONTHLY',
+      startDate: new Date('2026-08-01'),
+      maxOccurrences: 6,
+      baseAmountCents: 30_000,
+      description: 'Alterar com modo',
+      defaultAccountId: accountId,
+    });
+
+    // FROM_NEXT_MONTH (padrão): mês vigente nunca muda de valor.
+    const currentMonthOccurrence = await prisma.financialTransaction.findFirst({
+      where: {
+        recurrenceSeriesId: series.id,
+        dueDate: {
+          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+          lte: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0),
+        },
+      },
+    });
+    await alterRecurrenceForward(tenantId, series.id, { baseAmountCents: 99_999 });
+    const currentMonthAfter = await prisma.financialTransaction.findUnique({
+      where: { id: currentMonthOccurrence!.id },
+    });
+    expect(currentMonthAfter?.amountCents).toBe(30_000); // nunca mudou
+
+    // ALL bloqueado com algo pago.
+    const occurrences = await prisma.financialTransaction.findMany({
+      where: { recurrenceSeriesId: series.id },
+    });
+    await settleTransaction(tenantId, occurrences[0]!.id, new Date());
+    await expect(
+      alterRecurrenceForward(tenantId, series.id, { baseAmountCents: 1 }, 'ALL'),
+    ).rejects.toThrow('já paga(s)/recebida(s)');
+
+    await unsettleTransaction(tenantId, occurrences[0]!.id);
+    await prisma.financialTransaction.deleteMany({ where: { recurrenceSeriesId: series.id } });
+    await prisma.recurrenceSeries.delete({ where: { id: series.id } });
   });
 });
 
