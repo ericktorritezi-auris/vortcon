@@ -234,4 +234,31 @@ describe('fluxo comercial (assinatura, mensalidade, inadimplencia)', () => {
     expect(afterPayment?.amountCents).toBe(originalAmount);
     expect(afterPayment?.paidAt).not.toBeNull();
   });
+
+  it('evolução v1.5 — bloqueio automático por inadimplência gera um evento de outbox TenantBlocked; pagamento que desbloqueia gera TenantUnblocked', async () => {
+    const charge = (await subscriptionRepository.listChargesForTenant(tenantId))[0]!;
+    const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+    await prisma.subscriptionCharge.update({
+      where: { id: charge.id },
+      data: { dueDate: sixDaysAgo, status: 'PENDING' },
+    });
+
+    await evaluateAndApplyDelinquency(tenantId);
+
+    const blockedEvent = await prisma.outboxEvent.findFirst({
+      where: { eventType: 'TenantBlocked' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(blockedEvent).not.toBeNull();
+    expect((blockedEvent?.payload as { tenantId?: string })?.tenantId).toBe(tenantId);
+
+    await registerPayment(charge.id, adminUserId);
+
+    const unblockedEvent = await prisma.outboxEvent.findFirst({
+      where: { eventType: 'TenantUnblocked' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(unblockedEvent).not.toBeNull();
+    expect((unblockedEvent?.payload as { tenantId?: string })?.tenantId).toBe(tenantId);
+  });
 });

@@ -1,5 +1,5 @@
+import type { Prisma, TenantAccessBlock, TenantBlockType } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
-import type { TenantAccessBlock, TenantBlockType } from '@prisma/client';
 
 /**
  * Camada de acesso a dados de `tenants`/`tenant_access_blocks` (Seção 20-21,
@@ -36,15 +36,23 @@ export async function findActiveBlocks(tenantId: string): Promise<TenantAccessBl
   });
 }
 
-export async function createBlock(tenantId: string, type: TenantBlockType, reason?: string) {
-  return prisma.tenantAccessBlock.create({
+export async function createBlock(
+  tenantId: string,
+  type: TenantBlockType,
+  reason?: string,
+  client: Prisma.TransactionClient | typeof prisma = prisma,
+) {
+  return client.tenantAccessBlock.create({
     data: { tenantId, type, reason },
   });
 }
 
 /** Levantar bloqueio preserva o registro (Seção 30) — nunca deleta a linha. */
-export async function liftBlock(blockId: string) {
-  return prisma.tenantAccessBlock.update({
+export async function liftBlock(
+  blockId: string,
+  client: Prisma.TransactionClient | typeof prisma = prisma,
+) {
+  return client.tenantAccessBlock.update({
     where: { id: blockId },
     data: { active: false, liftedAt: new Date() },
   });

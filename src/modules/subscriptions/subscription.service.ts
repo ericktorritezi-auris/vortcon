@@ -1,6 +1,7 @@
-import type { SubscriptionCharge } from '@prisma/client';
+import type { Prisma, SubscriptionCharge } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
 import { recordAuditEvent } from '@/modules/audit/audit.service';
+import { appendOutboxEvent } from '@/modules/notifications/outbox.service';
 import * as tenantRepository from '@/modules/tenants/tenant.repository';
 import * as subscriptionRepository from './subscription.repository';
 import { isOverdueEnoughToBlock } from './delinquency-rules';
@@ -71,11 +72,24 @@ export async function evaluateAndApplyDelinquency(tenantId: string): Promise<voi
   if (alreadyBlocked) return;
 
   const competenceLabel = overdue.competence.toISOString().slice(0, 7);
-  await tenantRepository.createBlock(
-    tenantId,
-    'DELINQUENCY',
-    `Mensalidade vencida: competencia ${competenceLabel}`,
-  );
+  const reason = `Mensalidade vencida: competencia ${competenceLabel}`;
+  const membership = await prisma.tenantUser.findFirst({
+    where: { tenantId },
+    include: { user: true },
+  });
+
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await tenantRepository.createBlock(tenantId, 'DELINQUENCY', reason, tx);
+    if (membership) {
+      await appendOutboxEvent(tx, 'TenantBlocked', {
+        tenantId,
+        userId: membership.user.id,
+        userEmail: membership.user.email,
+        reason,
+      });
+    }
+  });
+
   await recordAuditEvent({
     actorType: 'SYSTEM',
     tenantId,
@@ -117,7 +131,16 @@ export async function registerPayment(chargeId: string, adminUserId: string): Pr
   const activeBlocks = await tenantRepository.findActiveBlocks(charge.tenantId);
   const delinquencyBlock = activeBlocks.find((block) => block.type === 'DELINQUENCY');
   if (delinquencyBlock) {
-    await tenantRepository.liftBlock(delinquencyBlock.id);
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tenantRepository.liftBlock(delinquencyBlock.id, tx);
+      if (membership) {
+        await appendOutboxEvent(tx, 'TenantUnblocked', {
+          tenantId: charge.tenantId,
+          userId: membership.user.id,
+          userEmail: membership.user.email,
+        });
+      }
+    });
   }
 
   await recordAuditEvent({

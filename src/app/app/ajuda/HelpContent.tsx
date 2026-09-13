@@ -280,6 +280,11 @@ const SECTIONS: HelpSection[] = [
         answer:
           'Clique no sino e depois em "Ativar notificações push neste dispositivo". Seu navegador vai pedir permissão — sem essa permissão, o push não funciona, mas as notificações continuam aparecendo normalmente dentro do app.',
       },
+      {
+        question: 'Além de aparecer no sino, eu recebo e-mail de alguma coisa?',
+        answer:
+          'Sim, dos eventos mais importantes: convite pra ativar a conta, recuperação de senha, mensalidade vencendo/em atraso, pagamento confirmado, e quando sua conta é bloqueada ou desbloqueada. Todos chegam com a identidade visual do VortCon, não só texto simples.',
+      },
     ],
   },
   {

@@ -978,6 +978,62 @@ sem ver acontecer:
       desenvolvimento nunca teve como pegar sozinho.
 - [ ] **Smoke production aprovado** — mesmo motivo do item de Healthcheck acima
 
+# VortCon 1.5.0 — Identidade visual nos e-mails + bloqueio/desbloqueio conectados
+
+Pedido do cliente: todo e-mail disparado pelo VortCon ganhou a identidade
+visual da marca (cores, wordmark, layout) — antes era texto puro (`<p>`
+sem nenhum estilo).
+
+## Layout compartilhado (`email-layout.ts`)
+
+HTML de e-mail é um universo à parte do resto do sistema: nunca flexbox/
+grid (sem suporte confiável, principalmente no Outlook), sempre tabela +
+`style=""` inline (a maioria dos clientes de e-mail ignora `<style>` no
+`<head>`), nunca fonte customizada carregada externamente. A "logo" é
+texto estilizado ("Vort**Con**", com o "Con" na cor flow), nunca uma
+imagem — a maioria dos clientes bloqueia imagem externa por padrão, e o
+VortCon nunca quer arriscar o e-mail chegar com um ícone de imagem
+quebrada no lugar da marca. Uma função só (`renderEmailLayout`) recebe
+título, parágrafos, botão opcional e nota de rodapé, e devolve o HTML
+completo — os 7 templates em `resend.ts` viraram só chamadas dessa função,
+nunca mais HTML solto espalhado.
+
+## Demo aprovado antes de construir
+
+Gerei o HTML real dos 7 e-mails (chamando a própria `renderEmailLayout`,
+nunca uma recriação) e publiquei como preview pro cliente aprovar antes de
+qualquer coisa ir pra produção — aprovado sem pedido de ajuste.
+
+## Bloqueio/desbloqueio — templates existiam desde o Estágio 13, nunca eram usados
+
+Achado real ao mapear os e-mails do sistema a pedido do cliente:
+`sendAccountBlockedEmail`/`sendAccountUnblockedEmail` existiam no código
+desde muito cedo, mas **nenhum caminho real do sistema os disparava** —
+quando uma conta era bloqueada ou desbloqueada, ninguém recebia e-mail
+nenhum, só a notificação dentro do painel (e olhe lá: o
+`NotificationType.TENANT_BLOCKED`/`TENANT_UNBLOCKED` do schema também
+nunca era usado pra criar uma notificação de verdade).
+
+Conectados agora nos 4 pontos reais onde bloqueio/desbloqueio acontece,
+todos pelo padrão assíncrono já estabelecido pro e-mail de pagamento
+confirmado (Transactional Outbox, Seção 126 — nunca disparar e-mail
+dentro da mesma transação crítica que bloqueia/desbloqueia o acesso):
+
+1. Bloqueio automático por inadimplência (`evaluateAndApplyDelinquency`)
+2. Desbloqueio automático quando o Admin registra pagamento
+   (`registerPayment`)
+3. Bloqueio manual pelo Admin (`/api/admin/tenants/[id]/blocks`)
+4. Desbloqueio manual pelo Admin (`.../blocks/[blockId]/lift`)
+
+`createBlock`/`liftBlock` (repositório) ganharam um parâmetro opcional de
+cliente de transação (mesmo padrão já usado em `createTransaction`) — sem
+isso, o evento de outbox nasceria fora da transação que criou/levantou o
+bloqueio, arriscando o mesmo tipo de inconsistência já corrigido antes em
+Programações.
+
+Teste de integração provando os dois disparos automáticos (inadimplência
+gera `TenantBlocked`; pagamento que desbloqueia gera `TenantUnblocked`).
+
 # VortCon 1.4.0 — Calculadora
 
 Pedido do cliente: uma calculadora simples, suspensa por cima da tela,

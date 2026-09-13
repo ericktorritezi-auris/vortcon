@@ -1,7 +1,11 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
 import { createNotification } from './notification.service';
-import { sendPaymentConfirmedEmail } from '@/shared/email/resend';
+import {
+  sendAccountBlockedEmail,
+  sendAccountUnblockedEmail,
+  sendPaymentConfirmedEmail,
+} from '@/shared/email/resend';
 
 type PrismaTransactionClient = Prisma.TransactionClient;
 
@@ -31,6 +35,19 @@ interface SubscriptionChargePaidPayload {
   amountFormatted: string;
 }
 
+interface TenantBlockedPayload {
+  tenantId: string;
+  userId: string;
+  userEmail: string;
+  reason: string;
+}
+
+interface TenantUnblockedPayload {
+  tenantId: string;
+  userId: string;
+  userEmail: string;
+}
+
 async function dispatchOutboxEvent(
   eventType: string,
   payload: Record<string, unknown>,
@@ -46,6 +63,36 @@ async function dispatchOutboxEvent(
         title: 'Pagamento confirmado',
         body: `Sua mensalidade do plano ${data.planName} foi confirmada.`,
         deepLink: '/app/assinatura',
+      });
+      return;
+    }
+    // Evolução v1.5 (pedido do cliente) — os 2 templates de bloqueio/
+    // desbloqueio existiam desde o Estágio 13, mas nunca eram disparados
+    // por nenhum caminho real: ninguém recebia e-mail quando a conta era
+    // bloqueada ou desbloqueada, só a notificação dentro do painel.
+    case 'TenantBlocked': {
+      const data = payload as unknown as TenantBlockedPayload;
+      await sendAccountBlockedEmail(data.userEmail, data.reason);
+      await createNotification({
+        tenantId: data.tenantId,
+        userId: data.userId,
+        type: 'TENANT_BLOCKED',
+        title: 'Sua conta foi bloqueada',
+        body: data.reason,
+        deepLink: '/app',
+      });
+      return;
+    }
+    case 'TenantUnblocked': {
+      const data = payload as unknown as TenantUnblockedPayload;
+      await sendAccountUnblockedEmail(data.userEmail);
+      await createNotification({
+        tenantId: data.tenantId,
+        userId: data.userId,
+        type: 'TENANT_UNBLOCKED',
+        title: 'Sua conta foi desbloqueada',
+        body: 'O acesso já está normalizado.',
+        deepLink: '/app',
       });
       return;
     }

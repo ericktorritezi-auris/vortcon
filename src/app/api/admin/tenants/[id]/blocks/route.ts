@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { evaluateAdminAccess } from '@/modules/admin/admin-access.service';
+import { prisma } from '@/shared/database/client';
 import * as tenantRepository from '@/modules/tenants/tenant.repository';
+import { appendOutboxEvent } from '@/modules/notifications/outbox.service';
 import { recordAuditEvent } from '@/modules/audit/audit.service';
 
 const createBlockSchema = z.object({
@@ -26,7 +29,32 @@ export async function POST(
     return NextResponse.json({ error: 'VALIDATION_ERROR' }, { status: 400 });
   }
 
-  const block = await tenantRepository.createBlock(params.id, parsed.data.type, parsed.data.reason);
+  const membership = await prisma.tenantUser.findFirst({
+    where: { tenantId: params.id },
+    include: { user: true },
+  });
+  const reason =
+    parsed.data.reason ??
+    `Bloqueio ${parsed.data.type === 'ADMINISTRATIVE' ? 'administrativo' : 'de segurança'}`;
+
+  const block = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const created = await tenantRepository.createBlock(
+      params.id,
+      parsed.data.type,
+      parsed.data.reason,
+      tx,
+    );
+    if (membership) {
+      await appendOutboxEvent(tx, 'TenantBlocked', {
+        tenantId: params.id,
+        userId: membership.user.id,
+        userEmail: membership.user.email,
+        reason,
+      });
+    }
+    return created;
+  });
+
   await recordAuditEvent({
     actorType: 'GLOBAL_ADMIN',
     actorId: access.userId,
