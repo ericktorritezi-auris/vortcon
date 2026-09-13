@@ -978,6 +978,28 @@ sem ver acontecer:
       desenvolvimento nunca teve como pegar sozinho.
 - [ ] **Smoke production aprovado** — mesmo motivo do item de Healthcheck acima
 
+# VortCon 1.5.1 — Correção: painel de notificações cortando na tela (mobile)
+
+Bug real reportado pelo cliente com print — no mobile, o painel de
+notificações (e o menu do avatar, mesmo padrão) tinha largura fixa
+(320px/192px) ancorado a partir da borda direita do **próprio botão**, que
+já fica perto da borda direita da tela. Numa tela estreita, isso empurrava
+o painel bem pra fora da borda esquerda, cortando o texto ("Notificações"
+virava "ções"). O `max-w-[90vw]` que já existia limitava só a largura,
+nunca a posição — por isso nunca resolvia sozinho.
+
+**Correção**: em telas pequenas (abaixo do breakpoint `sm` do Tailwind), o
+painel passa a ser posicionado relativo à **tela inteira** (`fixed`), com
+margem de 12px dos dois lados — nunca mais ancorado ao botão. Em desktop,
+continua exatamente como antes. Aplicado nos dois dropdowns que tinham o
+mesmo padrão (notificações e menu do avatar) — o dropdown da busca foi
+conferido e não tinha o problema (já é ancorado nos dois lados do próprio
+campo de busca, que nunca ultrapassa a tela).
+
+Validado com um comparativo visual antes/depois na mesma largura de tela
+do print reportado (375px) — é uma correção puramente de CSS/layout, sem
+lógica nova que justifique teste automatizado.
+
 # VortCon 1.5.0 — Identidade visual nos e-mails + bloqueio/desbloqueio conectados
 
 Pedido do cliente: todo e-mail disparado pelo VortCon ganhou a identidade

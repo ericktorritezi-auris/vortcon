@@ -200,7 +200,7 @@ export function Topbar({
         {menuOpen ? (
           <div
             role="menu"
-            className="absolute right-0 top-full z-20 mt-1 w-48 rounded-md border border-ink-secondary/15 bg-white py-1 shadow-lg"
+            className="fixed inset-x-3 top-16 z-20 rounded-md border border-ink-secondary/15 bg-white py-1 shadow-lg sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-1 sm:w-48"
           >
             <button
               type="button"

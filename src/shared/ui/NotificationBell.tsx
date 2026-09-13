@@ -138,7 +138,7 @@ export function NotificationBell(): React.ReactElement {
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-full z-20 mt-1 w-80 max-w-[90vw] rounded-md border border-ink-secondary/15 bg-white py-1 shadow-lg"
+          className="fixed inset-x-3 top-16 z-20 rounded-md border border-ink-secondary/15 bg-white py-1 shadow-lg sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-1 sm:w-80"
         >
           <div className="flex items-center justify-between border-b border-ink-secondary/10 px-3 py-2">
             <span className="text-sm font-semibold text-ink-primary">Notificações</span>
