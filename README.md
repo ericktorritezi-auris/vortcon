@@ -978,6 +978,25 @@ sem ver acontecer:
       desenvolvimento nunca teve como pegar sozinho.
 - [ ] **Smoke production aprovado** — mesmo motivo do item de Healthcheck acima
 
+# VortCon 1.4.0 — Calculadora
+
+Pedido do cliente: uma calculadora simples, suspensa por cima da tela,
+acessível pelo menu do avatar (logo acima de "Sair") — pra conferir uma
+conta rápida (ex.: total de uma recorrência) sem sair de onde está.
+
+- **Lógica pura testada de verdade** (`calculator-logic.ts`) — mesmo sem
+  banco nem API, a lógica de encadear operações, percentual e arredondamento
+  de ponto flutuante merece teste; 11 casos, incluindo o clássico "0.1 + 0.2"
+  (que em JavaScript puro dá `0.30000000000000004` sem arredondar) e divisão
+  por zero (mostra "Erro", nunca quebra nem trava a calculadora).
+- **UI** (`CalculatorModal.tsx`) — reaproveita o `Modal` do Design System
+  (mesmo usado em "Gerar transação"): aparece flutuando por cima da tela,
+  nunca navega nem mexe em mais nada. Nunca salva nada — abre zerada toda
+  vez, o estado existe só enquanto a janela está aberta.
+- Operações: soma, subtração, multiplicação, divisão, percentual, inverter
+  sinal — calculadora normal, nunca científica nem financeira, exatamente
+  como pedido.
+
 # VortCon 1.3.0 — Recorrência com dois modos + ano vigente no início
 
 Evolução pedida em cima da v1.2, tocando os dois domínios de recorrência

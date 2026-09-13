@@ -3,6 +3,7 @@
 import {
   ArrowLeftRight,
   Bell,
+  Calculator,
   CalendarClock,
   CreditCard,
   Download,
@@ -351,6 +352,28 @@ const SECTIONS: HelpSection[] = [
         question: 'Posso excluir uma Origem ou Beneficiário?',
         answer:
           'Só se não tiver nenhum lançamento vinculado a ele — mesma regra de Categorias e Contas. Se já tiver histórico, o VortCon bloqueia a exclusão e oferece "Inativar" em vez disso.',
+      },
+    ],
+  },
+  {
+    id: 'calculadora',
+    icon: Calculator,
+    title: 'Calculadora',
+    items: [
+      {
+        question: 'Onde eu encontro a calculadora?',
+        answer:
+          'Clique no seu nome/avatar, no topo direito da tela — a opção "Calculadora" aparece logo acima de "Sair".',
+      },
+      {
+        question: 'Pra que serve?',
+        answer:
+          'Uma calculadora normal (soma, subtração, multiplicação, divisão, percentual), pra conferir uma conta rápida sem sair da tela onde você está — por exemplo, somar o valor de uma recorrência antes de confirmar, ou conferir um percentual no meio de um lançamento. Ela abre flutuando por cima da tela, sem navegar pra lugar nenhum.',
+      },
+      {
+        question: 'Ela lembra da última conta que eu fiz?',
+        answer:
+          'Não, de propósito — toda vez que você abre, começa zerada. Ela não salva nada, não manda nada pro servidor; o cálculo existe só enquanto a janela está aberta.',
       },
     ],
   },

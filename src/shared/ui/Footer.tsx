@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-const APP_VERSION = '1.3';
+const APP_VERSION = '1.4';
 
 /**
  * Footer global (Seção 16) — componente único, fonte de versão única.

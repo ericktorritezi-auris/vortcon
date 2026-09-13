@@ -1,9 +1,10 @@
 'use client';
 
-import { ChevronDown, LogOut, Search } from 'lucide-react';
+import { Calculator, ChevronDown, LogOut, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { NotificationBell } from './NotificationBell';
+import { CalculatorModal } from '@/shared/calculator/CalculatorModal';
 
 interface TopbarProps {
   userName: string;
@@ -59,6 +60,7 @@ export function Topbar({
 }: TopbarProps): React.ReactElement {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<NormalizedResult[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -203,6 +205,18 @@ export function Topbar({
             <button
               type="button"
               role="menuitem"
+              onClick={() => {
+                setCalculatorOpen(true);
+                setMenuOpen(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink-primary hover:bg-surface-page"
+            >
+              <Calculator className="h-4 w-4" aria-hidden="true" />
+              Calculadora
+            </button>
+            <button
+              type="button"
+              role="menuitem"
               onClick={handleLogout}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink-primary hover:bg-surface-page"
             >
@@ -212,6 +226,8 @@ export function Topbar({
           </div>
         ) : null}
       </div>
+
+      {calculatorOpen ? <CalculatorModal onClose={() => setCalculatorOpen(false)} /> : null}
     </header>
   );
 }
