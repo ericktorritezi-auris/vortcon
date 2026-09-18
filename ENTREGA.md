@@ -107,7 +107,7 @@ Nenhuma.
 ## QA EXECUTADO
 
 - `npx prettier --write .` no projeto inteiro, seguido de `npx prettier
-  --check .` — ✅ limpo, 100% do projeto.
+--check .` — ✅ limpo, 100% do projeto.
 - `npm run lint` — ✅ limpo (0 erros, 0 warnings).
 - `typecheck`/`test`/`build` completos continuam com a mesma limitação de
   rede do sandbox já explicada na entrega anterior (bloqueio a
