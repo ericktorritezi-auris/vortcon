@@ -4,6 +4,24 @@ Todas as mudanças notáveis do VortCon são documentadas aqui. Formato baseado 
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/), versionamento
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.6.3] — 2026-09-18
+
+### Corrigido
+
+- **Teste `commercial-flow.test.ts` falhando no CI** (`ensureCurrentMonthCharge
+e idempotente`), causado por um teste mal ajustado à própria mudança da
+  1.6.1: o teste provisiona o tenant com a 1ª cobrança no mês seguinte (de
+  propósito, pra nunca ficar instável — ver 1.6.1), então a primeira
+  chamada de `ensureCurrentMonthCharge` nesse teste cria, corretamente, a
+  cobrança do mês corrente (que ainda não existia) — isso não é uma
+  duplicata, é o comportamento certo. O teste comparava contra um número
+  fixo (`toHaveLength(1)`) que só valia quando a 1ª cobrança e a do "mês
+  corrente" coincidiam, suposição que deixou de valer com a correção da
+  1.6.1. Reescrito para comparar a contagem antes/depois da 2ª chamada,
+  testando idempotência de verdade (chamar de novo não cria mais nenhuma)
+  em vez de um total fixo. Não é uma regressão de produção — o deploy e o
+  comportamento real já estavam corretos; só o teste precisava de ajuste.
+
 ## [1.6.2] — 2026-09-18
 
 ### Removido

@@ -69,11 +69,21 @@ describe('fluxo comercial (assinatura, mensalidade, inadimplencia)', () => {
   });
 
   it('ensureCurrentMonthCharge e idempotente - nao duplica a cobranca do mes', async () => {
+    // A 1ª cobrança criada no provisionamento (beforeAll) é de um mês futuro
+    // (Secao 113 — ver firstDueDateNextMonth acima), então a primeira chamada
+    // aqui pode legitimamente criar a cobrança do mês CORRENTE (ainda
+    // inexistente) — isso é comportamento correto, não uma duplicata. O que
+    // este teste verifica é idempotência de verdade: chamar de novo não pode
+    // criar mais nenhuma, então comparamos a contagem antes/depois da 2ª
+    // chamada, em vez de um número fixo que dependeria de "hoje" e do mês da
+    // 1ª cobrança coincidirem.
     await ensureCurrentMonthCharge(tenantId);
-    await ensureCurrentMonthCharge(tenantId);
+    const chargesAfterFirstCall = await subscriptionRepository.listChargesForTenant(tenantId);
 
-    const charges = await subscriptionRepository.listChargesForTenant(tenantId);
-    expect(charges).toHaveLength(1);
+    await ensureCurrentMonthCharge(tenantId);
+    const chargesAfterSecondCall = await subscriptionRepository.listChargesForTenant(tenantId);
+
+    expect(chargesAfterSecondCall).toHaveLength(chargesAfterFirstCall.length);
   });
 
   it('sem atraso, nenhum bloqueio e aplicado', async () => {
