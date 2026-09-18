@@ -5,16 +5,10 @@ import typography from '@tailwindcss/typography';
 // 9 (Design Tokens) e 10 (Grid e Responsividade). Não hardcode cores/espaçamentos
 // fora deste arquivo — Seção 14 exige Design System reutilizável e centralizado.
 //
-// Estágio 19 (Dark Mode): as cores abaixo apontam para as CSS variables
-// definidas em `globals.css` (`--vc-*`), em vez de hex fixo. Isso é o que
-// permite o toggle claro/escuro funcionar em cascata — trocar a classe
-// `dark` na tag <html> redefine as variáveis, e toda classe Tailwind já
-// usada no app (bg-surface-page, text-ink-primary, bg-brand-deep, ...)
-// muda de cor automaticamente, sem precisar tocar em cada componente.
-// `darkMode: 'class'` (não `media`) de propósito — o tema é uma preferência
-// do usuário, salva por conta, não algo que deva seguir o SO do aparelho.
+// As cores abaixo apontam para as CSS variables definidas em `globals.css`
+// (`--vc-*`), em vez de hex fixo — fonte única de verdade pra cor, também
+// legível por qualquer estilo que precise do valor bruto (ex.: SVG).
 const config: Config = {
-  darkMode: 'class',
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {

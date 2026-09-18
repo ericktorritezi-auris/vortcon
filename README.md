@@ -59,74 +59,70 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 
 Este README evolui junto com o desenvolvimento. Ele é a documentação operacional raiz do projeto, não um arquivo descartável.
 
-## Dark Mode — toggle claro/escuro (Estágio 19)
+## Dark Mode — construído e depois removido (Estágio 19)
 
-Pedido do cliente: um toggle de tema claro/escuro, com a preocupação explícita
-de que o sistema está em produção e não pode sofrer nenhum dano. Antes de
-construir, investiguei a arquitetura de cor real do app (`tailwind.config.ts`,
-`globals.css`) e encontrei uma boa notícia: o próprio Master Document (Seção 11) já havia previsto isso desde a V1 — os tokens de cor sempre foram
-nomeados por papel semântico (`surface.page`, `ink.primary`...) exatamente
-para permitir uma variante escura sem retrabalho. O que faltava era só a
-`tailwind.config.ts` apontar pro hex fixo em vez das CSS variables que já
-existiam em `globals.css` — corrigido nesta entrega.
+Pedido do cliente: um toggle de tema claro/escuro no dropdown do avatar
+(Topbar), com persistência por conta (`User.themePreference`) e cookie
+server-side pra evitar flash de tema errado, escopado só à área autenticada
+(nunca vazava pro site institucional/páginas legais/login). Construído,
+validado (`lint`/`format`/testes unitários limpos) e entregue — mas depois
+de ver o resultado, o cliente decidiu que não gostou do formato e pediu a
+remoção completa: _"remova a opção do tema escuro... Pode retirar do
+projeto"_.
 
-### Decisão de posicionamento — diferente da sugestão original
+Removido nesta mesma entrega, sem deixar rastro: toggle no Topbar, módulo
+`theme` inteiro (`src/modules/theme`, `src/shared/theme`), endpoint
+`/api/profile/theme`, sincronização do cookie nos três pontos de login,
+campo `User.themePreference`/enum `ThemePreference` no schema (a migration
+que os criava nunca chegou a rodar em produção, então foi apagada do
+histórico em vez de revertida com uma nova migration — não deixa nenhuma
+coluna órfã pra limpar depois), e a seção correspondente da Ajuda. A
+arquitetura de cor por CSS variables (`--vc-*` em `globals.css`,
+consumida por `tailwind.config.ts`) foi mantida — ela já existia antes do
+Dark Mode (Seção 11 sempre nomeou os tokens por papel semântico) e não tem
+nenhum custo nem risco visual continuar existindo só com o tema claro; só
+`darkMode: 'class'` (a única linha que só fazia sentido com o toggle) saiu.
 
-O cliente sugeriu o toggle no menu lateral, antes de "Início". Sugeri o
-dropdown do avatar no Topbar (ao lado da Calculadora) em vez disso, e ele
-aprovou:
+## Correção de cobrança — primeira mensalidade escolhida pelo Admin (v1.6.1)
 
-- O sidebar é navegação (leva a uma tela); tema é preferência de exibição —
-  misturar os dois confunde, e exigiria implementar em dois lugares (sidebar
-  desktop + overlay mobile), dobrando a superfície de risco.
-- O dropdown do avatar já é o lugar de "preferências da minha conta" — onde
-  a pessoa já espera esse tipo de ajuste.
+O CI encontrou um bug real e pré-existente (não introduzido pelo Dark Mode):
+a primeira mensalidade de um tenant novo (Seção 109) era calculada
+automaticamente como "dia `dueDay` do mês em que o tenant fosse criado". Se
+o tenant nascesse depois desse dia (ex.: `dueDay=10`, tenant criado dia 18),
+a primeira cobrança já nascia com `dueDate` no passado — e como a carência
+de 5 dias (Seção 113) conta a partir do `dueDate`, o tenant podia ser
+bloqueado por inadimplência minutos depois de criado, sem nunca ter tido
+chance de pagar.
 
-### Escopo do dark mode — deliberadamente isolado
+Cheguei a desenhar uma correção que tratava só o caso "primeira cobrança"
+como exceção (rolar pro mês seguinte se o dia já tivesse passado no mês
+atual), mas o cliente propôs uma correção melhor, que ataca a causa raiz em
+vez de um caso especial: **o Admin passa a escolher a data exata da
+primeira cobrança** no formulário de criação de tenant (`DateInput`, não
+mais um número de dia 1-28) — um humano nunca escolhe uma data já vencida,
+então o bug deixa de poder acontecer por construção, sem nenhuma lógica de
+"e se hoje já passou do dia X".
 
-O tema escuro nunca toca o `<html>` inteiro. Ele é aplicado só no elemento-
-raiz de `AppShell`/`AdminShell` (a área logada) — o site institucional,
-páginas legais, e a tela de login **nunca** herdam o tema escuro, mesmo que
-a pessoa já tenha ativado o toggle dentro do app. Isso elimina o maior risco
-de um toggle desse tipo: "vazar" para páginas que ninguém pediu para adaptar
-e que não foram revisadas visualmente.
-
-As cores de marca (`brand.deep/flow/intelligence`) e os semáforos financeiros
-(sucesso/perigo/alerta/info) permanecem os mesmos nos dois temas, de
-propósito — são identidade visual e semântica de dados (Seção 12: "vermelho
-é despesa"), não "cor de fundo". Só as variáveis de superfície e texto
-(fundo de página, fundo de card, texto primário/secundário) e as variantes
-de contraste dos semáforos (o texto mais escuro usado em badges/toasts sobre
-fundo tintado) mudam entre os dois temas.
-
-### Persistência — acompanha a pessoa entre dispositivos
-
-A preferência é salva no usuário (`User.themePreference`, migration
-`20260918160000_theme_preference`, default `LIGHT` — nenhuma conta existente
-muda de aparência sem ação explícita), não só no navegador. Um cookie
-não-HttpOnly (`vc-theme`) guarda o valor para o servidor renderizar o shell
-já com a classe certa desde o primeiro HTML — nenhum flash de tema errado —
-e é sincronizado com o valor do banco nos três pontos de login (senha,
-aceite de convite, WebAuthn), então a pessoa vê seu tema de sempre mesmo
-entrando de um navegador ou aparelho novo.
-
-O toggle em si é otimista: troca a classe no client e o texto do botão na
-hora, sem esperar a resposta da API — se a rede falhar, o tema visual
-aplicado não é desfeito (só a persistência entre dispositivos ficaria
-pendente até a próxima troca).
-
-### Testes desta entrega
-
-- `tests/unit/theme.test.ts` — conversão pura entre o enum de banco e o valor
-  de cookie/DOM (`toThemeValue`/`toThemePreference`) e a validação do cookie
-  (`isThemeValue`).
-- As funções que persistem tema (`syncThemeCookieFromUser`,
-  `updateThemePreference`) não têm teste automatizado direto, pela mesma
-  razão já documentada para `evaluateAccessPolicy` (Estágio 17): chamam
-  `cookies()` internamente, que só funciona dentro de uma requisição real do
-  Next.js. A lógica testável foi extraída para as funções puras acima.
-- Suíte de integração completa mantida verde (nenhuma regressão nos fluxos
-  de login/autenticação, que agora também sincronizam o cookie de tema).
+- `src/modules/subscriptions/billing-dates.ts` (novo, puro, sem Prisma) —
+  `validateFirstDueDate` (rejeita data passada e dia fora de 1-28, com o
+  mesmo motivo de sempre: nunca cair em dia inexistente em fevereiro),
+  `dueDateForCompetence`/`firstDayOfMonth`/`dueDayFromDate`, e
+  `defaultFirstDueDate` (só para chamadas internas/testes que não
+  testam cobrança — o endpoint real do Admin nunca usa este default).
+- A primeira `SubscriptionCharge` é criada dentro da MESMA transação do
+  provisionamento do tenant, usando a data escolhida pelo Admin
+  literalmente, sem nenhum recálculo. As mensalidades seguintes (mês 2 em
+  diante) continuam vindo de `ensureCurrentMonthCharge`, que passa a nunca
+  mais poder gerar uma cobrança já vencida — por definição, só roda depois
+  que a assinatura já existe há pelo menos um mês.
+- Sem ajuste de dia útil (decisão explícita do cliente, revertendo o pedido
+  inicial de "dia 10 útil"): a recorrência repete o mesmo dia do mês
+  indefinidamente (18/09 → 18/10 → 18/11 → ...), mesmo caindo em fim de
+  semana/feriado.
+- `tests/integration/commercial-flow.test.ts` atualizado para refletir o
+  novo contrato; `billing-dates.test.ts` (13 casos, todos passando neste
+  ambiente) cobre a fronteira exata (hoje mesmo, data passada, dia 29-31,
+  virada de mês/ano) em memória, sem depender de banco.
 
 ### Estágio 1 — o que foi entregue
 
@@ -2020,7 +2016,7 @@ marca — nome, logo e cores VortCon foram mantidos exatamente como já validado
 
 **Dentro do escopo:** contas financeiras, categorias e tags transversais, receitas/despesas, transferências, recorrências, Financial Engine, Dashboard, Cockpit, Insight Engine determinístico (sem IA generativa), relatórios (mensal/anual/categoria/tag, PDF/Excel), planos e assinatura (PIX manual, inadimplência automatizada), notificações (push + e-mail + central), documentos legais versionados com gate de aceite, PWA, backup/export por tenant, painel Admin operacional.
 
-**Fora do escopo da V1:** módulo de cartão de crédito (cartão é só uma categoria), Open Banking/OFX/conciliação, contabilidade fiscal, investimentos, IA generativa, multi-moeda, gateway de pagamento automatizado, plano anual, Dark Mode, multiusuário avançado, offline financeiro completo, metas/orçamento avançado, microserviços/Kafka/Kubernetes/event sourcing/CQRS.
+**Fora do escopo da V1:** módulo de cartão de crédito (cartão é só uma categoria), Open Banking/OFX/conciliação, contabilidade fiscal, investimentos, IA generativa, multi-moeda, gateway de pagamento automatizado, plano anual, Dark Mode (construído no Estágio 19 e removido a pedido do cliente — ver seção acima), multiusuário avançado, offline financeiro completo, metas/orçamento avançado, microserviços/Kafka/Kubernetes/event sourcing/CQRS.
 
 ## Regras normativas centrais
 

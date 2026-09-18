@@ -4,6 +4,42 @@ Todas as mudanças notáveis do VortCon são documentadas aqui. Formato baseado 
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/), versionamento
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.6.2] — 2026-09-18
+
+### Removido
+
+- **Dark mode**: o toggle de tema claro/escuro (Estágio 19, adicionado na
+  1.6.0) foi removido a pedido do cliente, que não gostou do formato depois
+  de ver o resultado. Removidos: toggle no Topbar, módulo `theme`
+  (`src/modules/theme`, `src/shared/theme`), endpoint `/api/profile/theme`,
+  sincronização do cookie de tema no login, campo `User.themePreference` e
+  a seção "Tema claro/escuro" da Ajuda. A migration que criava o campo
+  nunca chegou a rodar em produção, então foi apagada do histórico (não há
+  down-migration nem coluna órfã a limpar). A arquitetura de cor por CSS
+  variables foi mantida (não tem custo nem risco continuar existindo só com
+  o tema claro); só `darkMode: 'class'` saiu do `tailwind.config.ts`.
+
+## [1.6.1] — 2026-09-18
+
+### Corrigido
+
+- **Bug de inadimplência em tenants recém-criados (Seção 113)**: a primeira
+  mensalidade de um tenant novo era calculada automaticamente como "dia X do
+  mês em que o tenant nascesse" — se o tenant fosse criado depois do dia X,
+  essa primeira cobrança já nascia com vencimento no passado, e o tenant
+  podia ser bloqueado por inadimplência minutos depois de criado, sem nunca
+  ter tido chance de pagar.
+
+### Alterado
+
+- **Primeira cobrança agora é escolhida pelo Admin**: no lugar de um número
+  de dia (1-28), o formulário de criação de tenant pede a data exata da
+  primeira mensalidade — um humano nunca escolhe uma data já vencida, então
+  o bug acima deixa de poder acontecer por construção. O sistema nunca mais
+  deriva essa primeira data sozinho. As mensalidades seguintes (mês 2 em
+  diante) continuam repetindo automaticamente o mesmo dia do mês da data
+  escolhida (sem ajuste de dia útil).
+
 ## [1.6.0] — 2026-09-18
 
 ### Adicionado
