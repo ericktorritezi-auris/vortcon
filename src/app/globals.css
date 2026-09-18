@@ -5,23 +5,10 @@
 /**
  * Tokens de marca VortCon como CSS variables (Master Document, Seções 7-11).
  * Fonte única de verdade para cor — consumida pelo tailwind.config.ts e por
- * qualquer estilo que precise ler o valor bruto (ex.: gráficos SVG).
- *
- * Estágio 19 — Dark Mode: os tokens já eram nomeados por papel semântico
- * de propósito (Seção 11 previa isso desde a V1) para permitir a variante
- * escura sem retrabalho. `.dark` redefine só as variáveis de
- * superfície/texto — as cores de marca e os semáforos financeiros
- * (sucesso/perigo/alerta/info) permanecem os mesmos nos dois temas, de
- * propósito: são identidade visual e semântica de dados, não "cor de
- * fundo", e mudar isso junto arriscaria confundir quem já é acostumado a
- * "vermelho é despesa".
- *
- * De propósito `.dark` é uma classe comum, não `:root.dark` — ela é
- * aplicada no elemento-raiz do shell autenticado (`AppShell`/`AdminShell`
- * em `src/app/app` e `src/app/admin`), nunca no `<html>` inteiro. Isso
- * isola o dark mode só de onde ele foi pedido: o site institucional,
- * páginas legais e a tela de login nunca herdam o tema escuro, mesmo que
- * a pessoa já tenha ativado o toggle dentro do app.
+ * qualquer estilo que precise ler o valor bruto (ex.: gráficos SVG). Tokens
+ * nomeados por papel semântico (`surface.page`, `ink.primary`...), não por
+ * valor bruto — mesmo com um único tema, isso evita cor hardcoded espalhada
+ * pelos componentes (Seção 14).
  */
 :root {
   --vc-deep: #123b46;
@@ -41,9 +28,7 @@
 
   /* Variantes de texto dos semáforos financeiros — mais escuras que o
      token base, usadas em texto sobre fundos claros/tintados (Badge,
-     Toast, FinancialValue) para contraste. Diferente do token base, estas
-     PRECISAM de uma variante própria no dark mode (mais claras), ou o
-     texto fica ilegível sobre um card escuro. */
+     Toast, FinancialValue) para contraste. */
   --vc-success-text: #178a44;
   --vc-danger-text: #c62f2f;
   --vc-warning-text: #a15c05;
@@ -58,28 +43,10 @@
   color-scheme: light;
 }
 
-.dark {
-  --vc-surface-page: #0f1720;
-  --vc-surface-card: #1b2530;
-
-  --vc-text-primary: #e8edef;
-  --vc-text-secondary: #97a5ac;
-
-  --vc-success-text: #4ade80;
-  --vc-danger-text: #f87171;
-  --vc-warning-text: #fbbf24;
-  --vc-info-text: #60a5fa;
-
-  color-scheme: dark;
-}
-
 body {
   background: var(--vc-surface-page);
   color: var(--vc-text-primary);
   font-variant-numeric: tabular-nums;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
 }
 
 /* Valores monetários usam sempre números tabulares (Seção 8) */

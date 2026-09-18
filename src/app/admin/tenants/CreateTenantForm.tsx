@@ -17,11 +17,15 @@ export function CreateTenantForm({ plans }: { plans: PlanOption[] }): React.Reac
   const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [timezone, setTimezone] = useState('America/Sao_Paulo');
-  const [dueDay, setDueDay] = useState('10');
+  const [firstDueDate, setFirstDueDate] = useState('');
   const [planId, setPlanId] = useState(plans[0]?.id ?? '');
   const [exempt, setExempt] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Só guia o navegador (Seção 113) — quem realmente impede data passada é
+  // `validateFirstDueDate` no backend (rodado dentro do próprio serviço e
+  // de novo na API), não este atributo `min`.
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   async function handleSubmit(event: React.FormEvent): Promise<void> {
     event.preventDefault();
@@ -41,7 +45,7 @@ export function CreateTenantForm({ plans }: { plans: PlanOption[] }): React.Reac
           timezone,
           planId,
           condition: exempt ? 'EXEMPT' : 'PAID',
-          dueDay: Number(dueDay),
+          firstDueDate,
         }),
       });
       const body = (await response.json()) as { message?: string };
@@ -56,6 +60,7 @@ export function CreateTenantForm({ plans }: { plans: PlanOption[] }): React.Reac
       setUsername('');
       setPhone('');
       setBirthDate('');
+      setFirstDueDate('');
       router.refresh();
     } finally {
       setLoading(false);
@@ -112,14 +117,13 @@ export function CreateTenantForm({ plans }: { plans: PlanOption[] }): React.Reac
           onChange={(event) => setPlanId(event.target.value)}
           options={plans.map((plan) => ({ value: plan.id, label: plan.label }))}
         />
-        <Input
-          label="Dia de vencimento"
-          type="number"
-          min={1}
-          max={28}
-          value={dueDay}
-          onChange={(event) => setDueDay(event.target.value)}
-          hint="1 a 28 (Seção 113)"
+        <DateInput
+          label="1ª cobrança"
+          min={todayIso}
+          value={firstDueDate}
+          onChange={(event) => setFirstDueDate(event.target.value)}
+          hint="Nunca uma data já vencida (Seção 113) — os meses seguintes repetem o mesmo dia"
+          required
         />
       </div>
       <Toggle label="Isento (sem cobrança)" checked={exempt} onChange={setExempt} />

@@ -12,7 +12,6 @@ import {
   Home,
   LayoutGrid,
   ListChecks,
-  Moon,
   PieChart,
   Repeat,
   Search,
@@ -380,33 +379,6 @@ const SECTIONS: HelpSection[] = [
         question: 'Ela lembra da última conta que eu fiz?',
         answer:
           'Não, de propósito — toda vez que você abre, começa zerada. Ela não salva nada, não manda nada pro servidor; o cálculo existe só enquanto a janela está aberta.',
-      },
-    ],
-  },
-  {
-    id: 'tema',
-    icon: Moon,
-    title: 'Tema claro/escuro',
-    items: [
-      {
-        question: 'Onde eu troco entre o tema claro e o escuro?',
-        answer:
-          'Clique no seu nome/avatar, no topo direito da tela — a opção "Tema escuro" (ou "Tema claro", se você já estiver no escuro) aparece no mesmo menu da Calculadora, acima de "Sair".',
-      },
-      {
-        question: 'Essa preferência é só deste navegador, ou acompanha minha conta?',
-        answer:
-          'Acompanha sua conta. Se você trocar de tema no computador e depois entrar pelo celular (ou por outro navegador), o VortCon já abre no tema que você escolheu por último.',
-      },
-      {
-        question: 'O tema escuro muda alguma cor de valor (verde de receita, vermelho de despesa)?',
-        answer:
-          'Não, de propósito. As cores de marca e os sinais de receita/despesa/alerta são os mesmos nos dois temas — só o fundo das telas e o texto mudam. Isso evita qualquer confusão de "essa cor sempre significou uma coisa e agora significa outra".',
-      },
-      {
-        question: 'O tema escuro afeta o site de vendas, as páginas legais ou a tela de login?',
-        answer:
-          'Não. O tema escuro existe só dentro da área logada (onde o toggle está) — o site institucional, os documentos legais e a tela de login continuam sempre no tema claro, independente do que você escolheu lá dentro.',
       },
     ],
   },

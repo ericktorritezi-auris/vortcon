@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { NotificationBell } from './NotificationBell';
 import { CalculatorModal } from '@/shared/calculator/CalculatorModal';
-import { ThemeToggle } from '@/shared/theme/ThemeToggle';
 
 interface TopbarProps {
   userName: string;
@@ -215,7 +214,6 @@ export function Topbar({
               <Calculator className="h-4 w-4" aria-hidden="true" />
               Calculadora
             </button>
-            <ThemeToggle onToggled={() => setMenuOpen(false)} />
             <button
               type="button"
               role="menuitem"

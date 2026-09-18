@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createSessionAndSetCookie } from '@/modules/auth/session.service';
-import { syncThemeCookieFromUser } from '@/modules/theme/theme.service';
 import { verifyAuthentication } from '@/modules/webauthn/webauthn.service';
 import { checkRateLimit, getClientIp } from '@/shared/security/rate-limit';
 
@@ -39,6 +38,5 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   await createSessionAndSetCookie(result.userId);
-  await syncThemeCookieFromUser(result.userId);
   return NextResponse.json({ status: 'ok' });
 }

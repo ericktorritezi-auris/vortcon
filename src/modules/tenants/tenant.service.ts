@@ -1,8 +1,14 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
 import { createAndSendInvitation } from '@/modules/auth/invitation.service';
-import { ensureCurrentMonthCharge } from '@/modules/subscriptions/subscription.service';
 import * as subscriptionRepository from '@/modules/subscriptions/subscription.repository';
+import {
+  defaultFirstDueDate,
+  dueDateForCompetence,
+  dueDayFromDate,
+  firstDayOfMonth,
+  validateFirstDueDate,
+} from '@/modules/subscriptions/billing-dates';
 import * as planRepository from '@/modules/plans/plan.service';
 import { recordAuditEvent } from '@/modules/audit/audit.service';
 import * as tenantRepository from './tenant.repository';
@@ -21,13 +27,28 @@ interface ProvisionTenantInput {
   timezone?: string;
   planId: string;
   condition?: 'PAID' | 'EXEMPT';
-  dueDay?: number;
+  /**
+   * Data exata da primeira cobrança, escolhida pelo Admin (Seção 113,
+   * evolução v1.6.1 — nunca mais derivada automaticamente de "hoje" +
+   * um dia-do-mês abstrato; ver `billing-dates.ts`). Usada literalmente,
+   * sem nenhum ajuste, na primeira `SubscriptionCharge`. Os meses
+   * seguintes reaproveitam só o dia do mês dela (`dueDay`, 1-28).
+   *
+   * Opcional só para chamadas internas/programáticas (ex.: os testes de
+   * integração de outros módulos, que só precisam de "um tenant qualquer"
+   * pra testar outra coisa) — nesse caso, `defaultFirstDueDate` calcula uma
+   * data hoje-ou-próxima-válida. O endpoint real do Admin
+   * (`/api/admin/tenants`) exige o campo, sem default nenhum — é lá que a
+   * causa raiz do bug antigo é eliminada, forçando a escolha humana.
+   */
+  firstDueDate?: Date;
 }
 
 /**
- * Provisiona tenant + owner + assinatura atomicamente (Seção 24, 106).
- * O preço é congelado do plano no momento da criação (Seção 107) — mudanças
- * futuras no catálogo de planos nunca afetam este contrato retroativamente.
+ * Provisiona tenant + owner + assinatura (+ primeira mensalidade, quando
+ * pago) atomicamente (Seção 24, 106, 113). O preço é congelado do plano no
+ * momento da criação (Seção 107) — mudanças futuras no catálogo de planos
+ * nunca afetam este contrato retroativamente.
  *
  * Não usa senha temporária (Seção 25) — `passwordHash` fica nulo até o
  * usuário definir a própria senha via convite.
@@ -37,6 +58,17 @@ export async function provisionTenantWithOwner(input: ProvisionTenantInput) {
   if (!plan) {
     throw new Error(`Plano ${input.planId} não encontrado.`);
   }
+
+  const today = new Date();
+  const firstDueDate = input.firstDueDate ?? defaultFirstDueDate(today);
+
+  const validation = validateFirstDueDate(firstDueDate, today);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
+  const condition = input.condition ?? 'PAID';
+  const dueDay = dueDayFromDate(firstDueDate);
 
   const { tenant, user } = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const createdUser = await tx.user.create({
@@ -57,16 +89,33 @@ export async function provisionTenantWithOwner(input: ProvisionTenantInput) {
       data: { tenantId: createdTenant.id, userId: createdUser.id },
     });
 
-    await subscriptionRepository.createSubscription(
+    const subscription = await subscriptionRepository.createSubscription(
       {
         tenantId: createdTenant.id,
         planId: plan.id,
         contractedPriceCents: plan.priceCents,
-        condition: input.condition ?? 'PAID',
-        dueDay: input.dueDay ?? 10,
+        condition,
+        dueDay,
       },
       tx,
     );
+
+    // A primeira mensalidade usa a data exata escolhida pelo Admin, sem
+    // nenhum recálculo (Seção 113) — nasce dentro da mesma transação do
+    // tenant, nunca depois: ou os dois existem, ou nenhum existe. Isento
+    // (Seção 108) nunca gera cobrança — "sem dívida artificial".
+    if (condition !== 'EXEMPT') {
+      await subscriptionRepository.createCharge(
+        {
+          subscriptionId: subscription.id,
+          tenantId: createdTenant.id,
+          competence: firstDayOfMonth(firstDueDate),
+          amountCents: plan.priceCents,
+          dueDate: dueDateForCompetence(firstDayOfMonth(firstDueDate), dueDay),
+        },
+        tx,
+      );
+    }
 
     return { tenant: createdTenant, user: createdUser };
   });
@@ -87,7 +136,6 @@ export async function provisionTenantWithOwner(input: ProvisionTenantInput) {
       error,
     );
   }
-  await ensureCurrentMonthCharge(tenant.id);
   await recordAuditEvent({
     actorType: 'GLOBAL_ADMIN',
     tenantId: tenant.id,

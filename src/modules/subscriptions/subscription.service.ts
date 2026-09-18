@@ -5,14 +5,7 @@ import { appendOutboxEvent } from '@/modules/notifications/outbox.service';
 import * as tenantRepository from '@/modules/tenants/tenant.repository';
 import * as subscriptionRepository from './subscription.repository';
 import { isOverdueEnoughToBlock } from './delinquency-rules';
-
-function firstDayOfMonth(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
-}
-
-function dueDateForCompetence(competence: Date, dueDay: number): Date {
-  return new Date(Date.UTC(competence.getUTCFullYear(), competence.getUTCMonth(), dueDay));
-}
+import { dueDateForCompetence, firstDayOfMonth } from './billing-dates';
 
 /**
  * Garante que a cobranca do mes vigente existe (Secao 109). Idempotente -
@@ -23,6 +16,15 @@ function dueDateForCompetence(competence: Date, dueDay: number): Date {
  * existe) - a cobranca "nasce" na primeira consulta do mes, nao num
  * horario fixo. Quando o Estagio 13 chegar, um job diario garante isso sem
  * depender de alguem acessar o sistema.
+ *
+ * Evolucao v1.6.1: a PRIMEIRA cobranca de um tenant nunca passa por aqui -
+ * ela e criada explicitamente em `provisionTenantWithOwner`, com a data
+ * exata que o Admin escolheu (Secao 113), sem nenhum calculo. Esta funcao
+ * so entra em acao a partir da 2a competencia em diante, usando `dueDay`
+ * (o dia do mes extraido daquela primeira data) contra o mes vigente -
+ * exatamente por isso o bug antigo (cobranca nascendo ja vencida) nunca
+ * pode se repetir aqui: por definicao, so roda depois que a assinatura ja
+ * existe ha pelo menos um mes.
  */
 export async function ensureCurrentMonthCharge(tenantId: string): Promise<void> {
   const subscription = await subscriptionRepository.findSubscriptionByTenantId(tenantId);

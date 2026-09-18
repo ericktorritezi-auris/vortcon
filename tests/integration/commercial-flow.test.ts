@@ -11,6 +11,16 @@ import * as tenantRepository from '@/modules/tenants/tenant.repository';
 import { cleanupTenant, createTestPlan, deleteTestPlan } from '../helpers/commercial';
 
 /**
+ * Dia 15 do mês seguinte, sempre válido (Seção 113: 1-28, sempre futuro) —
+ * independe de em que dia do mês o CI roda, então nunca é flaky (mesma
+ * classe de bug — data derivada de "hoje" — que esta versão corrige).
+ */
+function firstDueDateNextMonth(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 15));
+}
+
+/**
  * Fluxo comercial completo (Secoes 106-114), validado contra PostgreSQL
  * real em CI: provisionar com plano -> mensalidade do mes criada
  * automaticamente -> simula atraso alem da carencia -> bloqueio automatico
@@ -31,6 +41,11 @@ describe('fluxo comercial (assinatura, mensalidade, inadimplencia)', () => {
       email: `comercial-${suffix}@example.com`,
       username: `comercial_${suffix}`,
       planId,
+      // Evolução v1.6.1 — o Admin escolhe a data exata da 1ª cobrança
+      // (Seção 113): sempre no futuro e sempre dia 1-28, nunca "hoje"
+      // literal — rodar o CI num dia 29/30/31 do mês não pode tornar
+      // este teste flaky (mesma classe de bug que estamos corrigindo).
+      firstDueDate: firstDueDateNextMonth(),
     });
     tenantId = tenant.id;
     adminUserId = user.id;
@@ -110,6 +125,9 @@ describe('fluxo comercial (assinatura, mensalidade, inadimplencia)', () => {
       username: `isento_${suffix}`,
       planId: exemptPlan.id,
       condition: 'EXEMPT',
+      // Isento também passa por `validateFirstDueDate` (Seção 108: a
+      // validação não distingue condição), mesmo nunca gerando cobrança.
+      firstDueDate: firstDueDateNextMonth(),
     });
 
     const charges = await subscriptionRepository.listChargesForTenant(tenant.id);

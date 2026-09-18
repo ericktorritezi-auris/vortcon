@@ -36,14 +36,18 @@ export async function createSubscription(
   return client.tenantSubscription.create({ data: input });
 }
 
-export async function createCharge(input: {
-  subscriptionId: string;
-  tenantId: string;
-  competence: Date;
-  amountCents: number;
-  dueDate: Date;
-}) {
-  return prisma.subscriptionCharge.create({ data: input });
+/** Aceita um client de transação opcional — usado pra criar a primeira mensalidade dentro do provisionamento atômico do tenant (Seção 113). */
+export async function createCharge(
+  input: {
+    subscriptionId: string;
+    tenantId: string;
+    competence: Date;
+    amountCents: number;
+    dueDate: Date;
+  },
+  client: Prisma.TransactionClient | typeof prisma = prisma,
+) {
+  return client.subscriptionCharge.create({ data: input });
 }
 
 interface MarkChargePaidContext {

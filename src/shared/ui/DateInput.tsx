@@ -5,6 +5,7 @@ import { forwardRef, useId } from 'react';
 interface DateInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   label: string;
   error?: string;
+  hint?: string;
   hideLabel?: boolean;
 }
 
@@ -15,11 +16,12 @@ interface DateInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'ty
  * é responsabilidade de quem lê o valor persistido, não deste componente.
  */
 export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function DateInput(
-  { label, error, hideLabel = false, id, className, ...props },
+  { label, error, hint, hideLabel = false, id, className, ...props },
   ref,
 ) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
+  const hintId = hint ? `${inputId}-hint` : undefined;
   const errorId = error ? `${inputId}-error` : undefined;
 
   return (
@@ -36,7 +38,7 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
           id={inputId}
           type="date"
           aria-invalid={Boolean(error)}
-          aria-describedby={errorId}
+          aria-describedby={[hintId, errorId].filter(Boolean).join(' ') || undefined}
           className={[
             'h-11 w-full rounded-md border bg-surface-card pl-3 pr-9 text-sm text-ink-primary',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-intelligence',
@@ -50,6 +52,11 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
           aria-hidden="true"
         />
       </div>
+      {hint && !error ? (
+        <p id={hintId} className="text-xs text-ink-secondary">
+          {hint}
+        </p>
+      ) : null}
       {error ? (
         <p id={errorId} role="alert" className="text-xs font-medium text-financial-danger">
           {error}
