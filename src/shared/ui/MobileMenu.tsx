@@ -40,7 +40,7 @@ export function MobileMenu({ items }: MobileMenuProps): React.ReactElement {
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-50 bg-white">
+        <div className="fixed inset-0 z-50 bg-surface-card">
           <div className="flex items-center justify-between px-6 py-5">
             <Link
               href="/"

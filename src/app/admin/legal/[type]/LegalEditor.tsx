@@ -63,7 +63,7 @@ export function LegalEditor({
     editorProps: {
       attributes: {
         class:
-          'prose prose-sm min-h-[320px] max-w-none rounded-b-md border border-t-0 border-ink-secondary/30 bg-white p-4 text-ink-primary focus:outline-none [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-semibold [&_a]:text-brand-intelligence [&_ul]:list-disc [&_ol]:list-decimal [&_li]:ml-4',
+          'prose prose-sm min-h-[320px] max-w-none rounded-b-md border border-t-0 border-ink-secondary/30 bg-surface-card p-4 text-ink-primary focus:outline-none [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:font-semibold [&_a]:text-brand-intelligence [&_ul]:list-disc [&_ol]:list-decimal [&_li]:ml-4',
       },
     },
   });
@@ -232,7 +232,7 @@ function ToolbarButton({
       className={`flex h-9 w-9 items-center justify-center rounded-md ${
         active
           ? 'bg-brand-deep/10 text-brand-deep'
-          : 'text-ink-secondary hover:bg-white hover:text-ink-primary'
+          : 'text-ink-secondary hover:bg-surface-card hover:text-ink-primary'
       }`}
     >
       <Icon className="h-4 w-4" aria-hidden="true" />

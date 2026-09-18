@@ -13,7 +13,7 @@ interface FinancialValueProps {
 
 const TONE_CLASSES: Record<FinancialValueTone, string> = {
   neutral: 'text-ink-primary',
-  positive: 'text-[#178a44]',
+  positive: 'text-financial-successText',
   negative: 'text-financial-danger',
 };
 

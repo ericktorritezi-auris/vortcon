@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { consumeInvitation } from '@/modules/auth/invitation.service';
 import { createSessionAndSetCookie } from '@/modules/auth/session.service';
+import { syncThemeCookieFromUser } from '@/modules/theme/theme.service';
 import { passwordSchema } from '@/shared/security/password-policy';
 import { prisma } from '@/shared/database/client';
 import { checkRateLimit, getClientIp } from '@/shared/security/rate-limit';
@@ -45,6 +46,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Ativação já autentica — evita pedir login logo em seguida (Seção 25:
   // "Conta é liberada. Onboarding inicia.").
   await createSessionAndSetCookie(result.userId);
+  await syncThemeCookieFromUser(result.userId);
 
   // GLOBAL_ADMIN e TENANT_OWNER pousam em áreas diferentes depois de ativar
   // (Seção 22: Admin é separado dos ambientes financeiros) — o client

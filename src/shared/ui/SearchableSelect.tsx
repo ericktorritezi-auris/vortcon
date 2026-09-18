@@ -62,7 +62,7 @@ export function SearchableSelect({
         aria-expanded={open}
         aria-controls={listboxId}
         onClick={() => setOpen((prev) => !prev)}
-        className="flex h-11 items-center justify-between rounded-md border border-ink-secondary/30 bg-white px-3 text-left text-sm text-ink-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-intelligence"
+        className="flex h-11 items-center justify-between rounded-md border border-ink-secondary/30 bg-surface-card px-3 text-left text-sm text-ink-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-intelligence"
       >
         <span className={selected ? '' : 'text-ink-secondary'}>
           {selected?.label ?? placeholder}
@@ -71,7 +71,7 @@ export function SearchableSelect({
       </button>
 
       {open ? (
-        <div className="absolute top-full z-10 mt-1 w-full rounded-md border border-ink-secondary/20 bg-white shadow-lg">
+        <div className="absolute top-full z-10 mt-1 w-full rounded-md border border-ink-secondary/20 bg-surface-card shadow-lg">
           <div className="flex items-center gap-2 border-b border-ink-secondary/10 px-3 py-2">
             <Search className="h-4 w-4 shrink-0 text-ink-secondary" aria-hidden="true" />
             <input

@@ -4,6 +4,17 @@ Todas as mudanças notáveis do VortCon são documentadas aqui. Formato baseado 
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/), versionamento
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.6.0] — 2026-09-18
+
+### Adicionado
+
+- **Dark mode**: toggle de tema claro/escuro no dropdown do avatar (Topbar),
+  isolado à área autenticada — nunca afeta o site institucional, páginas
+  legais ou a tela de login. Preferência persistida por usuário
+  (`User.themePreference`), sincronizada entre dispositivos no login;
+  cores de marca e semáforos financeiros permanecem constantes nos dois
+  temas.
+
 ## [1.0.0] — 2026-09-09
 
 Primeira versão completa em produção. Construído incrementalmente em 18 estágios

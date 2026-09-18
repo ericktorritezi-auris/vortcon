@@ -143,7 +143,7 @@ export function TransactionsView({
               className={[
                 'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
                 activeType === tab.value
-                  ? 'bg-white text-brand-deep shadow-sm'
+                  ? 'bg-surface-card text-brand-deep shadow-sm'
                   : 'text-ink-secondary',
               ].join(' ')}
             >
@@ -153,7 +153,7 @@ export function TransactionsView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2 rounded-md border border-ink-secondary/15 bg-white px-3 py-1.5">
+          <div className="flex items-center gap-2 rounded-md border border-ink-secondary/15 bg-surface-card px-3 py-1.5">
             <span className="text-xs text-ink-secondary">Balanço do mês</span>
             <FinancialValue cents={periodResultCents} showSign />
           </div>
@@ -183,7 +183,7 @@ export function TransactionsView({
 
       <div className="flex flex-col gap-4">
         {dayGroups.map((group) => (
-          <div key={group.key} className="rounded-lg border border-ink-secondary/15 bg-white">
+          <div key={group.key} className="rounded-lg border border-ink-secondary/15 bg-surface-card">
             <div className="flex flex-wrap items-center justify-between gap-1 border-b border-ink-secondary/10 px-4 py-2.5">
               <span className="text-sm font-semibold text-ink-primary">{group.label}</span>
               <span className="text-xs text-ink-secondary">

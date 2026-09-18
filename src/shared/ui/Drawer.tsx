@@ -50,7 +50,7 @@ export function Drawer({
         aria-labelledby="drawer-title"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        className="flex h-full w-full max-w-md flex-col bg-white shadow-xl focus:outline-none"
+        className="flex h-full w-full max-w-md flex-col bg-surface-card shadow-xl focus:outline-none"
       >
         <div className="flex items-center justify-between border-b border-ink-secondary/10 px-5 py-4">
           <h2 id="drawer-title" className="text-base font-semibold text-ink-primary">

@@ -44,6 +44,11 @@ enum Role {
   TENANT_OWNER
 }
 
+enum ThemePreference {
+  LIGHT
+  DARK
+}
+
 enum TenantLifecycle {
   ACTIVE
   INACTIVE
@@ -66,6 +71,12 @@ model User {
   username     String   @unique
   timezone     String   @default("America/Sao_Paulo")
   role         Role     @default(TENANT_OWNER)
+  // Preferência de tema (claro/escuro) — Estágio 19. Persistida por usuário
+  // (não só no navegador) para acompanhar a pessoa entre dispositivos;
+  // aplicada via cookie não-HttpOnly lido no <html> no primeiro paint,
+  // então nunca há flash de tema errado. Default LIGHT preserva o
+  // comportamento de produção para todo usuário existente.
+  themePreference ThemePreference @default(LIGHT)
   // Definida pelo próprio usuário no fluxo de ativação (Seção 25-26) — nunca
   // preenchida pelo Admin. Nula até a ativação. Hashing (Argon2id) é
   // responsabilidade do módulo `auth` (Estágio 4), não deste modelo.

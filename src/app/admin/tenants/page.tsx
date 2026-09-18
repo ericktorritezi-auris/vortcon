@@ -102,7 +102,7 @@ export default async function AdminTenantsPage({
             <Link
               key={tenant.id}
               href={`/admin/tenants/${tenant.id}`}
-              className="flex flex-col gap-2 rounded-lg border border-ink-secondary/15 bg-white p-4 hover:border-brand-flow sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-2 rounded-lg border border-ink-secondary/15 bg-surface-card p-4 hover:border-brand-flow sm:flex-row sm:items-center sm:justify-between"
             >
               <div className="min-w-0">
                 <p className="truncate font-medium text-ink-primary">{owner?.name ?? '—'}</p>

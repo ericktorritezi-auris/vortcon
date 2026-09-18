@@ -50,7 +50,7 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 
 | Item                    | Valor                                                                                                                                                   |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Versão                  | `1.0.0` (baseline em construção)                                                                                                                        |
+| Versão                  | `1.6.0`                                                                                                                                                 |
 | Estágio atual           | Estágio 18 — Release ✅ concluído — **VortCon 1.0.0**                                                                                                   |
 | Próximo estágio         | Nenhum — todos os 18 estágios do roteiro original concluídos. Itens que exigem confirmação em produção listados na seção "Estágio 18 — Release" abaixo. |
 | Plano comercial inicial | VortCon Pro — R$ 49,90/mês                                                                                                                              |
@@ -58,6 +58,75 @@ Conceito estratégico: **Movimento → Organização → Controle → Inteligên
 | Documento normativo     | `VortCon_Direcionamento.md` (Master Document v1.0.0) — prevalece sobre qualquer implementação em caso de conflito                                       |
 
 Este README evolui junto com o desenvolvimento. Ele é a documentação operacional raiz do projeto, não um arquivo descartável.
+
+## Dark Mode — toggle claro/escuro (Estágio 19)
+
+Pedido do cliente: um toggle de tema claro/escuro, com a preocupação explícita
+de que o sistema está em produção e não pode sofrer nenhum dano. Antes de
+construir, investiguei a arquitetura de cor real do app (`tailwind.config.ts`,
+`globals.css`) e encontrei uma boa notícia: o próprio Master Document (Seção 11) já havia previsto isso desde a V1 — os tokens de cor sempre foram
+nomeados por papel semântico (`surface.page`, `ink.primary`...) exatamente
+para permitir uma variante escura sem retrabalho. O que faltava era só a
+`tailwind.config.ts` apontar pro hex fixo em vez das CSS variables que já
+existiam em `globals.css` — corrigido nesta entrega.
+
+### Decisão de posicionamento — diferente da sugestão original
+
+O cliente sugeriu o toggle no menu lateral, antes de "Início". Sugeri o
+dropdown do avatar no Topbar (ao lado da Calculadora) em vez disso, e ele
+aprovou:
+
+- O sidebar é navegação (leva a uma tela); tema é preferência de exibição —
+  misturar os dois confunde, e exigiria implementar em dois lugares (sidebar
+  desktop + overlay mobile), dobrando a superfície de risco.
+- O dropdown do avatar já é o lugar de "preferências da minha conta" — onde
+  a pessoa já espera esse tipo de ajuste.
+
+### Escopo do dark mode — deliberadamente isolado
+
+O tema escuro nunca toca o `<html>` inteiro. Ele é aplicado só no elemento-
+raiz de `AppShell`/`AdminShell` (a área logada) — o site institucional,
+páginas legais, e a tela de login **nunca** herdam o tema escuro, mesmo que
+a pessoa já tenha ativado o toggle dentro do app. Isso elimina o maior risco
+de um toggle desse tipo: "vazar" para páginas que ninguém pediu para adaptar
+e que não foram revisadas visualmente.
+
+As cores de marca (`brand.deep/flow/intelligence`) e os semáforos financeiros
+(sucesso/perigo/alerta/info) permanecem os mesmos nos dois temas, de
+propósito — são identidade visual e semântica de dados (Seção 12: "vermelho
+é despesa"), não "cor de fundo". Só as variáveis de superfície e texto
+(fundo de página, fundo de card, texto primário/secundário) e as variantes
+de contraste dos semáforos (o texto mais escuro usado em badges/toasts sobre
+fundo tintado) mudam entre os dois temas.
+
+### Persistência — acompanha a pessoa entre dispositivos
+
+A preferência é salva no usuário (`User.themePreference`, migration
+`20260918160000_theme_preference`, default `LIGHT` — nenhuma conta existente
+muda de aparência sem ação explícita), não só no navegador. Um cookie
+não-HttpOnly (`vc-theme`) guarda o valor para o servidor renderizar o shell
+já com a classe certa desde o primeiro HTML — nenhum flash de tema errado —
+e é sincronizado com o valor do banco nos três pontos de login (senha,
+aceite de convite, WebAuthn), então a pessoa vê seu tema de sempre mesmo
+entrando de um navegador ou aparelho novo.
+
+O toggle em si é otimista: troca a classe no client e o texto do botão na
+hora, sem esperar a resposta da API — se a rede falhar, o tema visual
+aplicado não é desfeito (só a persistência entre dispositivos ficaria
+pendente até a próxima troca).
+
+### Testes desta entrega
+
+- `tests/unit/theme.test.ts` — conversão pura entre o enum de banco e o valor
+  de cookie/DOM (`toThemeValue`/`toThemePreference`) e a validação do cookie
+  (`isThemeValue`).
+- As funções que persistem tema (`syncThemeCookieFromUser`,
+  `updateThemePreference`) não têm teste automatizado direto, pela mesma
+  razão já documentada para `evaluateAccessPolicy` (Estágio 17): chamam
+  `cookies()` internamente, que só funciona dentro de uma requisição real do
+  Next.js. A lógica testável foi extraída para as funções puras acima.
+- Suíte de integração completa mantida verde (nenhuma regressão nos fluxos
+  de login/autenticação, que agora também sincronizam o cookie de tema).
 
 ### Estágio 1 — o que foi entregue
 

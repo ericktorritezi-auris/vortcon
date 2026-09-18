@@ -61,7 +61,7 @@ export default async function AdminTenantDetailPage({
         ))}
       </div>
 
-      <section className="mb-6 rounded-lg border border-ink-secondary/15 bg-white p-4">
+      <section className="mb-6 rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
         <h2 className="mb-3 text-sm font-semibold text-ink-primary">Assinatura</h2>
         {subscription ? (
           <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -91,7 +91,7 @@ export default async function AdminTenantDetailPage({
         )}
       </section>
 
-      <section className="mb-6 rounded-lg border border-ink-secondary/15 bg-white p-4">
+      <section className="mb-6 rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
         <h2 className="mb-3 text-sm font-semibold text-ink-primary">Mensalidades</h2>
         <div className="flex flex-col divide-y divide-ink-secondary/10">
           {charges.map((charge: SubscriptionCharge) => (
@@ -121,12 +121,12 @@ export default async function AdminTenantDetailPage({
         </div>
       </section>
 
-      <section className="mb-6 rounded-lg border border-ink-secondary/15 bg-white p-4">
+      <section className="mb-6 rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
         <h2 className="mb-3 text-sm font-semibold text-ink-primary">Bloqueio manual</h2>
         <CreateBlockForm tenantId={tenant.id} />
       </section>
 
-      <section className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+      <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
         <h2 className="mb-3 text-sm font-semibold text-ink-primary">Restaurar backup</h2>
         <BackupRestore tenantId={tenant.id} />
       </section>

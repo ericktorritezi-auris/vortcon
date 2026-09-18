@@ -37,7 +37,7 @@ export default async function MySubscriptionPage(): Promise<React.ReactElement> 
       <h1 className="mb-6 text-xl font-semibold text-ink-primary">Minha assinatura</h1>
 
       {subscription ? (
-        <div className="mb-6 rounded-lg border border-ink-secondary/15 bg-white p-5">
+        <div className="mb-6 rounded-lg border border-ink-secondary/15 bg-surface-card p-5">
           <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
             <div>
               <dt className="text-ink-secondary">Plano</dt>
@@ -73,7 +73,7 @@ export default async function MySubscriptionPage(): Promise<React.ReactElement> 
       )}
 
       <h2 className="mb-3 text-sm font-semibold text-ink-primary">Histórico de mensalidades</h2>
-      <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-white px-4">
+      <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-surface-card px-4">
         {charges.map((charge: SubscriptionCharge) => (
           <div key={charge.id} className="flex items-center justify-between py-3 text-sm">
             <span className="font-medium text-ink-primary">

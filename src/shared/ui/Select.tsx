@@ -43,7 +43,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           aria-invalid={Boolean(error)}
           aria-describedby={errorId}
           className={[
-            'h-11 w-full appearance-none rounded-md border bg-white pl-3 pr-9 text-sm text-ink-primary',
+            'h-11 w-full appearance-none rounded-md border bg-surface-card pl-3 pr-9 text-sm text-ink-primary',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-intelligence',
             error ? 'border-financial-danger' : 'border-ink-secondary/30',
             className ?? '',

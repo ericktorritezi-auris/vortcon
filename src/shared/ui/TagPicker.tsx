@@ -51,7 +51,7 @@ export function TagPicker({
         {label}
       </span>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-md border border-ink-secondary/30 bg-white p-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-md border border-ink-secondary/30 bg-surface-card p-2">
         {selected.map((tag) => (
           <span
             key={tag.id}
@@ -80,7 +80,7 @@ export function TagPicker({
       </div>
 
       {query && suggestions.length > 0 ? (
-        <ul className="max-h-40 overflow-y-auto rounded-md border border-ink-secondary/20 bg-white shadow-sm">
+        <ul className="max-h-40 overflow-y-auto rounded-md border border-ink-secondary/20 bg-surface-card shadow-sm">
           {suggestions.map((tag) => (
             <li key={tag.id}>
               <button

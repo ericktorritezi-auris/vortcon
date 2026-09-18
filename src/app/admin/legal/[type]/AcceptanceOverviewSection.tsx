@@ -32,7 +32,7 @@ export function AcceptanceOverviewSection({
         </p>
       </div>
 
-      <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-white">
+      <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-surface-card">
         {overview.map((row) => (
           <div key={row.userId} className="flex items-center justify-between px-4 py-2.5 text-sm">
             <div>
@@ -58,7 +58,7 @@ export function AcceptanceOverviewSection({
 
       <div>
         <h3 className="mb-2 text-sm font-semibold text-ink-primary">Histórico completo</h3>
-        <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-white">
+        <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-surface-card">
           {history.map((row, index) => (
             // eslint-disable-next-line react/no-array-index-key -- linha de historico somente-leitura, sem id proprio exposto
             <div

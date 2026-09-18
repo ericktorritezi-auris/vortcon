@@ -12,6 +12,7 @@ import {
   Home,
   LayoutGrid,
   ListChecks,
+  Moon,
   PieChart,
   Repeat,
   Search,
@@ -383,6 +384,33 @@ const SECTIONS: HelpSection[] = [
     ],
   },
   {
+    id: 'tema',
+    icon: Moon,
+    title: 'Tema claro/escuro',
+    items: [
+      {
+        question: 'Onde eu troco entre o tema claro e o escuro?',
+        answer:
+          'Clique no seu nome/avatar, no topo direito da tela — a opção "Tema escuro" (ou "Tema claro", se você já estiver no escuro) aparece no mesmo menu da Calculadora, acima de "Sair".',
+      },
+      {
+        question: 'Essa preferência é só deste navegador, ou acompanha minha conta?',
+        answer:
+          'Acompanha sua conta. Se você trocar de tema no computador e depois entrar pelo celular (ou por outro navegador), o VortCon já abre no tema que você escolheu por último.',
+      },
+      {
+        question: 'O tema escuro muda alguma cor de valor (verde de receita, vermelho de despesa)?',
+        answer:
+          'Não, de propósito. As cores de marca e os sinais de receita/despesa/alerta são os mesmos nos dois temas — só o fundo das telas e o texto mudam. Isso evita qualquer confusão de "essa cor sempre significou uma coisa e agora significa outra".',
+      },
+      {
+        question: 'O tema escuro afeta o site de vendas, as páginas legais ou a tela de login?',
+        answer:
+          'Não. O tema escuro existe só dentro da área logada (onde o toggle está) — o site institucional, os documentos legais e a tela de login continuam sempre no tema claro, independente do que você escolheu lá dentro.',
+      },
+    ],
+  },
+  {
     id: 'perfil',
     icon: User,
     title: 'Meu perfil',
@@ -459,13 +487,13 @@ export function HelpContent(): React.ReactElement {
 
       <nav
         aria-label="Sumário"
-        className="flex flex-wrap gap-2 rounded-lg border border-ink-secondary/15 bg-white p-3"
+        className="border-ink-secondary/15 flex flex-wrap gap-2 rounded-lg border bg-surface-card p-3"
       >
         {SECTIONS.map((section) => (
           <a
             key={section.id}
             href={`#${section.id}`}
-            className="rounded-full bg-surface-page px-3 py-1.5 text-xs font-medium text-ink-secondary hover:bg-brand-flow/10 hover:text-brand-flow"
+            className="hover:bg-brand-flow/10 rounded-full bg-surface-page px-3 py-1.5 text-xs font-medium text-ink-secondary hover:text-brand-flow"
           >
             {section.title}
           </a>
@@ -477,13 +505,13 @@ export function HelpContent(): React.ReactElement {
           <section
             key={section.id}
             id={section.id}
-            className="rounded-lg border border-ink-secondary/15 bg-white p-4"
+            className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4"
           >
             <div className="mb-3 flex items-center gap-2">
               <section.icon className="h-5 w-5 text-brand-flow" aria-hidden="true" />
               <h2 className="text-base font-semibold text-ink-primary">{section.title}</h2>
             </div>
-            <div className="flex flex-col divide-y divide-ink-secondary/10">
+            <div className="divide-ink-secondary/10 flex flex-col divide-y">
               {section.items.map((item) => (
                 <details key={item.question} className="group py-2.5">
                   <summary className="cursor-pointer list-none text-sm font-medium text-ink-primary marker:content-none">

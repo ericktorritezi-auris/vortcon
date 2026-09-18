@@ -135,7 +135,7 @@ export function TransfersView({
 
       <div className="flex flex-col gap-4">
         {dayGroups.map((group) => (
-          <div key={group.key} className="rounded-lg border border-ink-secondary/15 bg-white">
+          <div key={group.key} className="rounded-lg border border-ink-secondary/15 bg-surface-card">
             <div className="border-b border-ink-secondary/10 px-4 py-2.5">
               <span className="text-sm font-semibold text-ink-primary">{group.label}</span>
             </div>

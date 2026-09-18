@@ -168,7 +168,7 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold text-ink-primary">Meu perfil</h1>
 
-      <section className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+      <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
         <div className="mb-4 flex items-center gap-2">
           <UserIcon className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
           <h2 className="text-sm font-semibold text-ink-primary">Dados pessoais</h2>
@@ -228,7 +228,7 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
         </form>
       </section>
 
-      <section className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+      <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
         <div className="mb-4 flex items-center gap-2">
           <KeyRound className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
           <h2 className="text-sm font-semibold text-ink-primary">Alterar senha</h2>
@@ -271,7 +271,7 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
       </section>
 
       {biometricSupported ? (
-        <section className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+        <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
           <div className="mb-4 flex items-center gap-2">
             <Fingerprint className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
             <h2 className="text-sm font-semibold text-ink-primary">Biometria</h2>
@@ -320,7 +320,7 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
         </section>
       ) : null}
 
-      <section className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+      <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
         <div className="mb-2 flex items-center gap-2">
           <Download className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
           <h2 className="text-sm font-semibold text-ink-primary">Backup dos meus dados</h2>
@@ -334,7 +334,7 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
         </a>
       </section>
 
-      <section className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+      <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
         <div className="mb-3 flex items-center gap-2">
           <CreditCard className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
           <h2 className="text-sm font-semibold text-ink-primary">Links úteis</h2>

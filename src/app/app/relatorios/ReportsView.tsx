@@ -129,7 +129,7 @@ export function ReportsView({
             onClick={switchToMonthMode}
             className={[
               'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-              periodMode === 'mes' ? 'bg-white text-brand-deep shadow-sm' : 'text-ink-secondary',
+              periodMode === 'mes' ? 'bg-surface-card text-brand-deep shadow-sm' : 'text-ink-secondary',
             ].join(' ')}
           >
             Mês
@@ -142,7 +142,7 @@ export function ReportsView({
             className={[
               'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
               periodMode === 'periodo'
-                ? 'bg-white text-brand-deep shadow-sm'
+                ? 'bg-surface-card text-brand-deep shadow-sm'
                 : 'text-ink-secondary',
             ].join(' ')}
           >
@@ -191,7 +191,7 @@ export function ReportsView({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 rounded-lg border border-ink-secondary/15 bg-white p-4 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 rounded-lg border border-ink-secondary/15 bg-surface-card p-4 sm:grid-cols-3 lg:grid-cols-5">
         <Select
           label="Categoria"
           value={selected.categoria ?? ''}
@@ -244,19 +244,19 @@ export function ReportsView({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+        <div className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
           <p className="mb-1 text-xs text-ink-secondary">Receitas</p>
           <FinancialValue cents={result.totalIncomeCents} className="text-lg" />
         </div>
-        <div className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+        <div className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
           <p className="mb-1 text-xs text-ink-secondary">Despesas</p>
           <FinancialValue cents={result.totalExpenseCents} className="text-lg" />
         </div>
-        <div className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+        <div className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
           <p className="mb-1 text-xs text-ink-secondary">Resultado</p>
           <FinancialValue cents={result.totalResultCents} showSign className="text-lg" />
         </div>
-        <div className="rounded-lg border border-ink-secondary/15 bg-white p-4">
+        <div className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
           <p className="mb-1 text-xs text-ink-secondary">Saldo geral</p>
           <FinancialValue cents={result.currentRealBalanceCents} className="text-lg" />
         </div>
@@ -302,7 +302,7 @@ export function ReportsView({
 
       <div className="flex flex-col gap-4">
         {result.months.map((month) => (
-          <div key={month.monthKey} className="rounded-lg border border-ink-secondary/15 bg-white">
+          <div key={month.monthKey} className="rounded-lg border border-ink-secondary/15 bg-surface-card">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-secondary/10 bg-surface-page px-4 py-3">
               <span className="text-sm font-semibold text-ink-primary">{month.monthLabel}</span>
               <div className="flex flex-wrap items-center gap-3 text-xs text-ink-secondary">

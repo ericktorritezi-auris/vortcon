@@ -39,7 +39,7 @@ export function Toggle({
       >
         <span
           className={[
-            'inline-block h-4.5 w-4.5 transform rounded-full bg-white transition-transform',
+            'inline-block h-4.5 w-4.5 transform rounded-full bg-surface-card transition-transform',
             checked ? 'translate-x-6' : 'translate-x-1',
           ].join(' ')}
         />

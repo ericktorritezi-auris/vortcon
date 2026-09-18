@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { NotificationBell } from './NotificationBell';
 import { CalculatorModal } from '@/shared/calculator/CalculatorModal';
+import { ThemeToggle } from '@/shared/theme/ThemeToggle';
 
 interface TopbarProps {
   userName: string;
@@ -135,9 +136,9 @@ export function Topbar({
   const initial = userName.charAt(0).toUpperCase();
 
   return (
-    <header className="flex items-center gap-3 border-b border-ink-secondary/10 bg-white px-4 py-2.5">
+    <header className="border-ink-secondary/10 flex items-center gap-3 border-b bg-surface-card px-4 py-2.5">
       <div ref={containerRef} className="relative flex-1">
-        <div className="flex items-center gap-2 rounded-md border border-ink-secondary/20 bg-surface-page px-3 py-2 text-sm text-ink-secondary">
+        <div className="border-ink-secondary/20 flex items-center gap-2 rounded-md border bg-surface-page px-3 py-2 text-sm text-ink-secondary">
           <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
           <input
             type="text"
@@ -151,7 +152,7 @@ export function Topbar({
         </div>
 
         {searchOpen && query.trim().length >= 2 ? (
-          <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-80 overflow-y-auto rounded-md border border-ink-secondary/15 bg-white py-1 shadow-lg">
+          <div className="border-ink-secondary/15 absolute left-0 right-0 top-full z-20 mt-1 max-h-80 overflow-y-auto rounded-md border bg-surface-card py-1 shadow-lg">
             {loading ? (
               <p className="px-3 py-2 text-sm text-ink-secondary">Buscando...</p>
             ) : results.length > 0 ? (
@@ -200,7 +201,7 @@ export function Topbar({
         {menuOpen ? (
           <div
             role="menu"
-            className="fixed inset-x-3 top-16 z-20 rounded-md border border-ink-secondary/15 bg-white py-1 shadow-lg sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-1 sm:w-48"
+            className="border-ink-secondary/15 fixed inset-x-3 top-16 z-20 rounded-md border bg-surface-card py-1 shadow-lg sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-1 sm:w-48"
           >
             <button
               type="button"
@@ -214,6 +215,7 @@ export function Topbar({
               <Calculator className="h-4 w-4" aria-hidden="true" />
               Calculadora
             </button>
+            <ThemeToggle onToggled={() => setMenuOpen(false)} />
             <button
               type="button"
               role="menuitem"

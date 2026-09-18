@@ -93,7 +93,7 @@ export function TagsManager({ tags }: { tags: TagView[] }): React.ReactElement {
         Tags são globais — a mesma lista aparece tanto para despesas quanto para receitas.
       </p>
 
-      <div className="flex flex-wrap gap-3 rounded-lg border border-ink-secondary/15 bg-white p-4">
+      <div className="flex flex-wrap gap-3 rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
         {tags.map((tag) =>
           editingId === tag.id ? (
             <div key={tag.id} className="flex items-center gap-1.5">

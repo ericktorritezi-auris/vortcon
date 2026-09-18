@@ -105,7 +105,7 @@ export function RecorrenciasManager({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-secondary/15 bg-white p-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-secondary/15 bg-surface-card p-3">
         <label className="flex items-center gap-2 text-sm text-ink-primary">
           <input
             type="checkbox"
@@ -125,7 +125,7 @@ export function RecorrenciasManager({
         </Button>
       </div>
 
-      <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-white">
+      <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-surface-card">
         {series.map((item) => (
           <div key={item.id} className="flex items-start gap-3 px-4 py-3 hover:bg-surface-page">
             <input

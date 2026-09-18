@@ -102,7 +102,7 @@ export function CategoriesManager({
         Categorias são globais — a mesma lista aparece tanto para despesas quanto para receitas.
       </p>
 
-      <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-white">
+      <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-surface-card">
         {categories.map((category) => {
           const Icon = resolveIcon(category.iconKey);
           return (

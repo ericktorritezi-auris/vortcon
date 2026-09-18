@@ -127,7 +127,7 @@ export function AccountsManager({ accounts }: { accounts: AccountView[] }): Reac
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-white">
+      <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-surface-card">
         {accounts.map((account) => (
           <div
             key={account.id}

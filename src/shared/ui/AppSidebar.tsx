@@ -106,7 +106,7 @@ export function AppSidebar({
         <p className="mt-auto px-2 pt-4 text-[11px] text-white/40">by Belle Planner</p>
       </aside>
 
-      <div className="flex items-center border-b border-ink-secondary/10 bg-white px-3 py-2.5 md:hidden">
+      <div className="flex items-center border-b border-ink-secondary/10 bg-surface-card px-3 py-2.5 md:hidden">
         <button
           type="button"
           onClick={() => setMobileOpen(true)}

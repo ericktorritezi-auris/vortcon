@@ -10,10 +10,10 @@ interface BadgeProps {
 
 const TONE_CLASSES: Record<BadgeTone, string> = {
   neutral: 'bg-ink-secondary/10 text-ink-secondary',
-  success: 'bg-financial-success/10 text-[#178a44]',
-  danger: 'bg-financial-danger/10 text-[#c62f2f]',
-  warning: 'bg-financial-warning/10 text-[#a15c05]',
-  info: 'bg-financial-info/10 text-[#1c5fc9]',
+  success: 'bg-financial-success/10 text-financial-successText',
+  danger: 'bg-financial-danger/10 text-financial-dangerText',
+  warning: 'bg-financial-warning/10 text-financial-warningText',
+  info: 'bg-financial-info/10 text-financial-infoText',
 };
 
 /**
