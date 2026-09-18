@@ -129,7 +129,9 @@ export function ReportsView({
             onClick={switchToMonthMode}
             className={[
               'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-              periodMode === 'mes' ? 'bg-surface-card text-brand-deep shadow-sm' : 'text-ink-secondary',
+              periodMode === 'mes'
+                ? 'bg-surface-card text-brand-deep shadow-sm'
+                : 'text-ink-secondary',
             ].join(' ')}
           >
             Mês
@@ -191,7 +193,7 @@ export function ReportsView({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 rounded-lg border border-ink-secondary/15 bg-surface-card p-4 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="border-ink-secondary/15 grid grid-cols-2 gap-3 rounded-lg border bg-surface-card p-4 sm:grid-cols-3 lg:grid-cols-5">
         <Select
           label="Categoria"
           value={selected.categoria ?? ''}
@@ -244,26 +246,26 @@ export function ReportsView({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+        <div className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
           <p className="mb-1 text-xs text-ink-secondary">Receitas</p>
           <FinancialValue cents={result.totalIncomeCents} className="text-lg" />
         </div>
-        <div className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+        <div className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
           <p className="mb-1 text-xs text-ink-secondary">Despesas</p>
           <FinancialValue cents={result.totalExpenseCents} className="text-lg" />
         </div>
-        <div className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+        <div className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
           <p className="mb-1 text-xs text-ink-secondary">Resultado</p>
           <FinancialValue cents={result.totalResultCents} showSign className="text-lg" />
         </div>
-        <div className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+        <div className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
           <p className="mb-1 text-xs text-ink-secondary">Saldo geral</p>
           <FinancialValue cents={result.currentRealBalanceCents} className="text-lg" />
         </div>
       </div>
 
       {result.categorySummary ? (
-        <div className="rounded-lg border border-brand-flow/30 bg-brand-flow/5 p-4">
+        <div className="border-brand-flow/30 bg-brand-flow/5 rounded-lg border p-4">
           <h2 className="mb-3 text-sm font-semibold text-ink-primary">
             Categoria: {result.categorySummary.categoryName}
           </h2>
@@ -302,8 +304,11 @@ export function ReportsView({
 
       <div className="flex flex-col gap-4">
         {result.months.map((month) => (
-          <div key={month.monthKey} className="rounded-lg border border-ink-secondary/15 bg-surface-card">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-secondary/10 bg-surface-page px-4 py-3">
+          <div
+            key={month.monthKey}
+            className="border-ink-secondary/15 rounded-lg border bg-surface-card"
+          >
+            <div className="border-ink-secondary/10 flex flex-wrap items-center justify-between gap-2 border-b bg-surface-page px-4 py-3">
               <span className="text-sm font-semibold text-ink-primary">{month.monthLabel}</span>
               <div className="flex flex-wrap items-center gap-3 text-xs text-ink-secondary">
                 <span>
@@ -318,7 +323,7 @@ export function ReportsView({
                 </span>
               </div>
             </div>
-            <div className="flex flex-col divide-y divide-ink-secondary/10">
+            <div className="divide-ink-secondary/10 flex flex-col divide-y">
               {month.movements.map((movement) => (
                 <div
                   key={movement.id}
@@ -355,7 +360,7 @@ export function ReportsView({
           </div>
         ))}
         {result.months.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-ink-secondary/25 py-16 text-center text-sm text-ink-secondary">
+          <div className="border-ink-secondary/25 rounded-lg border border-dashed py-16 text-center text-sm text-ink-secondary">
             Nenhuma movimentação encontrada para os filtros selecionados.
           </div>
         ) : null}

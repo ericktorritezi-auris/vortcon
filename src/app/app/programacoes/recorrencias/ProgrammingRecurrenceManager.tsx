@@ -95,7 +95,7 @@ export function ProgrammingRecurrenceManager({
 
   if (series.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-ink-secondary/25 p-6 text-center text-sm text-ink-secondary">
+      <p className="border-ink-secondary/25 rounded-lg border border-dashed p-6 text-center text-sm text-ink-secondary">
         Nenhuma recorrência de Programação criada ainda. Ative &quot;Receita recorrente&quot; ou
         &quot;Despesa recorrente&quot; ao criar um lançamento em Programações &gt; Lançamentos.
       </p>
@@ -104,13 +104,13 @@ export function ProgrammingRecurrenceManager({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-secondary/15 bg-surface-card p-3">
+      <div className="border-ink-secondary/15 flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-surface-card p-3">
         <label className="flex items-center gap-2 text-sm text-ink-primary">
           <input
             type="checkbox"
             checked={allSelected}
             onChange={toggleAll}
-            className="h-4 w-4 rounded border-ink-secondary/40"
+            className="border-ink-secondary/40 h-4 w-4 rounded"
           />
           Selecionar todas ({series.length})
         </label>
@@ -124,14 +124,14 @@ export function ProgrammingRecurrenceManager({
         </Button>
       </div>
 
-      <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-surface-card">
+      <div className="divide-ink-secondary/10 border-ink-secondary/15 flex flex-col divide-y rounded-lg border bg-surface-card">
         {series.map((item) => (
           <div key={item.id} className="flex items-start gap-3 px-4 py-3 hover:bg-surface-page">
             <input
               type="checkbox"
               checked={selected.has(item.id)}
               onChange={() => toggleOne(item.id)}
-              className="mt-1 h-4 w-4 shrink-0 rounded border-ink-secondary/40"
+              className="border-ink-secondary/40 mt-1 h-4 w-4 shrink-0 rounded"
               aria-label={`Selecionar ${item.description}`}
             />
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-page text-ink-secondary">

@@ -123,7 +123,7 @@ export function BackupRestore({ tenantId }: BackupRestoreProps): React.ReactElem
       {error ? <p className="text-sm text-financial-danger">{error}</p> : null}
 
       {preview ? (
-        <div className="rounded-md border border-ink-secondary/15 bg-surface-page p-3 text-sm">
+        <div className="border-ink-secondary/15 rounded-md border bg-surface-page p-3 text-sm">
           <p className="mb-2 font-medium text-ink-primary">
             Backup gerado em{' '}
             {previewGeneratedAt ? new Date(previewGeneratedAt).toLocaleString('pt-BR') : '—'}
@@ -148,7 +148,7 @@ export function BackupRestore({ tenantId }: BackupRestoreProps): React.ReactElem
       ) : null}
 
       {restored ? (
-        <div className="rounded-md border border-financial-success/30 bg-financial-success/5 p-3 text-sm">
+        <div className="border-financial-success/30 bg-financial-success/5 rounded-md border p-3 text-sm">
           <p className="mb-2 text-financial-success">Restauração concluída com sucesso.</p>
           {safetyBackupUrl ? (
             <a href={safetyBackupUrl} download="backup-de-seguranca-antes-da-restauracao.json">

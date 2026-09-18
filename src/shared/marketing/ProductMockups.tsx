@@ -13,10 +13,10 @@ const currency = (cents: number) =>
 
 export function CockpitMockup(): React.ReactElement {
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-ink-secondary/10 bg-white p-5 shadow-xl shadow-brand-deep/10">
+    <div className="border-ink-secondary/10 shadow-brand-deep/10 w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl">
       <div className="mb-4 flex items-center justify-between">
         <span className="text-sm font-semibold text-ink-primary">Setembro/2026</span>
-        <span className="rounded-full bg-financial-success/10 px-2.5 py-1 text-xs font-medium text-financial-success">
+        <span className="bg-financial-success/10 rounded-full px-2.5 py-1 text-xs font-medium text-financial-success">
           + {currency(1184000)}
         </span>
       </div>
@@ -62,9 +62,9 @@ const MOCK_TRANSACTIONS: MockTransaction[] = [
 
 export function TransactionsMockup(): React.ReactElement {
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-ink-secondary/10 bg-white p-5 shadow-xl shadow-brand-deep/10">
+    <div className="border-ink-secondary/10 shadow-brand-deep/10 w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl">
       <p className="mb-3 text-sm font-semibold text-ink-primary">Transações de hoje</p>
-      <div className="flex flex-col divide-y divide-ink-secondary/10">
+      <div className="divide-ink-secondary/10 flex flex-col divide-y">
         {MOCK_TRANSACTIONS.map((transaction) => (
           <div key={transaction.label} className="flex items-center gap-3 py-2.5">
             <span
@@ -98,7 +98,7 @@ export function TransactionsMockup(): React.ReactElement {
 
 export function ReportsMockup(): React.ReactElement {
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-ink-secondary/10 bg-white p-5 shadow-xl shadow-brand-deep/10">
+    <div className="border-ink-secondary/10 shadow-brand-deep/10 w-full max-w-sm rounded-2xl border bg-white p-5 shadow-xl">
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm font-semibold text-ink-primary">Relatório · Setembro</p>
         <div className="flex gap-1.5">

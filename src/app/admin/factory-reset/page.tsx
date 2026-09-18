@@ -43,7 +43,7 @@ export default function FactoryResetPage(): React.ReactElement {
 
   return (
     <AuthCardLayout title="Reset de fábrica" description="Estágio 19 — ação única e irreversível.">
-      <div className="mb-5 flex flex-col gap-2 rounded-md border border-financial-danger/30 bg-financial-danger/5 p-3 text-sm">
+      <div className="border-financial-danger/30 bg-financial-danger/5 mb-5 flex flex-col gap-2 rounded-md border p-3 text-sm">
         <div className="flex items-center gap-2 font-semibold text-financial-danger">
           <AlertTriangle className="h-4 w-4" aria-hidden="true" />
           Isto apaga permanentemente:

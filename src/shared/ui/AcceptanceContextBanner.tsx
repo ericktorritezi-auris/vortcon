@@ -18,7 +18,7 @@ export function AcceptanceContextBanner({
   otherDocumentHref,
 }: AcceptanceContextBannerProps): React.ReactElement {
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-flow/30 bg-brand-flow/5 px-4 py-3 text-sm">
+    <div className="border-brand-flow/30 bg-brand-flow/5 mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm">
       <Link
         href="/aceitar-termos"
         className="flex items-center gap-1.5 font-medium text-brand-deep hover:underline"

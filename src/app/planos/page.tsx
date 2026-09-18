@@ -55,12 +55,12 @@ export default async function PlanosPage(): Promise<React.ReactElement> {
           </p>
         </section>
 
-        <section className="border-t border-ink-secondary/10 bg-white px-6 py-16">
+        <section className="border-ink-secondary/10 border-t bg-white px-6 py-16">
           <div className="mx-auto flex max-w-4xl flex-wrap justify-center gap-8">
             {plans.map((plan: SubscriptionPlan) => (
               <div
                 key={plan.id}
-                className="w-full max-w-sm rounded-2xl border border-brand-deep/15 bg-surface-page p-8 shadow-lg shadow-brand-deep/5"
+                className="border-brand-deep/15 shadow-brand-deep/5 w-full max-w-sm rounded-2xl border bg-surface-page p-8 shadow-lg"
               >
                 <div className="mb-4 flex items-center gap-2">
                   <Zap className="h-5 w-5 text-brand-flow" aria-hidden="true" />
@@ -77,7 +77,7 @@ export default async function PlanosPage(): Promise<React.ReactElement> {
                     {PERIODICITY_LABEL[plan.periodicity] ?? ''}
                   </span>
                 </p>
-                <p className="mb-6 inline-flex items-center gap-1.5 rounded-full bg-brand-flow/10 px-3 py-1 text-xs font-medium text-brand-flow">
+                <p className="bg-brand-flow/10 mb-6 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-brand-flow">
                   Pagamento via Pix
                 </p>
 
@@ -95,7 +95,7 @@ export default async function PlanosPage(): Promise<React.ReactElement> {
 
                 <Link
                   href="/entrar"
-                  className="block w-full rounded-md bg-brand-deep px-6 py-3 text-center text-sm font-medium text-white hover:bg-brand-deep/90"
+                  className="hover:bg-brand-deep/90 block w-full rounded-md bg-brand-deep px-6 py-3 text-center text-sm font-medium text-white"
                 >
                   Já sou cliente — Entrar
                 </Link>

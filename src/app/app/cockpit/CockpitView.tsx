@@ -58,7 +58,7 @@ function ComparisonBar({
         <span className="w-16 shrink-0 text-xs text-ink-secondary">Mês anterior</span>
         <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-page">
           <div
-            className="h-full rounded-full bg-ink-secondary/40"
+            className="bg-ink-secondary/40 h-full rounded-full"
             style={{ width: `${previousPercent}%` }}
           />
         </div>
@@ -127,7 +127,7 @@ export function CockpitView({
   return (
     <div className="flex flex-col gap-5">
       {unacknowledgedMonth && !dismissedBanner ? (
-        <div className="flex flex-col items-start gap-3 rounded-lg border border-brand-flow/30 bg-brand-flow/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="border-brand-flow/30 bg-brand-flow/5 flex flex-col items-start gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 shrink-0 text-brand-flow" aria-hidden="true" />
             <p className="text-sm text-ink-primary">
@@ -197,7 +197,7 @@ export function CockpitView({
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+        <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
           <h2 className="mb-4 text-sm font-semibold text-ink-primary">
             Comparação com o mês anterior
           </h2>
@@ -215,9 +215,9 @@ export function CockpitView({
           </div>
         </section>
 
-        <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+        <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
           <h2 className="mb-3 text-sm font-semibold text-ink-primary">Destaques por categoria</h2>
-          <div className="flex flex-col divide-y divide-ink-secondary/10">
+          <div className="divide-ink-secondary/10 flex flex-col divide-y">
             {highlightEntries.map((entry) => (
               <div
                 key={entry.label}
@@ -253,7 +253,7 @@ export function CockpitView({
         </section>
       </div>
 
-      <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+      <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
         <h2 className="mb-4 text-sm font-semibold text-ink-primary">
           Categorias em percentual do mês
         </h2>
@@ -284,8 +284,8 @@ export function CockpitView({
       <section
         className={
           summary.insights.length > 0
-            ? 'rounded-lg border border-ink-secondary/15 bg-surface-card p-4'
-            : 'rounded-lg border border-dashed border-ink-secondary/25 p-4'
+            ? 'border-ink-secondary/15 rounded-lg border bg-surface-card p-4'
+            : 'border-ink-secondary/25 rounded-lg border border-dashed p-4'
         }
       >
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-primary">

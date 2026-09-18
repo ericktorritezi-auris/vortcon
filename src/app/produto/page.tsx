@@ -47,13 +47,13 @@ export default function ProdutoPage(): React.ReactElement {
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/planos"
-                className="rounded-md bg-brand-deep px-6 py-3 text-sm font-medium text-white hover:bg-brand-deep/90"
+                className="hover:bg-brand-deep/90 rounded-md bg-brand-deep px-6 py-3 text-sm font-medium text-white"
               >
                 Ver planos
               </Link>
               <Link
                 href="/entrar"
-                className="rounded-md border border-ink-secondary/20 px-6 py-3 text-sm font-medium text-ink-primary hover:bg-surface-page"
+                className="border-ink-secondary/20 rounded-md border px-6 py-3 text-sm font-medium text-ink-primary hover:bg-surface-page"
               >
                 Já sou cliente
               </Link>
@@ -67,7 +67,7 @@ export default function ProdutoPage(): React.ReactElement {
         </section>
 
         {/* O problema */}
-        <section className="border-t border-ink-secondary/10 bg-white px-6 py-16">
+        <section className="border-ink-secondary/10 border-t bg-white px-6 py-16">
           <div className="mx-auto max-w-3xl">
             <h2
               className="mb-4 text-2xl text-brand-deep sm:text-3xl"
@@ -146,7 +146,7 @@ export default function ProdutoPage(): React.ReactElement {
         </section>
 
         {/* Confiança */}
-        <section className="border-t border-ink-secondary/10 bg-brand-deep px-6 py-16 text-white">
+        <section className="border-ink-secondary/10 border-t bg-brand-deep px-6 py-16 text-white">
           <div className="mx-auto max-w-3xl text-center">
             <Fingerprint className="mx-auto mb-4 h-8 w-8 text-brand-flow" aria-hidden="true" />
             <h2
@@ -174,7 +174,7 @@ export default function ProdutoPage(): React.ReactElement {
             </h2>
             <Link
               href="/planos"
-              className="rounded-md bg-brand-deep px-8 py-3 text-sm font-medium text-white hover:bg-brand-deep/90"
+              className="hover:bg-brand-deep/90 rounded-md bg-brand-deep px-8 py-3 text-sm font-medium text-white"
             >
               Ver planos
             </Link>

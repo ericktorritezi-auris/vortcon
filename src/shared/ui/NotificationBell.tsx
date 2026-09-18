@@ -138,9 +138,9 @@ export function NotificationBell(): React.ReactElement {
       {open ? (
         <div
           role="menu"
-          className="fixed inset-x-3 top-16 z-20 rounded-md border border-ink-secondary/15 bg-surface-card py-1 shadow-lg sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-1 sm:w-80"
+          className="border-ink-secondary/15 fixed inset-x-3 top-16 z-20 rounded-md border bg-surface-card py-1 shadow-lg sm:absolute sm:inset-x-auto sm:left-auto sm:right-0 sm:top-full sm:mt-1 sm:w-80"
         >
-          <div className="flex items-center justify-between border-b border-ink-secondary/10 px-3 py-2">
+          <div className="border-ink-secondary/10 flex items-center justify-between border-b px-3 py-2">
             <span className="text-sm font-semibold text-ink-primary">Notificações</span>
             {unreadCount > 0 ? (
               <button
@@ -160,13 +160,13 @@ export function NotificationBell(): React.ReactElement {
                 type="button"
                 onClick={() => void handleNotificationClick(notification)}
                 className={[
-                  'flex w-full flex-col gap-0.5 border-b border-ink-secondary/5 px-3 py-2.5 text-left hover:bg-surface-page',
+                  'border-ink-secondary/5 flex w-full flex-col gap-0.5 border-b px-3 py-2.5 text-left hover:bg-surface-page',
                   notification.readAt ? '' : 'bg-brand-flow/5',
                 ].join(' ')}
               >
                 <span className="text-sm font-medium text-ink-primary">{notification.title}</span>
                 <span className="text-xs text-ink-secondary">{notification.body}</span>
-                <span className="text-[10px] text-ink-secondary/70">
+                <span className="text-ink-secondary/70 text-[10px]">
                   {dateFormatter.format(new Date(notification.createdAt))}
                 </span>
               </button>
@@ -179,12 +179,12 @@ export function NotificationBell(): React.ReactElement {
           </div>
 
           {pushEnabled === false ? (
-            <div className="border-t border-ink-secondary/10 px-3 py-2.5">
+            <div className="border-ink-secondary/10 border-t px-3 py-2.5">
               <button
                 type="button"
                 onClick={() => void handleEnablePush()}
                 disabled={pushLoading}
-                className="w-full rounded-md bg-surface-page px-3 py-2 text-left text-xs font-medium text-ink-primary hover:bg-ink-secondary/10 disabled:opacity-60"
+                className="hover:bg-ink-secondary/10 w-full rounded-md bg-surface-page px-3 py-2 text-left text-xs font-medium text-ink-primary disabled:opacity-60"
               >
                 {pushLoading ? 'Ativando...' : 'Ativar notificações push neste dispositivo'}
               </button>

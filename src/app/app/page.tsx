@@ -205,9 +205,9 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+        <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
           <h2 className="mb-3 text-sm font-semibold text-ink-primary">Saldo por conta</h2>
-          <div className="flex flex-col divide-y divide-ink-secondary/10">
+          <div className="divide-ink-secondary/10 flex flex-col divide-y">
             {accountBalances.map((balance: AccountBalance) => (
               <div
                 key={balance.accountId}
@@ -225,11 +225,11 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
           </div>
         </section>
 
-        <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+        <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
           <h2 className="mb-3 text-sm font-semibold text-ink-primary">
             Movimentação por categoria
           </h2>
-          <div className="flex flex-col divide-y divide-ink-secondary/10">
+          <div className="divide-ink-secondary/10 flex flex-col divide-y">
             {categoryBreakdown.map((row: CategoryBreakdownRow) => {
               const category = categoriesById.get(row.categoryId);
               const CategoryIcon = resolveIcon(category?.iconKey);
@@ -259,7 +259,7 @@ export default async function DashboardPage(): Promise<React.ReactElement> {
         </section>
       </div>
 
-      <section className="mt-6 rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+      <section className="border-ink-secondary/15 mt-6 rounded-lg border bg-surface-card p-4">
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-ink-primary">
           <Lightbulb className="h-4 w-4 text-financial-warning" aria-hidden="true" />
           Insights

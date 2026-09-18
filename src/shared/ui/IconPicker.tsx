@@ -40,7 +40,7 @@ export function IconPicker({
                 'flex h-11 w-11 items-center justify-center rounded-md border transition-colors',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-intelligence',
                 isSelected
-                  ? 'border-brand-flow bg-brand-flow/10 text-brand-deep'
+                  ? 'bg-brand-flow/10 border-brand-flow text-brand-deep'
                   : 'border-ink-secondary/20 text-ink-secondary hover:bg-surface-page',
               ].join(' ')}
             >

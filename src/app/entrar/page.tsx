@@ -116,9 +116,9 @@ function LoginForm(): React.ReactElement {
             Entrar com biometria
           </Button>
           <div className="flex items-center gap-2 text-xs text-ink-secondary">
-            <span className="h-px flex-1 bg-ink-secondary/15" />
+            <span className="bg-ink-secondary/15 h-px flex-1" />
             ou entre com sua senha
-            <span className="h-px flex-1 bg-ink-secondary/15" />
+            <span className="bg-ink-secondary/15 h-px flex-1" />
           </div>
         </>
       ) : null}
@@ -148,7 +148,7 @@ function LoginForm(): React.ReactElement {
               type="checkbox"
               checked={offerBiometricSetup}
               onChange={(event) => setOfferBiometricSetup(event.target.checked)}
-              className="h-4 w-4 rounded border-ink-secondary/30"
+              className="border-ink-secondary/30 h-4 w-4 rounded"
             />
             Ativar login por biometria neste aparelho
           </label>

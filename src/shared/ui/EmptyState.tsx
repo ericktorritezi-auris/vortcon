@@ -16,7 +16,7 @@ export function EmptyState({
   action,
 }: EmptyStateProps): React.ReactElement {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-ink-secondary/25 px-6 py-12 text-center">
+    <div className="border-ink-secondary/25 flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-12 text-center">
       <Icon className="h-8 w-8 text-ink-secondary" aria-hidden="true" />
       <p className="text-sm font-semibold text-ink-primary">{title}</p>
       {description ? <p className="max-w-sm text-sm text-ink-secondary">{description}</p> : null}

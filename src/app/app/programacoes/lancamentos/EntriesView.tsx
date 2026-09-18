@@ -112,9 +112,9 @@ export function EntriesView({
         {groups.map((group) => (
           <div
             key={group.beneficiaryId}
-            className="rounded-lg border border-ink-secondary/15 bg-surface-card"
+            className="border-ink-secondary/15 rounded-lg border bg-surface-card"
           >
-            <div className="border-b border-ink-secondary/10 px-4 py-2.5">
+            <div className="border-ink-secondary/10 border-b px-4 py-2.5">
               <span className="text-sm font-semibold text-ink-primary">
                 {group.beneficiaryName}
               </span>
@@ -160,7 +160,7 @@ export function EntriesView({
           </div>
         ))}
         {groups.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-ink-secondary/25 py-16 text-center text-sm text-ink-secondary">
+          <div className="border-ink-secondary/25 rounded-lg border border-dashed py-16 text-center text-sm text-ink-secondary">
             Nenhum lançamento de Programação neste período.
           </div>
         ) : null}
@@ -220,7 +220,7 @@ function EntryTypeSection({
   onGenerate,
 }: EntryTypeSectionProps): React.ReactElement {
   return (
-    <div className="border-b border-ink-secondary/10 px-4 py-3 last:border-b-0">
+    <div className="border-ink-secondary/10 border-b px-4 py-3 last:border-b-0">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-ink-secondary">
           {title}
@@ -228,7 +228,7 @@ function EntryTypeSection({
         <FinancialValue cents={totalCents} className="text-sm" />
       </div>
 
-      <div className="flex flex-col divide-y divide-ink-secondary/10">
+      <div className="divide-ink-secondary/10 flex flex-col divide-y">
         {entries.map((entry) => (
           <button
             key={entry.id}

@@ -138,7 +138,7 @@ export function LegalEditor({
       </div>
 
       <div>
-        <div className="flex flex-wrap gap-1 rounded-t-md border border-ink-secondary/30 bg-surface-page p-1.5">
+        <div className="border-ink-secondary/30 flex flex-wrap gap-1 rounded-t-md border bg-surface-page p-1.5">
           <ToolbarButton
             icon={Heading2}
             label="Título"

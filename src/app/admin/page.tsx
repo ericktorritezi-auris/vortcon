@@ -136,7 +136,7 @@ export default async function AdminDashboardPage(): Promise<React.ReactElement> 
             />
           </div>
 
-          <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+          <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
             <h2 className="mb-3 text-sm font-semibold text-ink-primary">Saúde do sistema</h2>
             <div className="mb-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ export default async function AdminDashboardPage(): Promise<React.ReactElement> 
               </div>
             </div>
 
-            <div className="flex flex-col divide-y divide-ink-secondary/10">
+            <div className="divide-ink-secondary/10 flex flex-col divide-y">
               {health.jobs.map((job) => (
                 <div
                   key={job.jobName}
@@ -209,9 +209,9 @@ export default async function AdminDashboardPage(): Promise<React.ReactElement> 
         </div>
 
         <div className="flex flex-col gap-6">
-          <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+          <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
             <h2 className="mb-3 text-sm font-semibold text-ink-primary">Alertas</h2>
-            <div className="flex flex-col divide-y divide-ink-secondary/10">
+            <div className="divide-ink-secondary/10 flex flex-col divide-y">
               {alerts.map((alert) => (
                 <div key={alert.id} className="flex items-start gap-2 py-2.5 text-sm">
                   <AlertTriangle
@@ -230,9 +230,9 @@ export default async function AdminDashboardPage(): Promise<React.ReactElement> 
             </div>
           </section>
 
-          <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+          <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
             <h2 className="mb-3 text-sm font-semibold text-ink-primary">Atividade recente</h2>
-            <div className="flex flex-col divide-y divide-ink-secondary/10">
+            <div className="divide-ink-secondary/10 flex flex-col divide-y">
               {recentActivity.map((item) => (
                 <div key={item.id} className="py-2.5 text-sm">
                   <p className="text-ink-primary">{item.label}</p>

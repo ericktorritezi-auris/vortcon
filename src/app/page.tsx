@@ -13,7 +13,7 @@ export default function HomePage(): React.ReactElement {
 
       <main className="flex-1">
         <section className="mx-auto flex max-w-3xl flex-col items-center gap-5 px-6 py-16 text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-pill bg-brand-flow/10 px-3.5 py-1.5 text-xs font-semibold text-brand-flow">
+          <span className="bg-brand-flow/10 inline-flex items-center gap-1.5 rounded-pill px-3.5 py-1.5 text-xs font-semibold text-brand-flow">
             Acesso exclusivo para assinantes
           </span>
 
@@ -39,7 +39,7 @@ export default function HomePage(): React.ReactElement {
             </Link>
           </div>
 
-          <dl className="mt-10 grid w-full grid-cols-2 gap-6 border-t border-ink-secondary/10 pt-8 sm:grid-cols-4">
+          <dl className="border-ink-secondary/10 mt-10 grid w-full grid-cols-2 gap-6 border-t pt-8 sm:grid-cols-4">
             {[
               { icon: ShieldCheck, label: 'Seguro' },
               { icon: Zap, label: 'Rápido' },

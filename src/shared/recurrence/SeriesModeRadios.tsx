@@ -24,7 +24,7 @@ export function SeriesModeRadios({
 }: SeriesModeRadiosProps): React.ReactElement {
   return (
     <div className="flex flex-col gap-3">
-      <label className="flex cursor-pointer items-start gap-2 rounded-md border border-ink-secondary/15 p-3 has-[:checked]:border-brand-flow has-[:checked]:bg-brand-flow/5">
+      <label className="border-ink-secondary/15 has-[:checked]:bg-brand-flow/5 flex cursor-pointer items-start gap-2 rounded-md border p-3 has-[:checked]:border-brand-flow">
         <input
           type="radio"
           name="series-action-mode"
@@ -43,7 +43,7 @@ export function SeriesModeRadios({
         </span>
       </label>
 
-      <label className="flex cursor-pointer items-start gap-2 rounded-md border border-ink-secondary/15 p-3 has-[:checked]:border-brand-flow has-[:checked]:bg-brand-flow/5">
+      <label className="border-ink-secondary/15 has-[:checked]:bg-brand-flow/5 flex cursor-pointer items-start gap-2 rounded-md border p-3 has-[:checked]:border-brand-flow">
         <input
           type="radio"
           name="series-action-mode"

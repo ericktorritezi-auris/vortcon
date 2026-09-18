@@ -13,7 +13,7 @@ export function Skeleton({ className, ...props }: SkeletonProps): React.ReactEle
     <div
       aria-hidden="true"
       className={[
-        'animate-pulse rounded-md bg-ink-secondary/10 motion-reduce:animate-none',
+        'bg-ink-secondary/10 animate-pulse rounded-md motion-reduce:animate-none',
         className ?? '',
       ].join(' ')}
       {...props}

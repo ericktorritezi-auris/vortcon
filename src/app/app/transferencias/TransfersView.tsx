@@ -135,11 +135,14 @@ export function TransfersView({
 
       <div className="flex flex-col gap-4">
         {dayGroups.map((group) => (
-          <div key={group.key} className="rounded-lg border border-ink-secondary/15 bg-surface-card">
-            <div className="border-b border-ink-secondary/10 px-4 py-2.5">
+          <div
+            key={group.key}
+            className="border-ink-secondary/15 rounded-lg border bg-surface-card"
+          >
+            <div className="border-ink-secondary/10 border-b px-4 py-2.5">
               <span className="text-sm font-semibold text-ink-primary">{group.label}</span>
             </div>
-            <div className="flex flex-col divide-y divide-ink-secondary/10">
+            <div className="divide-ink-secondary/10 flex flex-col divide-y">
               {group.items.map((transfer) => (
                 <button
                   key={transfer.id}
@@ -179,7 +182,7 @@ export function TransfersView({
           </div>
         ))}
         {dayGroups.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-ink-secondary/25 py-16 text-center text-sm text-ink-secondary">
+          <div className="border-ink-secondary/25 rounded-lg border border-dashed py-16 text-center text-sm text-ink-secondary">
             Nenhuma transferência neste período.
           </div>
         ) : null}

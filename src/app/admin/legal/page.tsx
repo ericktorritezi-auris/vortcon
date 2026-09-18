@@ -33,7 +33,7 @@ export default async function AdminLegalIndexPage(): Promise<React.ReactElement>
           <Link
             key={row.type}
             href={`/admin/legal/${row.slug}`}
-            className="flex items-center justify-between rounded-lg border border-ink-secondary/15 bg-surface-card p-4 hover:border-brand-flow"
+            className="border-ink-secondary/15 flex items-center justify-between rounded-lg border bg-surface-card p-4 hover:border-brand-flow"
           >
             <div>
               <p className="font-medium text-ink-primary">{row.label}</p>

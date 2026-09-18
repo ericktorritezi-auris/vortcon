@@ -57,7 +57,7 @@ export function PlansManager({ plans }: { plans: PlanRow[] }): React.ReactElemen
         {plans.map((plan) => (
           <div
             key={plan.id}
-            className="flex items-center justify-between rounded-lg border border-ink-secondary/15 bg-surface-card p-4"
+            className="border-ink-secondary/15 flex items-center justify-between rounded-lg border bg-surface-card p-4"
           >
             <div>
               <p className="font-medium text-ink-primary">{plan.name}</p>
@@ -83,7 +83,7 @@ export function PlansManager({ plans }: { plans: PlanRow[] }): React.ReactElemen
 
       <form
         onSubmit={handleCreate}
-        className="flex flex-col gap-3 rounded-lg border border-dashed border-ink-secondary/25 p-4"
+        className="border-ink-secondary/25 flex flex-col gap-3 rounded-lg border border-dashed p-4"
       >
         <p className="text-sm font-medium text-ink-primary">Novo plano</p>
         <div className="flex flex-wrap items-end gap-3">
@@ -99,7 +99,7 @@ export function PlansManager({ plans }: { plans: PlanRow[] }): React.ReactElemen
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
-              className="h-11 w-full rounded-md border border-ink-secondary/30 bg-surface-card px-3 text-sm"
+              className="border-ink-secondary/30 h-11 w-full rounded-md border bg-surface-card px-3 text-sm"
             />
           </div>
           <MoneyInput

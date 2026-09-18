@@ -33,7 +33,7 @@ export function OnboardingChecklistCard({
   }
 
   return (
-    <section className="rounded-lg border border-brand-flow/30 bg-brand-flow/5 p-4">
+    <section className="border-brand-flow/30 bg-brand-flow/5 rounded-lg border p-4">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-ink-primary">Primeiros passos</h2>
         <span className="text-xs font-medium text-ink-secondary">
@@ -49,7 +49,7 @@ export function OnboardingChecklistCard({
                 aria-hidden="true"
               />
             ) : (
-              <Circle className="h-4 w-4 shrink-0 text-ink-secondary/40" aria-hidden="true" />
+              <Circle className="text-ink-secondary/40 h-4 w-4 shrink-0" aria-hidden="true" />
             )}
             <span className={step.done ? 'text-ink-secondary line-through' : 'text-ink-primary'}>
               {step.label}

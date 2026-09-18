@@ -93,7 +93,7 @@ export function TagsManager({ tags }: { tags: TagView[] }): React.ReactElement {
         Tags são globais — a mesma lista aparece tanto para despesas quanto para receitas.
       </p>
 
-      <div className="flex flex-wrap gap-3 rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+      <div className="border-ink-secondary/15 flex flex-wrap gap-3 rounded-lg border bg-surface-card p-4">
         {tags.map((tag) =>
           editingId === tag.id ? (
             <div key={tag.id} className="flex items-center gap-1.5">
@@ -174,7 +174,7 @@ export function TagsManager({ tags }: { tags: TagView[] }): React.ReactElement {
 
       <form
         onSubmit={handleCreate}
-        className="flex flex-col gap-3 rounded-lg border border-dashed border-ink-secondary/25 p-4"
+        className="border-ink-secondary/25 flex flex-col gap-3 rounded-lg border border-dashed p-4"
       >
         <p className="text-sm font-medium text-ink-primary">Nova tag</p>
         <div className="flex flex-wrap items-end gap-3">

@@ -65,7 +65,7 @@ export function CreateTenantForm({ plans }: { plans: PlanOption[] }): React.Reac
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-lg border border-dashed border-ink-secondary/25 p-4"
+      className="border-ink-secondary/25 flex flex-col gap-4 rounded-lg border border-dashed p-4"
     >
       <p className="text-sm font-medium text-ink-primary">Novo tenant</p>
       <div className="grid gap-3 sm:grid-cols-2">

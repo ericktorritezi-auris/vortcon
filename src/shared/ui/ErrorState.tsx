@@ -19,7 +19,7 @@ export function ErrorState({
   return (
     <div
       role="alert"
-      className="flex flex-col items-center gap-2 rounded-lg border border-financial-danger/20 bg-financial-danger/5 px-6 py-10 text-center"
+      className="border-financial-danger/20 bg-financial-danger/5 flex flex-col items-center gap-2 rounded-lg border px-6 py-10 text-center"
     >
       <AlertTriangle className="h-7 w-7 text-financial-danger" aria-hidden="true" />
       <p className="text-sm font-semibold text-ink-primary">{title}</p>

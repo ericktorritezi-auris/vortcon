@@ -55,7 +55,7 @@ export function Modal({
         onClick={(event) => event.stopPropagation()}
         className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-surface-card shadow-xl focus:outline-none"
       >
-        <div className="flex items-center justify-between border-b border-ink-secondary/10 px-5 py-4">
+        <div className="border-ink-secondary/10 flex items-center justify-between border-b px-5 py-4">
           <h2 id="modal-title" className="text-base font-semibold text-ink-primary">
             {title}
           </h2>
@@ -70,7 +70,7 @@ export function Modal({
         </div>
         <div className="px-5 py-4">{children}</div>
         {footer ? (
-          <div className="flex justify-end gap-2 border-t border-ink-secondary/10 px-5 py-4">
+          <div className="border-ink-secondary/10 flex justify-end gap-2 border-t px-5 py-4">
             {footer}
           </div>
         ) : null}

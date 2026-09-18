@@ -171,7 +171,7 @@ export function TransferDetailDrawer({
         </div>
 
         {!isCancelled ? (
-          <div className="flex items-center justify-between rounded-md border border-ink-secondary/15 bg-surface-page px-3 py-2.5">
+          <div className="border-ink-secondary/15 flex items-center justify-between rounded-md border bg-surface-page px-3 py-2.5">
             <span className="text-sm font-medium text-ink-primary">Transferida</span>
             <Toggle
               label="Marcar como transferida"

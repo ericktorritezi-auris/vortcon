@@ -168,7 +168,7 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-semibold text-ink-primary">Meu perfil</h1>
 
-      <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+      <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
         <div className="mb-4 flex items-center gap-2">
           <UserIcon className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
           <h2 className="text-sm font-semibold text-ink-primary">Dados pessoais</h2>
@@ -228,7 +228,7 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
         </form>
       </section>
 
-      <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+      <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
         <div className="mb-4 flex items-center gap-2">
           <KeyRound className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
           <h2 className="text-sm font-semibold text-ink-primary">Alterar senha</h2>
@@ -271,7 +271,7 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
       </section>
 
       {biometricSupported ? (
-        <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+        <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
           <div className="mb-4 flex items-center gap-2">
             <Fingerprint className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
             <h2 className="text-sm font-semibold text-ink-primary">Biometria</h2>
@@ -281,7 +281,7 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
             credencial antiga aqui e cadastre uma nova.
           </p>
 
-          <div className="mb-4 flex flex-col divide-y divide-ink-secondary/10">
+          <div className="divide-ink-secondary/10 mb-4 flex flex-col divide-y">
             {credentials.map((credential) => (
               <div
                 key={credential.id}
@@ -300,7 +300,7 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
                   type="button"
                   onClick={() => handleRemoveCredential(credential.id)}
                   aria-label="Remover esta biometria"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-financial-danger hover:bg-financial-danger/10"
+                  className="hover:bg-financial-danger/10 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-financial-danger"
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -320,7 +320,7 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
         </section>
       ) : null}
 
-      <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+      <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
         <div className="mb-2 flex items-center gap-2">
           <Download className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
           <h2 className="text-sm font-semibold text-ink-primary">Backup dos meus dados</h2>
@@ -334,12 +334,12 @@ export function ProfileView({ user }: ProfileViewProps): React.ReactElement {
         </a>
       </section>
 
-      <section className="rounded-lg border border-ink-secondary/15 bg-surface-card p-4">
+      <section className="border-ink-secondary/15 rounded-lg border bg-surface-card p-4">
         <div className="mb-3 flex items-center gap-2">
           <CreditCard className="h-4 w-4 text-ink-secondary" aria-hidden="true" />
           <h2 className="text-sm font-semibold text-ink-primary">Links úteis</h2>
         </div>
-        <div className="flex flex-col divide-y divide-ink-secondary/10">
+        <div className="divide-ink-secondary/10 flex flex-col divide-y">
           <Link
             href="/app/assinatura"
             className="flex items-center justify-between py-2.5 text-sm text-ink-primary hover:text-brand-flow"

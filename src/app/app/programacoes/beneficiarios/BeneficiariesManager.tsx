@@ -93,7 +93,7 @@ export function BeneficiariesManager({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col divide-y divide-ink-secondary/10 rounded-lg border border-ink-secondary/15 bg-surface-card">
+      <div className="divide-ink-secondary/10 border-ink-secondary/15 flex flex-col divide-y rounded-lg border bg-surface-card">
         {beneficiaries.map((beneficiary) => (
           <div
             key={beneficiary.id}
@@ -172,7 +172,7 @@ export function BeneficiariesManager({
 
       <form
         onSubmit={handleCreate}
-        className="flex flex-col gap-3 rounded-lg border border-dashed border-ink-secondary/25 p-4"
+        className="border-ink-secondary/25 flex flex-col gap-3 rounded-lg border border-dashed p-4"
       >
         <p className="text-sm font-medium text-ink-primary">Novo beneficiário</p>
         <div className="flex flex-wrap items-end gap-3">

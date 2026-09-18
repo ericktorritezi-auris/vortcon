@@ -55,7 +55,7 @@ export function RecurrenceFields({
       />
 
       {values.enabled ? (
-        <div className="flex flex-col gap-3 rounded-md border border-ink-secondary/15 bg-surface-page p-3">
+        <div className="border-ink-secondary/15 flex flex-col gap-3 rounded-md border bg-surface-page p-3">
           <div className="grid grid-cols-2 gap-3">
             <Select
               label="Frequência"

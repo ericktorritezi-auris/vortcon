@@ -153,7 +153,7 @@ export function TransactionsView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-2 rounded-md border border-ink-secondary/15 bg-surface-card px-3 py-1.5">
+          <div className="border-ink-secondary/15 flex items-center gap-2 rounded-md border bg-surface-card px-3 py-1.5">
             <span className="text-xs text-ink-secondary">Balanço do mês</span>
             <FinancialValue cents={periodResultCents} showSign />
           </div>
@@ -183,8 +183,11 @@ export function TransactionsView({
 
       <div className="flex flex-col gap-4">
         {dayGroups.map((group) => (
-          <div key={group.key} className="rounded-lg border border-ink-secondary/15 bg-surface-card">
-            <div className="flex flex-wrap items-center justify-between gap-1 border-b border-ink-secondary/10 px-4 py-2.5">
+          <div
+            key={group.key}
+            className="border-ink-secondary/15 rounded-lg border bg-surface-card"
+          >
+            <div className="border-ink-secondary/10 flex flex-wrap items-center justify-between gap-1 border-b px-4 py-2.5">
               <span className="text-sm font-semibold text-ink-primary">{group.label}</span>
               <span className="text-xs text-ink-secondary">
                 Total do dia:{' '}
@@ -195,7 +198,7 @@ export function TransactionsView({
                 />
               </span>
             </div>
-            <div className="flex flex-col divide-y divide-ink-secondary/10">
+            <div className="divide-ink-secondary/10 flex flex-col divide-y">
               {group.items.map((item) => {
                 const CategoryIcon = resolveIcon(item.category?.iconKey);
                 return (
@@ -238,7 +241,7 @@ export function TransactionsView({
           </div>
         ))}
         {dayGroups.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-ink-secondary/25 py-16 text-center text-sm text-ink-secondary">
+          <div className="border-ink-secondary/25 rounded-lg border border-dashed py-16 text-center text-sm text-ink-secondary">
             Nenhuma transação neste período.
           </div>
         ) : null}

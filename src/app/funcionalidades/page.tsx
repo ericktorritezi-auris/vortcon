@@ -104,7 +104,7 @@ export default function FuncionalidadesPage(): React.ReactElement {
           </p>
         </section>
 
-        <section className="border-t border-ink-secondary/10 bg-white px-6 py-16">
+        <section className="border-ink-secondary/10 border-t bg-white px-6 py-16">
           <div className="mx-auto flex max-w-5xl flex-col gap-16">
             {STEPS.map((step, index) => (
               <div

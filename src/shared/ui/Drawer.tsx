@@ -52,7 +52,7 @@ export function Drawer({
         onClick={(event) => event.stopPropagation()}
         className="flex h-full w-full max-w-md flex-col bg-surface-card shadow-xl focus:outline-none"
       >
-        <div className="flex items-center justify-between border-b border-ink-secondary/10 px-5 py-4">
+        <div className="border-ink-secondary/10 flex items-center justify-between border-b px-5 py-4">
           <h2 id="drawer-title" className="text-base font-semibold text-ink-primary">
             {title}
           </h2>
@@ -67,7 +67,7 @@ export function Drawer({
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
         {footer ? (
-          <div className="flex justify-end gap-2 border-t border-ink-secondary/10 px-5 py-4">
+          <div className="border-ink-secondary/10 flex justify-end gap-2 border-t px-5 py-4">
             {footer}
           </div>
         ) : null}

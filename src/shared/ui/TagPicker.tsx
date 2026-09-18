@@ -51,11 +51,11 @@ export function TagPicker({
         {label}
       </span>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-md border border-ink-secondary/30 bg-surface-card p-2">
+      <div className="border-ink-secondary/30 flex flex-wrap items-center gap-2 rounded-md border bg-surface-card p-2">
         {selected.map((tag) => (
           <span
             key={tag.id}
-            className="inline-flex items-center gap-1 rounded-pill bg-brand-flow/10 px-2.5 py-1 text-xs font-medium text-brand-deep"
+            className="bg-brand-flow/10 inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-xs font-medium text-brand-deep"
           >
             <TagIcon className="h-3 w-3" aria-hidden="true" />
             {tag.name}
@@ -63,7 +63,7 @@ export function TagPicker({
               type="button"
               onClick={() => toggleTag(tag.id)}
               aria-label={`Remover tag ${tag.name}`}
-              className="ml-0.5 rounded-full hover:bg-brand-flow/20"
+              className="hover:bg-brand-flow/20 ml-0.5 rounded-full"
             >
               <X className="h-3 w-3" aria-hidden="true" />
             </button>
@@ -80,7 +80,7 @@ export function TagPicker({
       </div>
 
       {query && suggestions.length > 0 ? (
-        <ul className="max-h-40 overflow-y-auto rounded-md border border-ink-secondary/20 bg-surface-card shadow-sm">
+        <ul className="border-ink-secondary/20 max-h-40 overflow-y-auto rounded-md border bg-surface-card shadow-sm">
           {suggestions.map((tag) => (
             <li key={tag.id}>
               <button
