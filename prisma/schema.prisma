@@ -542,6 +542,14 @@ model FinancialTransaction {
   // Programações a não ser este vínculo de rastreabilidade.
   generatedFromProgrammingEntries ProgrammingEntry[]
 
+  // Pedido do cliente (evolução v1.7) — histórico de ajustes de valor feitos
+  // via os botões +/- na edição (nunca por edição direta do campo Valor).
+  // Puramente informativo: nunca lido pelo Financial Engine nem por nenhum
+  // cálculo — o saldo sempre usa `amountCents` desta própria transação, como
+  // sempre. Cascade: some junto com a transação (Seção 78 — excluir só é
+  // possível depois de cancelada; o histórico não faz sentido sem ela).
+  valueAdjustments TransactionValueAdjustment[]
+
   @@unique([recurrenceSeriesId, recurrenceOccurrenceKey])
   @@index([tenantId, status])
   @@index([tenantId, dueDate])
@@ -549,6 +557,26 @@ model FinancialTransaction {
   @@index([tenantId, accountId])
   @@index([tenantId, categoryId, dueDate])
   @@map("financial_transactions")
+}
+
+// Histórico de ajustes de valor (evolução v1.7, pedido do cliente) — um
+// "diário" opcional por transação, usado quando o cliente cria um
+// lançamento de planejamento (ex.: R$ 0,01 no dia 1º) e vai somando/
+// subtraindo valores ao longo do mês pelos botões +/- da edição. `deltaCents`
+// pode ser positivo (+) ou negativo (-); `createdAt` é sempre automático
+// (nunca escolhido pelo usuário — Seção 113 mesma filosofia: nunca confiar
+// em data digitada quando o próprio sistema sabe "agora"). Nunca influencia
+// nenhum cálculo — só documenta como o valor da transação mudou.
+model TransactionValueAdjustment {
+  id            String   @id @default(cuid())
+  transactionId String
+  deltaCents    Int
+  createdAt     DateTime @default(now())
+
+  transaction FinancialTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId, createdAt])
+  @@map("transaction_value_adjustments")
 }
 
 // Associação transação↔tag (Seção 55). Tag e transação devem pertencer ao

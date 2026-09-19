@@ -4,7 +4,12 @@ import { prisma } from '@/shared/database/client';
 export async function findTransactionById(tenantId: string, transactionId: string) {
   return prisma.financialTransaction.findFirst({
     where: { id: transactionId, tenantId },
-    include: { tags: { include: { tag: true } }, category: true, account: true },
+    include: {
+      tags: { include: { tag: true } },
+      category: true,
+      account: true,
+      valueAdjustments: { orderBy: { createdAt: 'asc' } },
+    },
   });
 }
 
@@ -41,7 +46,11 @@ export async function listTransactions(tenantId: string, filters: ListTransactio
     prisma.financialTransaction.findMany({
       where,
       orderBy: { dueDate: 'desc' },
-      include: { category: true, tags: { include: { tag: true } } },
+      include: {
+        category: true,
+        tags: { include: { tag: true } },
+        valueAdjustments: { orderBy: { createdAt: 'asc' } },
+      },
       skip: (page - 1) * TRANSACTIONS_PAGE_SIZE,
       take: TRANSACTIONS_PAGE_SIZE,
     }),
@@ -107,6 +116,15 @@ interface UpdateTransactionData {
   reminderEnabled?: boolean;
   tagIds?: string[];
   affectsBalance?: boolean;
+  // Pedido do cliente (evolução v1.7) — histórico de ajustes de valor
+  // (botões +/- da edição). `valueAdjustments`: deltas novos desta sessão de
+  // edição (cada número já vem com o sinal certo, + ou -). `removeValueAdjustmentIds`:
+  // lançamentos do histórico já salvos que o usuário excluiu (✕) nesta
+  // sessão. Ambos opcionais e tratados só quando não-vazios — omitidos ou
+  // `[]`, o comportamento de editar uma transação continua idêntico ao de
+  // sempre (nenhum impacto em quem nunca usa +/-).
+  valueAdjustments?: number[];
+  removeValueAdjustmentIds?: string[];
 }
 
 /**
@@ -147,6 +165,21 @@ export async function updateTransaction(
           data: data.tagIds.map((tagId) => ({ transactionId, tagId })),
         });
       }
+    }
+
+    // Escopado por transactionId (não só por id) — mesma garantia de
+    // ownership de sempre: mesmo que alguém forje um id de outra transação,
+    // o deleteMany não encontra nada pra apagar fora desta transação.
+    if (data.removeValueAdjustmentIds && data.removeValueAdjustmentIds.length > 0) {
+      await tx.transactionValueAdjustment.deleteMany({
+        where: { id: { in: data.removeValueAdjustmentIds }, transactionId },
+      });
+    }
+
+    if (data.valueAdjustments && data.valueAdjustments.length > 0) {
+      await tx.transactionValueAdjustment.createMany({
+        data: data.valueAdjustments.map((deltaCents) => ({ transactionId, deltaCents })),
+      });
     }
 
     return updated;

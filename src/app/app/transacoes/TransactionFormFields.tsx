@@ -25,6 +25,13 @@ interface TransactionFormFieldsProps {
   accounts: SimpleOption[];
   categories: SimpleOption[];
   tags: SimpleOption[];
+  /**
+   * Pedido do cliente (evolução v1.7) — slot opcional logo abaixo do campo
+   * Valor, usado só na edição de uma transação já existente (os botões +/-
+   * e o histórico de ajustes). `undefined` (padrão, inclusive na criação):
+   * este componente renderiza exatamente como sempre renderizou.
+   */
+  valueExtra?: React.ReactNode;
 }
 
 /**
@@ -38,6 +45,7 @@ export function TransactionFormFields({
   accounts,
   categories,
   tags,
+  valueExtra,
 }: TransactionFormFieldsProps): React.ReactElement {
   function set<K extends keyof TransactionFormValues>(
     key: K,
@@ -59,6 +67,7 @@ export function TransactionFormFields({
         valueInCents={values.amountCents}
         onValueChange={(cents) => set('amountCents', cents)}
       />
+      {valueExtra}
       <DateInput
         label="Vencimento"
         value={values.dueDate}

@@ -72,6 +72,8 @@ interface UpdateTransactionInput {
   reminderEnabled?: boolean;
   tagIds?: string[];
   affectsBalance?: boolean;
+  valueAdjustments?: number[];
+  removeValueAdjustmentIds?: string[];
 }
 
 export async function updateTransaction(

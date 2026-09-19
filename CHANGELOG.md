@@ -4,6 +4,27 @@ Todas as mudanças notáveis do VortCon são documentadas aqui. Formato baseado 
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/), versionamento
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.7.0] — 2026-09-19
+
+### Adicionado
+
+- **Histórico do valor de uma transação (pedido do cliente)**: na edição de
+  uma receita/despesa, dois botões "−"/"+" ao lado do campo Valor permitem
+  somar ou subtrair um ajuste sem digitar o valor final na mão — útil para
+  lançamentos de planejamento (ex.: nasce no dia 1º com R$ 0,01 e vai
+  somando conforme o mês anda). Cada confirmação (✓) grava uma linha em
+  "Histórico do valor" com o valor do ajuste e a data — sempre automática,
+  nunca escolhida pelo usuário (mesma filosofia da 1.6.1, Seção 113: nunca
+  confiar em data digitada quando o sistema já sabe "agora"). O histórico é
+  visível tanto no detalhe quanto na edição da transação; na edição, cada
+  linha tem um ✕ para excluir um ajuste lançado errado, recalculando o
+  valor total na hora. Editar o campo Valor direto, sem usar os botões
+  +/-, continua funcionando exatamente como sempre e não gera nenhuma
+  linha de histórico. Puramente informativo: nunca lido pelo Financial
+  Engine, relatórios ou qualquer cálculo — o saldo sempre usa o
+  `amountCents` da própria transação, como sempre; nenhuma outra transação
+  é afetada.
+
 ## [1.6.3] — 2026-09-18
 
 ### Corrigido

@@ -25,6 +25,8 @@ export interface TransactionItemView {
   note: string | null;
   reminderEnabled: boolean;
   affectsBalance: boolean;
+  /** Histórico de ajustes de valor (evolução v1.7) — ordenado do mais antigo pro mais novo. */
+  valueAdjustments: { id: string; deltaCents: number; createdAt: string | Date }[];
 }
 
 interface PaginatedData {

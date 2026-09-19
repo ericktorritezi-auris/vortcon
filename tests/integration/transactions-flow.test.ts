@@ -131,6 +131,113 @@ describe('fluxo de transações', () => {
     await deleteTestPlan(otherPlan.id);
   });
 
+  /**
+   * Evolução v1.7 (pedido do cliente) — histórico de ajustes de valor
+   * (botões +/- da edição). Editar o valor direto não gera histórico
+   * nenhum; só editar passando `valueAdjustments` gera lançamentos, cada um
+   * com `createdAt` automático (nunca uma data escolhida pelo usuário —
+   * mesma filosofia da Seção 113: o sistema sempre confia no "agora" dele
+   * mesmo, nunca em data digitada).
+   */
+  it('editar o valor direto (sem +/-) nao gera historico', async () => {
+    const transaction = await createIncomeOrExpense(tenantId, {
+      type: 'EXPENSE',
+      description: 'Edição direta de valor',
+      amountCents: 1000,
+      dueDate: new Date('2026-09-11'),
+      accountId,
+    });
+
+    await updateTransaction(tenantId, transaction.id, { amountCents: 5000 });
+
+    const updated = await findTransactionById(tenantId, transaction.id);
+    expect(updated?.amountCents).toBe(5000);
+    expect(updated?.valueAdjustments).toHaveLength(0);
+  });
+
+  it('historico do valor (+/-): registra cada ajuste e soma no amountCents', async () => {
+    const transaction = await createIncomeOrExpense(tenantId, {
+      type: 'EXPENSE',
+      description: 'Imprevistos do mês',
+      amountCents: 1, // nasce com 1 centavo (planejamento) — mesmo caso de uso do cliente
+      dueDate: new Date('2026-09-30'),
+      accountId,
+    });
+
+    await updateTransaction(tenantId, transaction.id, {
+      amountCents: 1001, // 1 + 1000 (client já soma antes de enviar, como o drawer faz)
+      valueAdjustments: [1000],
+    });
+    await updateTransaction(tenantId, transaction.id, {
+      amountCents: 11001, // 1001 + 10000
+      valueAdjustments: [10000],
+    });
+
+    const afterTwoAdjustments = await findTransactionById(tenantId, transaction.id);
+    expect(afterTwoAdjustments?.amountCents).toBe(11001);
+    expect(afterTwoAdjustments?.valueAdjustments).toHaveLength(2);
+    expect(afterTwoAdjustments?.valueAdjustments.map((item) => item.deltaCents)).toEqual([
+      1000, 10000,
+    ]);
+    // createdAt sempre automático — nunca vem do client (não existe campo pra isso no schema/API).
+    for (const item of afterTwoAdjustments?.valueAdjustments ?? []) {
+      expect(item.createdAt).toBeInstanceOf(Date);
+    }
+  });
+
+  it('historico do valor: excluir (✕) um lançamento desfaz exatamente aquele delta', async () => {
+    const transaction = await createIncomeOrExpense(tenantId, {
+      type: 'EXPENSE',
+      description: 'Imprevistos do mês (com exclusão)',
+      amountCents: 1,
+      dueDate: new Date('2026-09-30'),
+      accountId,
+    });
+
+    await updateTransaction(tenantId, transaction.id, {
+      amountCents: 10001,
+      valueAdjustments: [10000],
+    });
+    const withOneAdjustment = await findTransactionById(tenantId, transaction.id);
+    const adjustmentId = withOneAdjustment!.valueAdjustments[0]!.id;
+
+    // Um segundo ajuste, +500, junto da exclusão do primeiro (+10000) — tudo
+    // no mesmo Salvar, exatamente como o drawer faz numa sessão de edição.
+    await updateTransaction(tenantId, transaction.id, {
+      amountCents: 501, // 10001 - 10000 + 500
+      valueAdjustments: [500],
+      removeValueAdjustmentIds: [adjustmentId],
+    });
+
+    const final = await findTransactionById(tenantId, transaction.id);
+    expect(final?.amountCents).toBe(501);
+    expect(final?.valueAdjustments).toHaveLength(1);
+    expect(final?.valueAdjustments[0]?.deltaCents).toBe(500);
+  });
+
+  it('historico do valor: excluir a transação apaga o histórico junto (cascade)', async () => {
+    const transaction = await createIncomeOrExpense(tenantId, {
+      type: 'EXPENSE',
+      description: 'Vai ser cancelada e excluída',
+      amountCents: 1,
+      dueDate: new Date('2026-09-30'),
+      accountId,
+    });
+
+    await updateTransaction(tenantId, transaction.id, {
+      amountCents: 501,
+      valueAdjustments: [500],
+    });
+
+    await cancelTransaction(tenantId, transaction.id);
+    await deleteTransaction(tenantId, transaction.id);
+
+    const remaining = await prisma.transactionValueAdjustment.findMany({
+      where: { transactionId: transaction.id },
+    });
+    expect(remaining).toHaveLength(0);
+  });
+
   it('pagar/receber (Seção 78) muda o status e grava a data de liquidação', async () => {
     const transaction = await createIncomeOrExpense(tenantId, {
       type: 'INCOME',

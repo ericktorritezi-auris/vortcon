@@ -13,6 +13,18 @@ const updateTransactionSchema = z.object({
   reminderEnabled: z.boolean().optional(),
   tagIds: z.array(z.string().min(1)).optional(),
   affectsBalance: z.boolean().optional(),
+  // Pedido do cliente (evolução v1.7) — histórico de ajustes de valor
+  // (botões +/- da edição, Seção "Histórico do valor"). Cada delta já vem
+  // com o sinal certo do client (+ ou -); zero nunca é um ajuste de verdade.
+  valueAdjustments: z
+    .array(
+      z
+        .number()
+        .int()
+        .refine((value) => value !== 0),
+    )
+    .optional(),
+  removeValueAdjustmentIds: z.array(z.string().min(1)).optional(),
 });
 
 export async function PATCH(

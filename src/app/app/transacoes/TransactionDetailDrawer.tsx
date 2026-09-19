@@ -1,12 +1,15 @@
 'use client';
 
+import { Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { resolveIcon } from '@/shared/design-system/icons';
-import { Badge, Button, Drawer, FinancialValue, Toggle } from '@/shared/ui';
+import { Badge, Button, Drawer, FinancialValue, MoneyInput, Toggle } from '@/shared/ui';
 import { TransactionFormFields } from './TransactionFormFields';
 import type { TransactionFormValues } from './TransactionFormFields';
 import type { TransactionItemView } from './TransactionsView';
+import { TransactionValueHistory } from './TransactionValueHistory';
+import type { ValueHistoryRow } from './TransactionValueHistory';
 
 interface SimpleOption {
   id: string;
@@ -37,6 +40,11 @@ const STATUS_LABEL: Record<TransactionItemView['status'], string> = {
 // meia-noite UTC no fuso local e mostraria o dia anterior (mesma causa raiz
 // do bug de mês relatado em TransactionsView.tsx).
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'UTC' });
+
+// Sem timeZone: 'UTC' aqui de propósito — createdAt do histórico de ajustes
+// é um instante real (não uma data-calendário como dueDate), então formata
+// no fuso do navegador, exibindo o dia como o usuário realmente viveu.
+const historyDateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' });
 
 function toDateInputValue(value: string | Date | null): string {
   if (!value) return '';
@@ -77,6 +85,86 @@ export function TransactionDetailDrawer({
   const CategoryIcon = resolveIcon(transaction.category?.iconKey);
   const isCancelled = transaction.status === 'CANCELLED';
   const isSettled = transaction.status === 'PAID' || transaction.status === 'RECEIVED';
+
+  // Pedido do cliente (evolução v1.7) — histórico de ajustes de valor
+  // (botões +/- da edição). Existe só enquanto o drawer de edição está
+  // aberto: `pendingAdjustments` são deltas novos desta sessão (ainda não
+  // salvos), `removedAdjustmentIds` são lançamentos já salvos que o usuário
+  // excluiu (✕) nesta sessão — os dois só viram persistência de verdade
+  // quando "Salvar" é clicado (mesmo ponto único de commit de sempre).
+  const [pendingAdjustments, setPendingAdjustments] = useState<
+    { key: string; deltaCents: number }[]
+  >([]);
+  const [removedAdjustmentIds, setRemovedAdjustmentIds] = useState<string[]>([]);
+  const [adjustOpen, setAdjustOpen] = useState<'plus' | 'minus' | null>(null);
+  const [adjustCents, setAdjustCents] = useState(0);
+  const [adjustError, setAdjustError] = useState<string | null>(null);
+
+  function toggleAdjust(mode: 'plus' | 'minus'): void {
+    setAdjustOpen((current) => (current === mode ? null : mode));
+    setAdjustCents(0);
+    setAdjustError(null);
+  }
+
+  function confirmAdjust(): void {
+    if (!adjustOpen || adjustCents <= 0) return;
+    const deltaCents = adjustOpen === 'minus' ? -adjustCents : adjustCents;
+    const nextAmount = values.amountCents + deltaCents;
+    if (nextAmount <= 0) {
+      setAdjustError('O valor não pode ficar zerado ou negativo.');
+      return;
+    }
+    setValues({ ...values, amountCents: nextAmount });
+    setPendingAdjustments((current) => [...current, { key: crypto.randomUUID(), deltaCents }]);
+    setAdjustOpen(null);
+    setAdjustCents(0);
+    setAdjustError(null);
+  }
+
+  /** ✕ num lançamento novo desta sessão (ainda não salvo) — some da lista, sem chamada ao servidor. */
+  function removePendingAdjustment(key: string): void {
+    const entry = pendingAdjustments.find((item) => item.key === key);
+    if (!entry) return;
+    setValues({ ...values, amountCents: values.amountCents - entry.deltaCents });
+    setPendingAdjustments((current) => current.filter((item) => item.key !== key));
+  }
+
+  /** ✕ num lançamento já salvo — marcado pra exclusão real no próximo "Salvar". */
+  function removePersistedAdjustment(id: string): void {
+    const entry = transaction.valueAdjustments.find((item) => item.id === id);
+    if (!entry) return;
+    setValues({ ...values, amountCents: values.amountCents - entry.deltaCents });
+    setRemovedAdjustmentIds((current) => [...current, id]);
+  }
+
+  function handleRemoveHistoryRow(id: string): void {
+    if (id.startsWith('pending:')) {
+      removePendingAdjustment(id.slice('pending:'.length));
+    } else {
+      removePersistedAdjustment(id);
+    }
+  }
+
+  const editHistoryRows: ValueHistoryRow[] = [
+    ...transaction.valueAdjustments
+      .filter((item) => !removedAdjustmentIds.includes(item.id))
+      .map((item) => ({
+        id: item.id,
+        when: historyDateFormatter.format(new Date(item.createdAt)),
+        deltaCents: item.deltaCents,
+      })),
+    ...pendingAdjustments.map((item) => ({
+      id: `pending:${item.key}`,
+      when: 'Hoje',
+      deltaCents: item.deltaCents,
+    })),
+  ];
+
+  const detailHistoryRows: ValueHistoryRow[] = transaction.valueAdjustments.map((item) => ({
+    id: item.id,
+    when: historyDateFormatter.format(new Date(item.createdAt)),
+    deltaCents: item.deltaCents,
+  }));
 
   async function runAction(action: () => Promise<Response>): Promise<void> {
     setLoading(true);
@@ -140,6 +228,8 @@ export function TransactionDetailDrawer({
           note: values.note || null,
           reminderEnabled: values.reminderEnabled,
           affectsBalance: values.affectsBalance,
+          valueAdjustments: pendingAdjustments.map((item) => item.deltaCents),
+          removeValueAdjustmentIds: removedAdjustmentIds,
         }),
       }),
     );
@@ -173,6 +263,59 @@ export function TransactionDetailDrawer({
           accounts={accounts}
           categories={categories}
           tags={tags}
+          valueExtra={
+            <div className="flex flex-col gap-2.5">
+              <div className="-mt-1 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleAdjust('minus')}
+                  aria-label="Diminuir valor (registra no histórico)"
+                  className="border-ink-secondary/30 flex h-9 w-9 items-center justify-center rounded-md border bg-surface-card text-base font-bold text-ink-secondary"
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggleAdjust('plus')}
+                  aria-label="Aumentar valor (registra no histórico)"
+                  className="border-ink-secondary/30 flex h-9 w-9 items-center justify-center rounded-md border bg-surface-card text-base font-bold text-ink-secondary"
+                >
+                  +
+                </button>
+              </div>
+              {adjustOpen ? (
+                <div className="border-ink-secondary/30 flex items-center gap-2 rounded-md border border-dashed bg-surface-page p-2">
+                  <span className="text-sm font-semibold text-ink-secondary">
+                    {adjustOpen === 'minus' ? '−' : '+'}
+                  </span>
+                  <MoneyInput
+                    label="Valor do ajuste"
+                    hideLabel
+                    valueInCents={adjustCents}
+                    onValueChange={setAdjustCents}
+                    className="h-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={confirmAdjust}
+                    aria-label="Confirmar ajuste"
+                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-financial-successText text-white"
+                  >
+                    <Check className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              ) : null}
+              {adjustError ? (
+                <p role="alert" className="text-xs font-medium text-financial-danger">
+                  {adjustError}
+                </p>
+              ) : null}
+              <p className="text-xs text-ink-secondary">
+                Editar o valor acima direto não gera histórico. Use + ou − pra registrar o ajuste.
+              </p>
+              <TransactionValueHistory rows={editHistoryRows} onRemove={handleRemoveHistoryRow} />
+            </div>
+          }
         />
         {error ? (
           <p role="alert" className="mt-3 text-sm font-medium text-financial-danger">
@@ -288,6 +431,8 @@ export function TransactionDetailDrawer({
             <dd className="text-ink-primary">Avulsa</dd>
           </div>
         </dl>
+
+        <TransactionValueHistory rows={detailHistoryRows} />
 
         {transaction.tags.length > 0 ? (
           <div>
