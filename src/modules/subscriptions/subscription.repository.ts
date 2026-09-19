@@ -36,6 +36,35 @@ export async function createSubscription(
   return client.tenantSubscription.create({ data: input });
 }
 
+interface UpdateSubscriptionData {
+  planId?: string;
+  contractedPriceCents?: number;
+  condition?: 'PAID' | 'EXEMPT';
+  dueDay?: number;
+}
+
+/**
+ * Edição pelo Admin (evolução v1.7.1): plano, condição (Pagante/Isento) e
+ * dia de vencimento de uma assinatura já existente. Aceita um client de
+ * transação opcional — usado junto com o cancelamento de mensalidades
+ * pendentes quando a condição muda pra Isento (ver `updateTenantSubscription`).
+ */
+export async function updateSubscription(
+  tenantId: string,
+  data: UpdateSubscriptionData,
+  client: Prisma.TransactionClient | typeof prisma = prisma,
+) {
+  return client.tenantSubscription.update({
+    where: { tenantId },
+    data: {
+      planId: data.planId,
+      contractedPriceCents: data.contractedPriceCents,
+      condition: data.condition,
+      dueDay: data.dueDay,
+    },
+  });
+}
+
 /** Aceita um client de transação opcional — usado pra criar a primeira mensalidade dentro do provisionamento atômico do tenant (Seção 113). */
 export async function createCharge(
   input: {

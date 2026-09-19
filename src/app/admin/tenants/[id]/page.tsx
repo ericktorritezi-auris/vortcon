@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
-import type { SubscriptionCharge, TenantAccessBlock } from '@prisma/client';
+import type { SubscriptionCharge, SubscriptionPlan, TenantAccessBlock } from '@prisma/client';
 import { evaluateAdminAccess } from '@/modules/admin/admin-access.service';
 import { prisma } from '@/shared/database/client';
 import * as tenantRepository from '@/modules/tenants/tenant.repository';
@@ -7,10 +7,16 @@ import {
   findSubscriptionByTenantId,
   listChargesForTenant,
 } from '@/modules/subscriptions/subscription.service';
+import { listPlans } from '@/modules/plans/plan.service';
 import { Badge, FinancialValue } from '@/shared/ui';
 import { AdminShell } from '../../AdminShell';
 import { BackupRestore } from './BackupRestore';
-import { CreateBlockForm, LiftBlockButton, PayChargeButton } from './TenantActions';
+import {
+  CreateBlockForm,
+  EditSubscriptionForm,
+  LiftBlockButton,
+  PayChargeButton,
+} from './TenantActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,10 +40,15 @@ export default async function AdminTenantDetailPage({
   if (!tenant) notFound();
 
   const owner = tenant.memberships[0]?.user;
-  const [subscription, charges, activeBlocks] = await Promise.all([
+  const [subscription, charges, activeBlocks, plans] = await Promise.all([
     findSubscriptionByTenantId(tenant.id),
     listChargesForTenant(tenant.id),
     tenantRepository.findActiveBlocks(tenant.id),
+    // Todos os planos, não só ativos (Seção 102: nunca apaga plano, só
+    // inativa) — se o tenant já estiver num plano que foi inativado depois,
+    // ele precisa continuar aparecendo no seletor de edição, senão o Admin
+    // trocaria o plano sem querer só de abrir o formulário.
+    listPlans(),
   ]);
 
   return (
@@ -64,28 +75,40 @@ export default async function AdminTenantDetailPage({
       <section className="border-ink-secondary/15 mb-6 rounded-lg border bg-surface-card p-4">
         <h2 className="mb-3 text-sm font-semibold text-ink-primary">Assinatura</h2>
         {subscription ? (
-          <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-            <div>
-              <dt className="text-ink-secondary">Plano</dt>
-              <dd className="font-medium text-ink-primary">{subscription.plan.name}</dd>
-            </div>
-            <div>
-              <dt className="text-ink-secondary">Valor contratado</dt>
-              <dd>
-                <FinancialValue cents={subscription.contractedPriceCents} />
-              </dd>
-            </div>
-            <div>
-              <dt className="text-ink-secondary">Condição</dt>
-              <dd className="font-medium text-ink-primary">
-                {subscription.condition === 'PAID' ? 'Pago' : 'Isento'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-ink-secondary">Vencimento</dt>
-              <dd className="font-medium text-ink-primary">Dia {subscription.dueDay}</dd>
-            </div>
-          </dl>
+          <>
+            <dl className="mb-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <div>
+                <dt className="text-ink-secondary">Plano</dt>
+                <dd className="font-medium text-ink-primary">{subscription.plan.name}</dd>
+              </div>
+              <div>
+                <dt className="text-ink-secondary">Valor contratado</dt>
+                <dd>
+                  <FinancialValue cents={subscription.contractedPriceCents} />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-ink-secondary">Condição</dt>
+                <dd className="font-medium text-ink-primary">
+                  {subscription.condition === 'PAID' ? 'Pago' : 'Isento'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-ink-secondary">Vencimento</dt>
+                <dd className="font-medium text-ink-primary">Dia {subscription.dueDay}</dd>
+              </div>
+            </dl>
+            <EditSubscriptionForm
+              tenantId={tenant.id}
+              plans={plans.map((plan: SubscriptionPlan) => ({
+                id: plan.id,
+                label: `${plan.name} — R$ ${(plan.priceCents / 100).toFixed(2)}${plan.active ? '' : ' (inativo)'}`,
+              }))}
+              currentPlanId={subscription.planId}
+              currentCondition={subscription.condition}
+              currentDueDay={subscription.dueDay}
+            />
+          </>
         ) : (
           <p className="text-sm text-ink-secondary">Sem assinatura.</p>
         )}

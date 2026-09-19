@@ -25,6 +25,22 @@ Todas as mudanças notáveis do VortCon são documentadas aqui. Formato baseado 
   `amountCents` da própria transação, como sempre; nenhuma outra transação
   é afetada.
 
+### Adicionado (2026-09-19, sem mudança de versão)
+
+- **Admin: editar Plano/Condição/Vencimento da assinatura do tenant**: na
+  tela de detalhe do tenant (Admin), a seção "Assinatura" ganhou um
+  formulário para trocar o Plano contratado, alternar Condição entre
+  Pagante e Isento, e ajustar o dia de Vencimento — hoje só existia
+  leitura desses campos. Trocar o plano re-precifica o valor contratado
+  para o preço atual do novo plano (Seção 107 continua valendo para
+  contratos que o Admin não mexe). Virar Isento (vindo de Pagante) cancela
+  as mensalidades pendentes do tenant e levanta um bloqueio de
+  inadimplência ativo, se houver (Seção 108: "isento sem dívida
+  artificial"); mensalidades já pagas nunca são tocadas. Mudar o
+  Vencimento só vale a partir da próxima mensalidade gerada, nunca
+  reescreve uma já existente. Ajuste pontual, a pedido do cliente — não
+  bump de versão.
+
 ## [1.6.3] — 2026-09-18
 
 ### Corrigido

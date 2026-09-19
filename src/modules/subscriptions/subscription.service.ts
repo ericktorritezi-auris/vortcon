@@ -1,11 +1,12 @@
-import type { Prisma, SubscriptionCharge } from '@prisma/client';
+import type { Prisma, SubscriptionCharge, TenantAccessBlock } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
 import { recordAuditEvent } from '@/modules/audit/audit.service';
 import { appendOutboxEvent } from '@/modules/notifications/outbox.service';
 import * as tenantRepository from '@/modules/tenants/tenant.repository';
+import { findPlanById } from '@/modules/plans/plan.service';
 import * as subscriptionRepository from './subscription.repository';
 import { isOverdueEnoughToBlock } from './delinquency-rules';
-import { dueDateForCompetence, firstDayOfMonth } from './billing-dates';
+import { dueDateForCompetence, firstDayOfMonth, MAX_DUE_DAY, MIN_DUE_DAY } from './billing-dates';
 
 /**
  * Garante que a cobranca do mes vigente existe (Secao 109). Idempotente -
@@ -153,6 +154,111 @@ export async function registerPayment(chargeId: string, adminUserId: string): Pr
     entityType: 'SubscriptionCharge',
     entityId: chargeId,
     metadataSanitized: { competence: charge.competence.toISOString().slice(0, 7) },
+  });
+}
+
+interface UpdateTenantSubscriptionInput {
+  planId?: string;
+  condition?: 'PAID' | 'EXEMPT';
+  dueDay?: number;
+}
+
+/**
+ * Edição pelo Admin (evolução v1.7.1, pedido do cliente) — Plano
+ * contratado, Condição (Pagante ↔ Isento) e dia de Vencimento de uma
+ * assinatura já existente. Decisões confirmadas com o cliente antes de
+ * implementar:
+ *
+ * - Trocar o plano re-precifica o contrato: `contractedPriceCents` passa a
+ *   ser o preço ATUAL do novo plano (diferente de mudar o preço no
+ *   catálogo, que nunca toca contratos existentes — Seção 107; aqui é o
+ *   Admin escolhendo explicitamente outro plano pra este tenant).
+ * - Virar Isento (vindo de Pagante) cancela toda mensalidade PENDENTE deste
+ *   tenant e levanta um bloqueio DELINQUENCY ativo, se houver — "isento sem
+ *   dívida artificial" (Seção 108) vale também pra quem já tinha cobrança
+ *   em aberto no momento da troca. Mensalidades já PAGAS nunca são tocadas
+ *   (fica intacto no histórico).
+ * - Mudar o dia de Vencimento nunca reescreve uma mensalidade já criada
+ *   (mesmo pendente) — só vale a partir da próxima competência gerada por
+ *   `ensureCurrentMonthCharge`.
+ */
+export async function updateTenantSubscription(
+  tenantId: string,
+  adminUserId: string,
+  input: UpdateTenantSubscriptionInput,
+): Promise<void> {
+  const current = await subscriptionRepository.findSubscriptionByTenantId(tenantId);
+  if (!current) {
+    throw new Error('Este tenant não tem assinatura.');
+  }
+
+  if (input.dueDay !== undefined && (input.dueDay < MIN_DUE_DAY || input.dueDay > MAX_DUE_DAY)) {
+    throw new Error(
+      `O dia de vencimento deve estar entre ${MIN_DUE_DAY} e ${MAX_DUE_DAY} (para nunca cair em um dia inexistente em fevereiro).`,
+    );
+  }
+
+  let newPriceCents: number | undefined;
+  if (input.planId && input.planId !== current.planId) {
+    const plan = await findPlanById(input.planId);
+    if (!plan) {
+      throw new Error('Plano não encontrado.');
+    }
+    newPriceCents = plan.priceCents;
+  }
+
+  const becomingExempt = input.condition === 'EXEMPT' && current.condition === 'PAID';
+  const membership = becomingExempt
+    ? await prisma.tenantUser.findFirst({ where: { tenantId }, include: { user: true } })
+    : null;
+
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await subscriptionRepository.updateSubscription(
+      tenantId,
+      {
+        planId: input.planId,
+        contractedPriceCents: newPriceCents,
+        condition: input.condition,
+        dueDay: input.dueDay,
+      },
+      tx,
+    );
+
+    if (becomingExempt) {
+      await tx.subscriptionCharge.deleteMany({ where: { tenantId, status: 'PENDING' } });
+
+      const activeBlocks = await tx.tenantAccessBlock.findMany({
+        where: { tenantId, active: true },
+      });
+      const delinquencyBlock = activeBlocks.find(
+        (block: TenantAccessBlock) => block.type === 'DELINQUENCY',
+      );
+      if (delinquencyBlock) {
+        await tenantRepository.liftBlock(delinquencyBlock.id, tx);
+        if (membership) {
+          await appendOutboxEvent(tx, 'TenantUnblocked', {
+            tenantId,
+            userId: membership.user.id,
+            userEmail: membership.user.email,
+          });
+        }
+      }
+    }
+  });
+
+  await recordAuditEvent({
+    actorType: 'GLOBAL_ADMIN',
+    actorId: adminUserId,
+    tenantId,
+    eventType: 'TENANT_SUBSCRIPTION_UPDATED',
+    entityType: 'TenantSubscription',
+    entityId: current.id,
+    metadataSanitized: {
+      planId: input.planId ?? current.planId,
+      condition: input.condition ?? current.condition,
+      dueDay: input.dueDay ?? current.dueDay,
+      becameExempt: becomingExempt,
+    },
   });
 }
 

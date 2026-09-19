@@ -1,147 +1,118 @@
-# VortCon — Entrega: histórico de ajustes de valor (botões +/- na edição)
+# ENTREGA — Admin: editar Plano / Condição / Vencimento do Tenant
 
 ## VERSÃO
 
-`1.6.3` → `1.7.0` (minor — funcionalidade nova, nenhuma quebra de contrato existente)
+**Sem bump de versão**, por instrução explícita do cliente ("esse ajuste
+agora, não muda a versão"). `package.json`, `backup.service.ts`,
+`Footer.tsx` e `health/route.ts` permanecem em `1.7.0`, intocados — não
+fazem parte desta entrega.
 
-Atualizada nos 4 locais rastreados: `package.json`, `src/modules/backup/backup.service.ts`
-(`VORTCON_VERSION`), `src/shared/ui/Footer.tsx` (`APP_VERSION`), `src/app/api/health/route.ts`
-(`version`, nos dois branches do healthcheck).
+O `CHANGELOG.md` ganhou uma sub-seção "### Adicionado (2026-09-19, sem
+mudança de versão)" dentro do próprio cabeçalho `## [1.7.0]` já existente,
+em vez de um novo cabeçalho de versão — assim o registro fica documentado
+sem sugerir um novo número de versão.
 
-## O QUE FOI PEDIDO
+## RESUMO
 
-Você aprovou a demo interativa depois de duas rodadas de ajuste:
+Na tela de detalhe do tenant (Admin → Tenants → tenant), a seção
+"Assinatura" ganhou um formulário de edição logo abaixo do resumo
+read-only já existente, permitindo ao Admin alterar:
 
-1. Botões "−"/"+" do lado do campo Valor, na edição de uma transação — clicar abre uma
-   caixinha pra digitar o ajuste, confirmar no ✓ soma/subtrai do valor e grava uma linha no
-   "Histórico do valor" (dia + valor do ajuste, sem descrição).
-2. A data do histórico é sempre automática (a data do lançamento do ajuste) — nunca
-   digitada.
-3. Editar o campo Valor direto, sem usar +/-, continua funcionando exatamente como sempre e
-   **não** gera histórico.
-4. Cada linha do histórico ganha um ✕ vermelho — exclui aquele lançamento e recalcula o
-   valor total da transação, desconsiderando ele.
-5. Afeta só aquela transação específica — nunca todas ao mesmo tempo, nunca nenhum cálculo
-   do Financial Engine.
-6. Respeita a tela de edição que já existe hoje (não é uma tela nova).
-7. Ajuda atualizada.
+- **Plano contratado** — seletor com todos os planos (inclusive inativos,
+  rotulados "(inativo)", pra não sumir da lista se o tenant já estiver
+  nele).
+- **Condição** — toggle Pagante ↔ Isento.
+- **Vencimento** — dia do mês (1–28).
 
-## COMO FOI IMPLEMENTADO
+Um único botão "Salvar alterações" envia os três campos juntos num só
+PATCH.
 
-### Banco de dados
+### Regras de negócio
 
-Uma tabela nova, `transaction_value_adjustments` — nenhuma coluna existente muda:
+As 3 decisões confirmadas com você antes de implementar, cada uma com a
+opção recomendada que você escolheu:
 
-```
-id            text (pk)
-transactionId text (fk -> financial_transactions, ON DELETE CASCADE)
-deltaCents    integer   -- pode ser + ou -, nunca 0
-createdAt     timestamp -- sempre automático (default now()), nunca vem do client
-```
+1. **Trocar o Plano re-precifica o contrato.** `contractedPriceCents`
+   passa a ser o preço atual do novo plano escolhido. (Continua valendo a
+   Seção 107 pra contratos que o Admin não mexe — preço muda no catálogo
+   nunca afeta contrato já existente; aqui é diferente porque é o Admin
+   escolhendo explicitamente outro plano pra este tenant.)
+2. **Virar Isento (vindo de Pagante) cancela mensalidades PENDENTES e
+   levanta bloqueio de inadimplência ativo.** Bate com a Seção 108
+   ("isento sem dívida artificial"). Mensalidades já **pagas** nunca são
+   tocadas — ficam intactas no histórico. Se havia um bloqueio
+   `DELINQUENCY` ativo, ele é levantado automaticamente (evento de outbox
+   `TenantUnblocked` disparado, mesmo padrão do pagamento manual).
+3. **Mudar o Vencimento nunca reescreve uma mensalidade já existente**
+   (mesmo pendente) — vale só a partir da próxima cobrança que
+   `ensureCurrentMonthCharge` gerar.
 
-`ON DELETE CASCADE`: se a transação for excluída de vez (Seção 78 — só depois de cancelada),
-o histórico dela some junto, sem deixar linha órfã.
+Toda alteração fica registrada em `AuditEvent`
+(`TENANT_SUBSCRIPTION_UPDATED`, ator `GLOBAL_ADMIN`, com o id do Admin que
+fez a mudança).
 
-### Backend
+## ARQUIVOS NOVOS
 
-- **Uma sessão de edição = um "Salvar" só**, exatamente como hoje. O botão ✓ da caixinha de
-  ajuste só atualiza o valor **na tela** e guarda o ajuste numa lista local — nada vai pro
-  servidor até você clicar "Salvar" no rodapé do drawer, igual sempre foi.
-- O `PATCH /api/transactions/:id` que já existia ganhou dois campos **opcionais**:
-  `valueAdjustments` (lista de novos ajustes desta sessão) e `removeValueAdjustmentIds`
-  (ids de ajustes já salvos que você excluiu com o ✕). Quando omitidos — ou seja, em
-  qualquer edição que não usa os botões +/- — o comportamento é **idêntico a hoje, byte a
-  byte**. Isso é o que garante "zero impacto no que já está funcionando".
-- Tudo (o valor final da transação, os ajustes novos, as exclusões) é salvo **numa única
-  transação de banco** — ou tudo acontece, ou nada acontece.
-- Excluir (✕) um ajuste já salvo desfaz **exatamente aquele delta** do valor atual — não
-  recalcula "do zero" a partir de um valor inicial fixo. Isso é mais robusto que a demo:
-  funciona certo mesmo se, entre um ajuste e outro, você também tiver editado o valor
-  direto no campo (sem +/-) em alguma sessão anterior.
-- Ownership (Seção 210): a exclusão de um ajuste é sempre filtrada pela transação
-  específica — mesmo que alguém tentasse forjar um id de ajuste de outra transação, nada
-  seria apagado fora do escopo certo.
+- `src/app/api/admin/tenants/[id]/subscription/route.ts` — endpoint
+  `PATCH`, valida com zod (`planId?`, `condition?`, `dueDay?` — todos
+  opcionais), checa acesso Admin (`evaluateAdminAccess`), delega pra
+  `updateTenantSubscription`.
 
-### Tela (respeitando a edição que já existe)
+## ARQUIVOS ALTERADOS
 
-- **Nada de tela nova.** O componente `TransactionFormFields` (usado tanto pra criar quanto
-  pra editar) ganhou um único slot opcional, `valueExtra`, renderizado logo abaixo do campo
-  Valor — só a tela de **edição** passa conteúdo nele (os botões +/-, a caixinha de ajuste e
-  o histórico); a tela de **criação** nunca passa nada ali, então continua pixel-a-pixel
-  igual ao que já era.
-- Histórico visível tanto no detalhe (somente leitura) quanto na edição (com o ✕).
-- Reaproveitei o componente `FinancialValue` que já existe pra formatar/colorir os valores do
-  histórico — mesma formatação monetária do resto do app.
-
-### Arquivos desta entrega
-
-**Novos (2):**
-
-- `prisma/migrations/20260919090000_transaction_value_adjustments/migration.sql`
-- `src/app/app/transacoes/TransactionValueHistory.tsx` — lista do histórico (usada no
-  detalhe e na edição).
-
-**Alterados (14):**
-
-- `prisma/schema.prisma` — modelo `TransactionValueAdjustment` + relação em
-  `FinancialTransaction`.
-- `src/modules/transactions/transaction.repository.ts` — `updateTransaction` passa a
-  aceitar `valueAdjustments`/`removeValueAdjustmentIds` (opcionais); `findTransactionById` e
-  `listTransactions` passam a incluir o histórico.
-- `src/modules/transactions/transaction.service.ts` — repassa os campos novos.
-- `src/app/api/transactions/[id]/route.ts` — schema do PATCH aceita os dois campos novos
-  (validação: cada delta é um inteiro diferente de zero).
-- `src/app/app/transacoes/TransactionsView.tsx` — tipo `TransactionItemView` ganha
-  `valueAdjustments`.
-- `src/app/app/transacoes/TransactionFormFields.tsx` — slot opcional `valueExtra` (zero
-  mudança quando não usado).
-- `src/app/app/transacoes/TransactionDetailDrawer.tsx` — botões +/-, caixinha de ajuste,
-  ✕ de exclusão, histórico no detalhe e na edição.
-- `src/app/app/ajuda/HelpContent.tsx` — nova pergunta na seção "Transações" explicando o
-  recurso.
-- `tests/integration/transactions-flow.test.ts` — 4 testes novos (ver QA).
-- `package.json`, `src/modules/backup/backup.service.ts`, `src/shared/ui/Footer.tsx`,
-  `src/app/api/health/route.ts` — bump de versão.
+- `src/modules/subscriptions/subscription.repository.ts` — nova função
+  `updateSubscription(tenantId, data, client?)`, aceita client de
+  transação opcional (usada junto com o cancelamento de pendentes dentro
+  da mesma transação).
+- `src/modules/subscriptions/subscription.service.ts` — nova função
+  exportada `updateTenantSubscription(tenantId, adminUserId, input)`, com
+  toda a lógica de negócio acima (validação de `dueDay`, re-precificação,
+  cancelamento de pendentes + desbloqueio, auditoria). Doc comment extenso
+  documentando as 3 decisões confirmadas.
+- `src/app/admin/tenants/[id]/TenantActions.tsx` — novo componente
+  `EditSubscriptionForm` (client component), o formulário em si.
+- `src/app/admin/tenants/[id]/page.tsx` — busca `listPlans()` (todos os
+  planos, não só ativos) e renderiza `<EditSubscriptionForm>` abaixo do
+  resumo da Assinatura.
+- `tests/integration/commercial-flow.test.ts` — nova suíte `describe`
+  isolada ("Admin edita assinatura do tenant"), com tenant e planos
+  próprios (não compartilha estado com a suíte de fluxo comercial
+  existente). 5 novos testes: re-precificação ao trocar plano; Isento
+  cancela pendente + levanta bloqueio + preserva paga; Vencimento não
+  reescreve cobrança existente; validação de `dueDay` fora de 1–28;
+  evento de auditoria gravado.
+- `CHANGELOG.md` — nota adicionada sob o cabeçalho `[1.7.0]` existente
+  (sem novo número de versão, conforme explicado acima).
 
 ## MIGRATIONS
 
-Uma migration nova (`20260919090000_transaction_value_adjustments`) — cria só a tabela
-`transaction_value_adjustments`. Testei aplicando ela (e todas as anteriores, em ordem) contra
-um PostgreSQL real neste ambiente — rodou sem nenhum erro, e a tabela final bate exatamente
-com o schema (colunas, tipos, índice, FK com `ON DELETE CASCADE`).
+Nenhuma. Este ajuste usa exclusivamente campos já existentes em
+`TenantSubscription` (`planId`, `contractedPriceCents`, `condition`,
+`dueDay`) — nenhuma mudança de schema.
 
 ## QA EXECUTADO
 
-- `npm run lint` — ✅ limpo (0 erros, 0 warnings), projeto inteiro.
-- `npx prettier --check .` — ✅ limpo, projeto inteiro.
-- `npx vitest run` (unitários, sem banco) — ✅ 23 arquivos, 159 testes, todos passando.
-- **Migration aplicada contra PostgreSQL real** (consegui subir um Postgres local neste
-  ambiente desta vez) — todas as 17 migrations do projeto, em ordem, incluindo a desta
-  entrega, aplicaram sem erro. Conferi a tabela resultante à mão (`\d
-transaction_value_adjustments`) e bate exatamente com o `schema.prisma`.
-- **Testes de integração (os 4 novos) contra banco real**: aqui esbarrei de novo na mesma
-  limitação de sempre (`binaries.prisma.sh` bloqueado neste sandbox — não consigo baixar o
-  engine do Prisma pra rodar o Prisma Client de verdade, só apliquei a migration via SQL
-  puro). Não deu pra rodar o `npm run test` de ponta a ponta aqui. Os 4 testes novos cobrem:
-  edição direta sem histórico, dois ajustes seguidos (+1000, +10000) conferindo soma e
-  `createdAt` automático, exclusão de um ajuste (✕) recalculando o valor certo, e exclusão
-  da transação apagando o histórico junto (cascade). Recomendo, como sempre, deixar o
-  GitHub Actions real confirmar.
-- `npm run typecheck` — mesma limitação de sempre (tipos genéricos do `@prisma/client` sem
-  o engine baixado). Isolei os erros que tocam os arquivos desta entrega: nenhum novo,
-  nenhum menciona `TransactionValueAdjustment` ou `valueAdjustments` especificamente — só o
-  mesmo padrão genérico pré-existente que já afeta o projeto inteiro.
+- `npx eslint` nos 6 arquivos desta entrega — sem erros.
+- `npx prettier --check` nos 6 arquivos + `CHANGELOG.md` — todos já no
+  padrão (nenhuma reformatação necessária).
+- `npx vitest run --exclude "tests/integration/**"` — **159/159 testes
+  unitários passando** (suíte completa, 23 arquivos).
+- `npx tsc --noEmit` — contagem total de erros permaneceu em **87 linhas**
+  (mesmo número de antes desta mudança), todas do mesmo "muro" genérico
+  documentado desde o Estágio 1 (`@prisma/client` "no exported member" —
+  limitação do sandbox, não afeta o build real no Railway/GitHub Actions).
+  Nenhum erro novo de lógica.
+- Os 5 novos testes de integração (`commercial-flow.test.ts`) foram
+  escritos seguindo exatamente as convenções já estabelecidas no arquivo
+  (helpers `createTestPlan`/`cleanupTenant`/`deleteTestPlan`,
+  `firstDueDateNextMonth()`), mas **não puderam ser executados neste
+  sandbox** (o binário de engine do Prisma usado pelos testes de
+  integração via Vitest está bloqueado por rede aqui — limitação já
+  documentada e aceita desde o início do projeto). Vão rodar normalmente
+  no GitHub Actions, que não tem essa restrição.
 
-## COMO TESTAR MANUALMENTE APÓS O DEPLOY
+## COMO SUBIR
 
-1. Abra uma transação existente e clique em "Editar".
-2. Do lado do campo Valor, clique no "+" → digite um valor → confirme no ✓. O valor muda na
-   hora e aparece uma linha em "Histórico do valor" com "Hoje" (vira a data real ao salvar).
-3. Clique em "Salvar". Reabra a transação (detalhe) — o histórico aparece lá também, com a
-   data certa.
-4. Edite de novo, use o "−" dessa vez, e confirme.
-5. Ainda editando, clique no ✕ de um dos lançamentos do histórico — o valor total muda na
-   hora, sem precisar salvar antes.
-6. Edite o campo Valor direto (sem usar +/-) e salve — confirme que **nenhuma** linha nova
-   aparece no histórico.
-7. Confira a Ajuda → Transações → nova pergunta sobre o histórico do valor.
+Sem migration, então basta subir os arquivos alterados/novos pro GitHub
+(mesmos caminhos) e o deploy no Railway segue normal — não precisa de
+nenhum passo manual adicional.

@@ -6,6 +6,7 @@ import {
   ensureCurrentMonthCharge,
   evaluateAndApplyDelinquency,
   registerPayment,
+  updateTenantSubscription,
 } from '@/modules/subscriptions/subscription.service';
 import * as tenantRepository from '@/modules/tenants/tenant.repository';
 import { cleanupTenant, createTestPlan, deleteTestPlan } from '../helpers/commercial';
@@ -288,5 +289,151 @@ describe('fluxo comercial (assinatura, mensalidade, inadimplencia)', () => {
     });
     expect(unblockedEvent).not.toBeNull();
     expect((unblockedEvent?.payload as { tenantId?: string })?.tenantId).toBe(tenantId);
+  });
+});
+
+/**
+ * Evolução v1.7.1 — Admin edita Plano/Condição/Vencimento de uma assinatura
+ * já existente. Suíte isolada (tenant e planos próprios) pra não competir
+ * com o estado mutado pelo describe acima. Cobre exatamente as 3 decisões
+ * confirmadas com o cliente antes de implementar (ver doc comment de
+ * `updateTenantSubscription`): re-precificação ao trocar de plano,
+ * cancelamento de pendentes + desbloqueio ao virar Isento, e Vencimento
+ * nunca reescrevendo uma cobrança já existente.
+ */
+describe('Admin edita assinatura do tenant (evolução v1.7.1)', () => {
+  let tenantId: string;
+  let adminUserId: string;
+  let planId: string;
+  let otherPlanId: string;
+
+  beforeAll(async () => {
+    const plan = await createTestPlan(4990);
+    planId = plan.id;
+    const otherPlan = await createTestPlan(9990);
+    otherPlanId = otherPlan.id;
+
+    const suffix = crypto.randomUUID().slice(0, 8);
+    const { tenant, user } = await provisionTenantWithOwner({
+      name: 'Admin Edit Owner',
+      email: `admin-edit-${suffix}@example.com`,
+      username: `admin_edit_${suffix}`,
+      planId,
+      firstDueDate: firstDueDateNextMonth(),
+    });
+    tenantId = tenant.id;
+    adminUserId = user.id;
+  });
+
+  afterAll(async () => {
+    await cleanupTenant(tenantId);
+    await deleteTestPlan(planId);
+    await deleteTestPlan(otherPlanId);
+  });
+
+  it('trocar o plano re-precifica contractedPriceCents pro preco atual do novo plano', async () => {
+    await updateTenantSubscription(tenantId, adminUserId, { planId: otherPlanId });
+
+    const subscription = await subscriptionRepository.findSubscriptionByTenantId(tenantId);
+    expect(subscription?.planId).toBe(otherPlanId);
+    expect(subscription?.contractedPriceCents).toBe(9990);
+  });
+
+  it('virar Isento (vindo de Pagante) cancela mensalidades PENDENTES e levanta bloqueio DELINQUENCY ativo, mas preserva as PAGAS', async () => {
+    // Uma mensalidade PAGA (histórico que nunca pode ser tocado) e uma
+    // PENDENTE vencida o suficiente pra gerar bloqueio automático.
+    const subscription = await subscriptionRepository.findSubscriptionByTenantId(tenantId);
+    const paidCharge = await prisma.subscriptionCharge.create({
+      data: {
+        subscriptionId: subscription!.id,
+        tenantId,
+        competence: new Date('2026-01-01'),
+        amountCents: 9990,
+        dueDate: new Date('2026-01-15'),
+        status: 'PAID',
+        paidAt: new Date('2026-01-10'),
+      },
+    });
+
+    const sixDaysAgo = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+    const pendingCharge = await prisma.subscriptionCharge.create({
+      data: {
+        subscriptionId: subscription!.id,
+        tenantId,
+        competence: new Date('2026-03-01'),
+        amountCents: 9990,
+        dueDate: sixDaysAgo,
+        status: 'PENDING',
+      },
+    });
+
+    await evaluateAndApplyDelinquency(tenantId);
+    const blocksBefore = await tenantRepository.findActiveBlocks(tenantId);
+    expect(blocksBefore.some((block) => block.type === 'DELINQUENCY')).toBe(true);
+
+    await updateTenantSubscription(tenantId, adminUserId, { condition: 'EXEMPT' });
+
+    const subscriptionAfter = await subscriptionRepository.findSubscriptionByTenantId(tenantId);
+    expect(subscriptionAfter?.condition).toBe('EXEMPT');
+
+    const pendingAfter = await prisma.subscriptionCharge.findUnique({
+      where: { id: pendingCharge.id },
+    });
+    expect(pendingAfter).toBeNull();
+
+    const paidAfter = await prisma.subscriptionCharge.findUnique({ where: { id: paidCharge.id } });
+    expect(paidAfter?.status).toBe('PAID');
+    expect(paidAfter?.amountCents).toBe(9990);
+
+    const blocksAfter = await tenantRepository.findActiveBlocks(tenantId);
+    expect(blocksAfter.some((block) => block.type === 'DELINQUENCY')).toBe(false);
+
+    await prisma.subscriptionCharge.delete({ where: { id: paidCharge.id } });
+  });
+
+  it('mudar o dia de Vencimento nao reescreve uma mensalidade PENDENTE ja existente', async () => {
+    // Volta pra Pagante pra poder ter uma cobrança pendente de novo.
+    await updateTenantSubscription(tenantId, adminUserId, { condition: 'PAID' });
+
+    const subscription = await subscriptionRepository.findSubscriptionByTenantId(tenantId);
+    const originalDueDate = new Date('2026-05-20');
+    const pendingCharge = await prisma.subscriptionCharge.create({
+      data: {
+        subscriptionId: subscription!.id,
+        tenantId,
+        competence: new Date('2026-05-01'),
+        amountCents: 9990,
+        dueDate: originalDueDate,
+        status: 'PENDING',
+      },
+    });
+
+    await updateTenantSubscription(tenantId, adminUserId, { dueDay: 5 });
+
+    const subscriptionAfter = await subscriptionRepository.findSubscriptionByTenantId(tenantId);
+    expect(subscriptionAfter?.dueDay).toBe(5);
+
+    const chargeAfter = await prisma.subscriptionCharge.findUnique({
+      where: { id: pendingCharge.id },
+    });
+    expect(chargeAfter?.dueDate.getTime()).toBe(originalDueDate.getTime());
+
+    await prisma.subscriptionCharge.delete({ where: { id: pendingCharge.id } });
+  });
+
+  it('rejeita dueDay fora do intervalo 1-28', async () => {
+    await expect(updateTenantSubscription(tenantId, adminUserId, { dueDay: 29 })).rejects.toThrow();
+    await expect(updateTenantSubscription(tenantId, adminUserId, { dueDay: 0 })).rejects.toThrow();
+  });
+
+  it('registra evento de auditoria TENANT_SUBSCRIPTION_UPDATED', async () => {
+    await updateTenantSubscription(tenantId, adminUserId, { dueDay: 10 });
+
+    const event = await prisma.auditEvent.findFirst({
+      where: { tenantId, eventType: 'TENANT_SUBSCRIPTION_UPDATED' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(event).not.toBeNull();
+    expect(event?.actorId).toBe(adminUserId);
   });
 });
