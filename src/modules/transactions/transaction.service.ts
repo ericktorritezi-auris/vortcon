@@ -117,4 +117,9 @@ export async function setIgnored(tenantId: string, transactionId: string, ignore
   return transactionRepository.setIgnored(tenantId, transactionId, ignored);
 }
 
-export { findTransactionById, listTransactions, setTags } from './transaction.repository';
+export {
+  findTransactionById,
+  listTransactions,
+  listTransactionsForSimulation,
+  setTags,
+} from './transaction.repository';

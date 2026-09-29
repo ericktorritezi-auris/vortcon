@@ -11,6 +11,7 @@ import {
   ListChecks,
   PieChart,
   Repeat,
+  Scale,
   Tag,
   User,
   Users,
@@ -28,6 +29,9 @@ const NAV_GROUPS = [
       { href: '/app/contas', label: 'Contas', icon: CreditCard },
       { href: '/app/categorias', label: 'Categorias', icon: LayoutGrid },
       { href: '/app/tags', label: 'Tags', icon: Tag },
+      // Simulação (evolução v1.8, pedido do cliente) — tela só de consulta,
+      // fica perto de Relatórios porque as duas são "olhar", não "mexer".
+      { href: '/app/simulacao', label: 'Simulação', icon: Scale },
       { href: '/app/relatorios', label: 'Relatórios', icon: PieChart },
     ],
   },

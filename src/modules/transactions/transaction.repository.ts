@@ -65,6 +65,26 @@ export async function listTransactions(tenantId: string, filters: ListTransactio
   };
 }
 
+/**
+ * Simulação (evolução v1.8) — lista TODAS as transações do mês, sem
+ * paginação e sem filtro de tipo/categoria/conta/status: a tela filtra e
+ * soma no client, porque a seleção do usuário precisa sobreviver a troca de
+ * filtro (ele pode filtrar só Despesas, selecionar algumas, trocar pra
+ * Receitas e continuar selecionando — perder a seleção ao trocar o filtro
+ * quebraria exatamente o caso de uso que o cliente pediu). Inclui
+ * canceladas de propósito, mesma razão de `listTransactions`: quem está
+ * simulando pode querer excluir/incluir uma cancelada da conta manualmente.
+ * Puramente de leitura — esta função nunca é chamada por nenhum fluxo de
+ * escrita.
+ */
+export async function listTransactionsForSimulation(tenantId: string, from: Date, to: Date) {
+  return prisma.financialTransaction.findMany({
+    where: { tenantId, dueDate: { gte: from, lte: to } },
+    orderBy: { dueDate: 'asc' },
+    include: { category: true },
+  });
+}
+
 interface CreateTransactionData {
   type: 'INCOME' | 'EXPENSE';
   description: string;

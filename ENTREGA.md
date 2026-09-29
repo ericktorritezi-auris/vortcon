@@ -1,118 +1,114 @@
-# ENTREGA — Admin: editar Plano / Condição / Vencimento do Tenant
+# ENTREGA — Simulação (novo menu)
 
 ## VERSÃO
 
-**Sem bump de versão**, por instrução explícita do cliente ("esse ajuste
-agora, não muda a versão"). `package.json`, `backup.service.ts`,
-`Footer.tsx` e `health/route.ts` permanecem em `1.7.0`, intocados — não
-fazem parte desta entrega.
-
-O `CHANGELOG.md` ganhou uma sub-seção "### Adicionado (2026-09-19, sem
-mudança de versão)" dentro do próprio cabeçalho `## [1.7.0]` já existente,
-em vez de um novo cabeçalho de versão — assim o registro fica documentado
-sem sugerir um novo número de versão.
+**1.7.0 → 1.8.0** (bump de MINOR — feature nova pro usuário final, mesmo
+padrão dos incrementos anteriores: 1.6.x eram correções, 1.7.0 e agora
+1.8.0 são features). Atualizado nos 4 locais de sempre: `package.json`,
+`backup.service.ts` (`VORTCON_VERSION`), `Footer.tsx` (`APP_VERSION`) e
+`health/route.ts` (`version`, as duas branches).
 
 ## RESUMO
 
-Na tela de detalhe do tenant (Admin → Tenants → tenant), a seção
-"Assinatura" ganhou um formulário de edição logo abaixo do resumo
-read-only já existente, permitindo ao Admin alterar:
+Novo item de menu **"Simulação"**, ao lado de Relatórios (grupo
+financeiro), com um ícone de balança pra não repetir o ícone de
+calculadora já usado no Ajuda pela ferramenta de cálculo rápido do menu do
+avatar.
 
-- **Plano contratado** — seletor com todos os planos (inclusive inativos,
-  rotulados "(inativo)", pra não sumir da lista se o tenant já estiver
-  nele).
-- **Condição** — toggle Pagante ↔ Isento.
-- **Vencimento** — dia do mês (1–28).
+Tela **100% de consulta** — sem nenhum botão de editar, criar, cancelar ou
+excluir, sem nenhuma escrita no banco. Existe pra você montar cenários
+("se eu pagar/receber tudo isso junto, quanto dá?") sem depender de
+planilha.
 
-Um único botão "Salvar alterações" envia os três campos juntos num só
-PATCH.
+**Filtros** (sempre abrindo em "Todos/Todas"):
 
-### Regras de negócio
+- **Período** — sempre mês (com as setas de navegação, igual Transações),
+  nunca um intervalo de datas.
+- **Receitas/Despesas** — Todas / Somente receitas / Somente despesas.
+- **Categoria** — Todas ou uma específica.
+- **Conta** — Todas ou uma específica.
+- **Status** — Todos, Pendente, Paga, Recebida ou Cancelada (os 4 valores
+  reais do sistema, confirmado com você).
 
-As 3 decisões confirmadas com você antes de implementar, cada uma com a
-opção recomendada que você escolheu:
+**Lista**, uma linha por lançamento: Data, Categoria, Tipo (Receita/
+Despesa), Status, Valor — e uma caixinha de seleção em cada linha.
 
-1. **Trocar o Plano re-precifica o contrato.** `contractedPriceCents`
-   passa a ser o preço atual do novo plano escolhido. (Continua valendo a
-   Seção 107 pra contratos que o Admin não mexe — preço muda no catálogo
-   nunca afeta contrato já existente; aqui é diferente porque é o Admin
-   escolhendo explicitamente outro plano pra este tenant.)
-2. **Virar Isento (vindo de Pagante) cancela mensalidades PENDENTES e
-   levanta bloqueio de inadimplência ativo.** Bate com a Seção 108
-   ("isento sem dívida artificial"). Mensalidades já **pagas** nunca são
-   tocadas — ficam intactas no histórico. Se havia um bloqueio
-   `DELINQUENCY` ativo, ele é levantado automaticamente (evento de outbox
-   `TenantUnblocked` disparado, mesmo padrão do pagamento manual).
-3. **Mudar o Vencimento nunca reescreve uma mensalidade já existente**
-   (mesmo pendente) — vale só a partir da próxima cobrança que
-   `ensureCurrentMonthCharge` gerar.
+**Painel de previsão**, ao lado: soma o que foi marcado, mostrando o
+acumulado crescendo a cada seleção (o "essa é R$ 100, +R$ 100 = R$
+200..." que você descreveu), separado em "A receber" (soma das receitas
+marcadas), "A pagar" (soma das despesas marcadas) e "Resultado líquido".
+Cada item selecionado pode ser removido da soma tanto desmarcando a
+caixinha na lista quanto clicando no ✕ do próprio painel.
 
-Toda alteração fica registrada em `AuditEvent`
-(`TENANT_SUBSCRIPTION_UPDATED`, ator `GLOBAL_ADMIN`, com o id do Admin que
-fez a mudança).
+**Comportamento da seleção ao trocar filtro**: marcar itens com um filtro,
+trocar o filtro (Tipo/Categoria/Conta/Status) e continuar marcando não
+apaga o que já estava selecionado — exatamente o fluxo que você descreveu
+(filtrar Despesas, selecionar algumas, filtrar Receitas, selecionar mais).
+Só trocar de **mês** zera a seleção, porque aí o universo de lançamentos
+em tela é outro de verdade.
+
+**Nenhum impacto no resto do sistema**: a soma da Simulação é calculada
+isoladamente (`simulation-calculations.ts`), nunca passa pelo Financial
+Engine, Cockpit ou Relatórios — o saldo e todos os outros cálculos
+continuam usando só o `amountCents` de cada transação, como sempre.
 
 ## ARQUIVOS NOVOS
 
-- `src/app/api/admin/tenants/[id]/subscription/route.ts` — endpoint
-  `PATCH`, valida com zod (`planId?`, `condition?`, `dueDay?` — todos
-  opcionais), checa acesso Admin (`evaluateAdminAccess`), delega pra
-  `updateTenantSubscription`.
+- `src/app/app/simulacao/page.tsx` — server component: acesso, período do
+  mês via `?mes=`, busca contas/categorias/transações do mês (sem
+  paginação — a tela precisa do mês inteiro pra somar direito).
+- `src/app/app/simulacao/SimulationView.tsx` — client component: filtros,
+  lista, painel de previsão, navegação de mês.
+- `src/app/app/simulacao/simulation-calculations.ts` — lógica pura de
+  filtro e soma (sem nenhuma dependência de banco/React), fácil de testar
+  isolada.
+- `src/app/app/simulacao/simulation-calculations.test.ts` — 11 testes
+  unitários cobrindo filtro por tipo/categoria/conta/status (incluindo
+  cancelada), soma separada receita/despesa, ordem do acumulado, e um item
+  selecionado que não existe mais na lista.
 
 ## ARQUIVOS ALTERADOS
 
-- `src/modules/subscriptions/subscription.repository.ts` — nova função
-  `updateSubscription(tenantId, data, client?)`, aceita client de
-  transação opcional (usada junto com o cancelamento de pendentes dentro
-  da mesma transação).
-- `src/modules/subscriptions/subscription.service.ts` — nova função
-  exportada `updateTenantSubscription(tenantId, adminUserId, input)`, com
-  toda a lógica de negócio acima (validação de `dueDay`, re-precificação,
-  cancelamento de pendentes + desbloqueio, auditoria). Doc comment extenso
-  documentando as 3 decisões confirmadas.
-- `src/app/admin/tenants/[id]/TenantActions.tsx` — novo componente
-  `EditSubscriptionForm` (client component), o formulário em si.
-- `src/app/admin/tenants/[id]/page.tsx` — busca `listPlans()` (todos os
-  planos, não só ativos) e renderiza `<EditSubscriptionForm>` abaixo do
-  resumo da Assinatura.
-- `tests/integration/commercial-flow.test.ts` — nova suíte `describe`
-  isolada ("Admin edita assinatura do tenant"), com tenant e planos
-  próprios (não compartilha estado com a suíte de fluxo comercial
-  existente). 5 novos testes: re-precificação ao trocar plano; Isento
-  cancela pendente + levanta bloqueio + preserva paga; Vencimento não
-  reescreve cobrança existente; validação de `dueDay` fora de 1–28;
-  evento de auditoria gravado.
-- `CHANGELOG.md` — nota adicionada sob o cabeçalho `[1.7.0]` existente
-  (sem novo número de versão, conforme explicado acima).
+- `src/modules/transactions/transaction.repository.ts` — nova função
+  `listTransactionsForSimulation(tenantId, from, to)`: lista TODAS as
+  transações do mês (sem paginação, sem filtro de tipo/categoria/conta/
+  status — isso é feito no client, de propósito, pra seleção sobreviver a
+  troca de filtro). Inclui canceladas, mesmo critério já usado em
+  `listTransactions`.
+- `src/modules/transactions/transaction.service.ts` — reexporta a nova
+  função.
+- `src/shared/ui/Sidebar.tsx` — novo item de menu "Simulação".
+- `src/app/app/ajuda/HelpContent.tsx` — nova seção "Simulação" explicando
+  pra que serve, como usar, o comportamento da seleção ao trocar filtro, e
+  que editar valor continua sendo só em Transações.
+- `package.json`, `src/modules/backup/backup.service.ts`,
+  `src/shared/ui/Footer.tsx`, `src/app/api/health/route.ts` — versão
+  1.7.0 → 1.8.0.
+- `CHANGELOG.md` — novo `## [1.8.0]`.
 
 ## MIGRATIONS
 
-Nenhuma. Este ajuste usa exclusivamente campos já existentes em
-`TenantSubscription` (`planId`, `contractedPriceCents`, `condition`,
-`dueDay`) — nenhuma mudança de schema.
+Nenhuma. A tela só lê campos já existentes em `FinancialTransaction` —
+nenhuma mudança de schema.
 
 ## QA EXECUTADO
 
-- `npx eslint` nos 6 arquivos desta entrega — sem erros.
-- `npx prettier --check` nos 6 arquivos + `CHANGELOG.md` — todos já no
-  padrão (nenhuma reformatação necessária).
-- `npx vitest run --exclude "tests/integration/**"` — **159/159 testes
-  unitários passando** (suíte completa, 23 arquivos).
-- `npx tsc --noEmit` — contagem total de erros permaneceu em **87 linhas**
-  (mesmo número de antes desta mudança), todas do mesmo "muro" genérico
-  documentado desde o Estágio 1 (`@prisma/client` "no exported member" —
-  limitação do sandbox, não afeta o build real no Railway/GitHub Actions).
-  Nenhum erro novo de lógica.
-- Os 5 novos testes de integração (`commercial-flow.test.ts`) foram
-  escritos seguindo exatamente as convenções já estabelecidas no arquivo
-  (helpers `createTestPlan`/`cleanupTenant`/`deleteTestPlan`,
-  `firstDueDateNextMonth()`), mas **não puderam ser executados neste
-  sandbox** (o binário de engine do Prisma usado pelos testes de
-  integração via Vitest está bloqueado por rede aqui — limitação já
-  documentada e aceita desde o início do projeto). Vão rodar normalmente
-  no GitHub Actions, que não tem essa restrição.
+- `npx eslint` nos arquivos desta entrega — sem erros.
+- `npx prettier --check` (após `--write`) — todos no padrão.
+- `npx vitest run --exclude "tests/integration/**"` — **170/170 testes
+  unitários passando** (24 arquivos; os 11 novos de
+  `simulation-calculations.test.ts` incluídos).
+- `npx tsc --noEmit` — contagem total foi de 87 pra **93 linhas**; toda a
+  diferença é o mesmo "muro" genérico documentado desde o Estágio 1
+  (`@prisma/client` "no exported member" — limitação só deste sandbox, não
+  afeta o build real no Railway/GitHub Actions). Um erro novo real
+  apareceu no meio do processo (`implicitly has an 'any' type` num
+  `.map()`) e foi corrigido tipando o parâmetro a partir do retorno da
+  própria função — depois disso, zero erros de lógica novos, só o muro.
+- Não precisou de migration, então não houve necessidade de validar SQL
+  contra o Postgres local desta vez.
 
 ## COMO SUBIR
 
-Sem migration, então basta subir os arquivos alterados/novos pro GitHub
-(mesmos caminhos) e o deploy no Railway segue normal — não precisa de
-nenhum passo manual adicional.
+Sem migration — é só subir os arquivos novos/alterados pro GitHub (mesmos
+caminhos) e o deploy no Railway segue normal.

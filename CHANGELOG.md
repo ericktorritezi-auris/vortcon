@@ -4,6 +4,25 @@ Todas as mudanças notáveis do VortCon são documentadas aqui. Formato baseado 
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/), versionamento
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.8.0] — 2026-09-29
+
+### Adicionado
+
+- **Simulação (pedido do cliente)**: novo menu, tela 100% de consulta —
+  não edita, não cria, não cancela nada, nunca escreve no banco. Filtros
+  por mês (sempre mês, nunca período), Receitas/Despesas, Categoria, Conta
+  e Status (Pendente, Paga, Recebida, Cancelada), todos abrindo em
+  "Todos". Lista os lançamentos do mês (data, categoria, tipo, status,
+  valor) com uma caixinha de seleção por linha; ao marcar, um painel à
+  direita soma o que foi selecionado, mostrando o acumulado crescendo
+  linha a linha, além do total separado em "A receber", "A pagar" e
+  resultado líquido. A seleção sobrevive a troca de filtro (Tipo,
+  Categoria, Conta, Status) — só trocar de mês zera, porque o universo de
+  lançamentos muda de verdade. Puramente informativo: não passa pelo
+  Financial Engine nem por nenhum outro cálculo do sistema — pra mudar um
+  valor, o usuário sai pra Transações, edita lá (inclusive com o
+  histórico de ajuste da 1.7.0) e volta pra reavaliar.
+
 ## [1.7.0] — 2026-09-19
 
 ### Adicionado

@@ -14,6 +14,7 @@ import {
   ListChecks,
   PieChart,
   Repeat,
+  Scale,
   Search,
   Tag,
   User,
@@ -267,6 +268,33 @@ const SECTIONS: HelpSection[] = [
         question: 'Se eu filtrar mais de um mês, como fica a lista?',
         answer:
           'Sempre dividida por mês, com o resumo de cada mês antes das transações daquele mês.',
+      },
+    ],
+  },
+  {
+    id: 'simulacao',
+    icon: Scale,
+    title: 'Simulação',
+    items: [
+      {
+        question: 'Pra que serve a tela de Simulação?',
+        answer:
+          'Pra te ajudar a montar um cenário antes de decidir o que pagar ou receber — tipo uma planilha, mas já com seus lançamentos reais. Ela só mostra informação, marcada e somada como você quiser: não edita, não cria, não cancela nada, e nunca afeta seu saldo, o Cockpit, os Relatórios ou qualquer outro cálculo do sistema.',
+      },
+      {
+        question: 'Como eu uso?',
+        answer:
+          'Filtre por mês, tipo (receita/despesa), categoria, conta e status (Pendente, Paga, Recebida ou Cancelada) — todos abrem em "Todos", mostrando tudo. Marque a caixinha de cada lançamento que quiser simular: o painel à direita vai somando, linha por linha, mostrando o acumulado ("essa é R$ 100, +R$ 100 = R$ 200...") e o total separado em "A receber", "A pagar" e o resultado líquido.',
+      },
+      {
+        question: 'A seleção continua se eu trocar o filtro?',
+        answer:
+          'Sim — filtrar por Despesas, selecionar algumas, depois trocar pra Receitas e selecionar mais não apaga o que você já tinha marcado. Só trocar de mês zera a seleção, porque aí os lançamentos em tela são outros. Pra tirar um item da soma, desmarque a caixinha dele na lista ou clique no ✕ ao lado dele no painel.',
+      },
+      {
+        question: 'Quero mudar o valor de um lançamento — dá pra fazer aqui?',
+        answer:
+          'Não, de propósito: a Simulação é só consulta, sem nenhum botão de editar. Vá em Transações, ajuste o valor lá (direto no campo, ou com os botões +/- se quiser manter o histórico do ajuste) e volte pra Simulação — como a página é recarregada, os filtros e a seleção zeram, mas o valor já atualizado aparece na lista.',
       },
     ],
   },
