@@ -4,6 +4,25 @@ Todas as mudanças notáveis do VortCon são documentadas aqui. Formato baseado 
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/), versionamento
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.8.3] — 2026-09-29
+
+### Corrigido
+
+- **Simulação — tela quebrada no mobile** (pedido do cliente): a lista (grade
+  fixa de 6 colunas) e o painel de previsão (fixo do lado, largura fixa)
+  não cabiam em tela estreita, causando estouro horizontal. Abaixo de
+  `md` (768px — mesmo ponto de corte que o app já usa pra trocar entre o
+  menu mobile e a barra lateral desktop), a lista agora vira cartões
+  empilhados (checkbox, descrição, categoria, tipo/status e valor — mesmo
+  padrão já usado em Transações) e o painel de previsão vira uma barra
+  fixa no rodapé mostrando o Resultado líquido, que expande pra cima ao
+  tocar mostrando o detalhe completo (A receber, A pagar e os itens
+  selecionados). Os filtros também passaram a ocupar a largura toda em
+  duas colunas no mobile, em vez de forçar rolagem lateral. Em `md` e
+  acima, nada mudou — mesma grade de 6 colunas e mesmo painel fixo do
+  lado de sempre. Puramente visual/estrutural: nenhum cálculo, filtro ou
+  comportamento de seleção foi alterado.
+
 ## [1.8.2] — 2026-09-29
 
 ### Corrigido
