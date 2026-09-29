@@ -85,6 +85,34 @@ describe('fluxo comercial (assinatura, mensalidade, inadimplencia)', () => {
     const chargesAfterSecondCall = await subscriptionRepository.listChargesForTenant(tenantId);
 
     expect(chargesAfterSecondCall).toHaveLength(chargesAfterFirstCall.length);
+
+    // Bug de fixture descoberto ao rodar este arquivo já perto do fim do mês
+    // (mesma CLASSE de bug da 1.6.3 — data derivada de "hoje" vazando pro
+    // resto da suíte, não um bug de produção): a cobrança do mês CORRENTE
+    // criada acima herda `dueDay` (dia 15) de `firstDueDateNextMonth()`, mas
+    // aplicado ao mês vigente, não ao mês seguinte. Se "hoje" já passou do
+    // dia 15 + carência quando o CI roda, essa cobrança nasce aqui já
+    // vencida além da carência — e como nenhum outro teste desta suíte paga
+    // ou neutraliza especificamente ELA (os testes de bloqueio abaixo
+    // manipulam a cobrança de competência mais recente, que é a do
+    // provisionamento, não esta), ela fica pendurada como um bloqueio
+    // "fantasma" esperando acontecer em qualquer teste seguinte que reavalie
+    // inadimplência. Empurramos o vencimento pra um futuro seguro agora,
+    // porque o único propósito desta cobrança neste teste era provar
+    // idempotência de contagem — a data dela nunca fez parte da asserção.
+    const currentMonthCompetence = new Date(
+      Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1),
+    );
+    const currentMonthCharge = chargesAfterSecondCall.find(
+      (charge) => charge.competence.getTime() === currentMonthCompetence.getTime(),
+    );
+    if (currentMonthCharge) {
+      const safeFutureDueDate = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+      await prisma.subscriptionCharge.update({
+        where: { id: currentMonthCharge.id },
+        data: { dueDate: safeFutureDueDate },
+      });
+    }
   });
 
   it('sem atraso, nenhum bloqueio e aplicado', async () => {

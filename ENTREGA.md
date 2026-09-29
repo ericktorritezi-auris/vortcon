@@ -1,114 +1,82 @@
-# ENTREGA — Simulação (novo menu)
+# ENTREGA — Correção de teste no CI (v1.8.1)
 
 ## VERSÃO
 
-**1.7.0 → 1.8.0** (bump de MINOR — feature nova pro usuário final, mesmo
-padrão dos incrementos anteriores: 1.6.x eram correções, 1.7.0 e agora
-1.8.0 são features). Atualizado nos 4 locais de sempre: `package.json`,
-`backup.service.ts` (`VORTCON_VERSION`), `Footer.tsx` (`APP_VERSION`) e
-`health/route.ts` (`version`, as duas branches).
+**1.8.0 → 1.8.1** (patch — correção de teste, sem nenhuma mudança de
+comportamento em produção). Mesmo padrão da 1.6.3, que corrigiu um bug
+parecido no mesmo arquivo. Atualizado nos 4 locais de sempre.
 
-## RESUMO
+## O QUE ACONTECEU
 
-Novo item de menu **"Simulação"**, ao lado de Relatórios (grupo
-financeiro), com um ícone de balança pra não repetir o ícone de
-calculadora já usado no Ajuda pela ferramenta de cálculo rápido do menu do
-avatar.
+O CI rodou `commercial-flow.test.ts` e falhou em 2 testes:
 
-Tela **100% de consulta** — sem nenhum botão de editar, criar, cancelar ou
-excluir, sem nenhuma escrita no banco. Existe pra você montar cenários
-("se eu pagar/receber tudo isso junto, quanto dá?") sem depender de
-planilha.
+- `sem atraso, nenhum bloqueio e aplicado` — esperava 0 bloqueios, achou 1.
+- `Seção 174 — atraso claramente dentro da carência nunca bloqueia` —
+  esperava `false`, achou `true`.
 
-**Filtros** (sempre abrindo em "Todos/Todas"):
+**Não é um bug de produção** — é a mesma classe de bug da 1.6.3: um teste
+cuja fixture depende de "hoje" sem perceber, e que só quebra quando o
+calendário real cai num ponto específico do mês.
 
-- **Período** — sempre mês (com as setas de navegação, igual Transações),
-  nunca um intervalo de datas.
-- **Receitas/Despesas** — Todas / Somente receitas / Somente despesas.
-- **Categoria** — Todas ou uma específica.
-- **Conta** — Todas ou uma específica.
-- **Status** — Todos, Pendente, Paga, Recebida ou Cancelada (os 4 valores
-  reais do sistema, confirmado com você).
+## CAUSA
 
-**Lista**, uma linha por lançamento: Data, Categoria, Tipo (Receita/
-Despesa), Status, Valor — e uma caixinha de seleção em cada linha.
+O teste de idempotência de `ensureCurrentMonthCharge` (alguns testes antes
+dos que falharam) cria, como efeito colateral esperado, a cobrança do mês
+**vigente**. Essa cobrança herda o dia de vencimento (dia 15) de
+`firstDueDateNextMonth()` — só que esse "dia 15" foi pensado pro mês
+**seguinte** (a 1ª cobrança do provisionamento), não pro mês vigente.
 
-**Painel de previsão**, ao lado: soma o que foi marcado, mostrando o
-acumulado crescendo a cada seleção (o "essa é R$ 100, +R$ 100 = R$
-200..." que você descreveu), separado em "A receber" (soma das receitas
-marcadas), "A pagar" (soma das despesas marcadas) e "Resultado líquido".
-Cada item selecionado pode ser removido da soma tanto desmarcando a
-caixinha na lista quanto clicando no ✕ do próprio painel.
+Rodando o CI depois do dia 20 de qualquer mês (dia 15 + 5 dias de
+carência — Seção 113), essa cobrança nasce no teste **já vencida além da
+carência**. Nenhum teste seguinte paga ou neutraliza especificamente ela
+(os testes de bloqueio abaixo mexem é na cobrança do provisionamento, de
+competência diferente) — ela fica pendurada, e qualquer reavaliação de
+inadimplência mais adiante na suíte encontra ela e cria um bloqueio
+"fantasma" que os testes seguintes não esperavam.
 
-**Comportamento da seleção ao trocar filtro**: marcar itens com um filtro,
-trocar o filtro (Tipo/Categoria/Conta/Status) e continuar marcando não
-apaga o que já estava selecionado — exatamente o fluxo que você descreveu
-(filtrar Despesas, selecionar algumas, filtrar Receitas, selecionar mais).
-Só trocar de **mês** zera a seleção, porque aí o universo de lançamentos
-em tela é outro de verdade.
+Confirmei rastreando os IDs/competências de cada cobrança pelos testes um
+por um — o comportamento do código de produção (`evaluateAndApplyDelinquency`)
+está correto em cada passo; é a fixture do teste que não previu esse
+cenário.
 
-**Nenhum impacto no resto do sistema**: a soma da Simulação é calculada
-isoladamente (`simulation-calculations.ts`), nunca passa pelo Financial
-Engine, Cockpit ou Relatórios — o saldo e todos os outros cálculos
-continuam usando só o `amountCents` de cada transação, como sempre.
+## CORREÇÃO
 
-## ARQUIVOS NOVOS
+Em `tests/integration/commercial-flow.test.ts`, logo depois do teste de
+idempotência provar o que precisa provar (contagem antes/depois da 2ª
+chamada), a cobrança do mês vigente criada como efeito colateral tem o
+vencimento empurrado pra um futuro seguro (hoje + 60 dias) — a data dela
+nunca fez parte do que aquele teste precisa validar, só a contagem.
 
-- `src/app/app/simulacao/page.tsx` — server component: acesso, período do
-  mês via `?mes=`, busca contas/categorias/transações do mês (sem
-  paginação — a tela precisa do mês inteiro pra somar direito).
-- `src/app/app/simulacao/SimulationView.tsx` — client component: filtros,
-  lista, painel de previsão, navegação de mês.
-- `src/app/app/simulacao/simulation-calculations.ts` — lógica pura de
-  filtro e soma (sem nenhuma dependência de banco/React), fácil de testar
-  isolada.
-- `src/app/app/simulacao/simulation-calculations.test.ts` — 11 testes
-  unitários cobrindo filtro por tipo/categoria/conta/status (incluindo
-  cancelada), soma separada receita/despesa, ordem do acumulado, e um item
-  selecionado que não existe mais na lista.
+Rastreei manualmente os 8 testes seguintes do arquivo pra confirmar que
+nenhum depende da cobrança do mês vigente continuar com o vencimento
+original (dia 15) — todos que manipulam cobrança pegam a de competência
+mais recente (a do provisionamento), que é uma cobrança diferente.
 
 ## ARQUIVOS ALTERADOS
 
-- `src/modules/transactions/transaction.repository.ts` — nova função
-  `listTransactionsForSimulation(tenantId, from, to)`: lista TODAS as
-  transações do mês (sem paginação, sem filtro de tipo/categoria/conta/
-  status — isso é feito no client, de propósito, pra seleção sobreviver a
-  troca de filtro). Inclui canceladas, mesmo critério já usado em
-  `listTransactions`.
-- `src/modules/transactions/transaction.service.ts` — reexporta a nova
-  função.
-- `src/shared/ui/Sidebar.tsx` — novo item de menu "Simulação".
-- `src/app/app/ajuda/HelpContent.tsx` — nova seção "Simulação" explicando
-  pra que serve, como usar, o comportamento da seleção ao trocar filtro, e
-  que editar valor continua sendo só em Transações.
+- `tests/integration/commercial-flow.test.ts` — a correção.
 - `package.json`, `src/modules/backup/backup.service.ts`,
   `src/shared/ui/Footer.tsx`, `src/app/api/health/route.ts` — versão
-  1.7.0 → 1.8.0.
-- `CHANGELOG.md` — novo `## [1.8.0]`.
+  1.8.0 → 1.8.1.
+- `CHANGELOG.md` — novo `## [1.8.1]`.
 
 ## MIGRATIONS
 
-Nenhuma. A tela só lê campos já existentes em `FinancialTransaction` —
-nenhuma mudança de schema.
+Nenhuma.
 
 ## QA EXECUTADO
 
-- `npx eslint` nos arquivos desta entrega — sem erros.
-- `npx prettier --check` (após `--write`) — todos no padrão.
+- `npx eslint` no arquivo alterado — sem erros.
+- `npx prettier --check` — no padrão.
 - `npx vitest run --exclude "tests/integration/**"` — **170/170 testes
-  unitários passando** (24 arquivos; os 11 novos de
-  `simulation-calculations.test.ts` incluídos).
-- `npx tsc --noEmit` — contagem total foi de 87 pra **93 linhas**; toda a
-  diferença é o mesmo "muro" genérico documentado desde o Estágio 1
-  (`@prisma/client` "no exported member" — limitação só deste sandbox, não
-  afeta o build real no Railway/GitHub Actions). Um erro novo real
-  apareceu no meio do processo (`implicitly has an 'any' type` num
-  `.map()`) e foi corrigido tipando o parâmetro a partir do retorno da
-  própria função — depois disso, zero erros de lógica novos, só o muro.
-- Não precisou de migration, então não houve necessidade de validar SQL
-  contra o Postgres local desta vez.
+  unitários passando**.
+- Não consegui rodar o teste de integração corrigido aqui neste sandbox
+  (mesma limitação de rede já documentada: o binário de engine do Prisma
+  não baixa aqui) — a correção foi validada rastreando manualmente, teste
+  por teste, quais cobranças cada um lê/escreve, e confirmando que nenhum
+  depende da data que estou mudando. Vai rodar de verdade no próximo CI.
 
 ## COMO SUBIR
 
-Sem migration — é só subir os arquivos novos/alterados pro GitHub (mesmos
-caminhos) e o deploy no Railway segue normal.
+Só o arquivo de teste + os 4 de versão. Sem migration, sem mudança de
+código de produção.

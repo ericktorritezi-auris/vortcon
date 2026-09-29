@@ -4,6 +4,26 @@ Todas as mudanças notáveis do VortCon são documentadas aqui. Formato baseado 
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/), versionamento
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.8.1] — 2026-09-29
+
+### Corrigido
+
+- **Teste `commercial-flow.test.ts` falhando no CI** ("sem atraso, nenhum
+  bloqueio e aplicado" e "Seção 174 — atraso claramente dentro da carência
+  nunca bloqueia"), mesma CLASSE de bug já corrigida na 1.6.3 — data
+  derivada de "hoje" vazando pra dentro de uma suíte que devia ser
+  determinística, não um bug de produção. A cobrança do mês vigente criada
+  pelo teste de idempotência de `ensureCurrentMonthCharge` herda o dia de
+  vencimento (dia 15) de `firstDueDateNextMonth()`, mas aplicado ao mês
+  corrente — então, rodando o CI depois do dia 20 de qualquer mês (dia 15 +
+  5 dias de carência), essa cobrança nasce no teste já vencida além da
+  carência, sem que nenhum teste seguinte a pague ou neutralize
+  (os testes de bloqueio abaixo mexem na cobrança do provisionamento, não
+  nela), virando um bloqueio automático "fantasma" que pega os testes
+  seguintes de surpresa. Corrigido empurrando o vencimento dessa cobrança
+  pra um futuro seguro logo depois de provar a idempotência — a data dela
+  nunca fez parte do que aquele teste precisa validar.
+
 ## [1.8.0] — 2026-09-29
 
 ### Adicionado
