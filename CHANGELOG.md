@@ -4,6 +4,17 @@ Todas as mudanças notáveis do VortCon são documentadas aqui. Formato baseado 
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/), versionamento
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.8.2] — 2026-09-29
+
+### Corrigido
+
+- **Simulação — coluna de descrição faltando** (pedido do cliente): a
+  coluna que só mostrava a Categoria agora mostra a Descrição da
+  transação (linha principal) com a Categoria embaixo, em cinza — mesma
+  hierarquia já usada em Transações. Atualizado também no painel de
+  previsão (itens selecionados) e no rótulo acessível da caixinha de
+  seleção.
+
 ## [1.8.1] — 2026-09-29
 
 ### Corrigido

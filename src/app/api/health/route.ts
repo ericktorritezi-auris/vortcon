@@ -22,7 +22,7 @@ export async function GET(): Promise<NextResponse> {
       {
         status: 'ok',
         service: 'vortcon',
-        version: '1.8.1',
+        version: '1.8.2',
         timestamp: new Date().toISOString(),
       },
       { status: 200 },
@@ -34,7 +34,7 @@ export async function GET(): Promise<NextResponse> {
       {
         status: 'error',
         service: 'vortcon',
-        version: '1.8.1',
+        version: '1.8.2',
         timestamp: new Date().toISOString(),
       },
       { status: 503 },

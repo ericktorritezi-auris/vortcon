@@ -100,11 +100,15 @@ describe('fluxo comercial (assinatura, mensalidade, inadimplencia)', () => {
     // inadimplência. Empurramos o vencimento pra um futuro seguro agora,
     // porque o único propósito desta cobrança neste teste era provar
     // idempotência de contagem — a data dela nunca fez parte da asserção.
+    type SubscriptionChargeRow = Awaited<
+      ReturnType<typeof subscriptionRepository.listChargesForTenant>
+    >[number];
     const currentMonthCompetence = new Date(
       Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1),
     );
     const currentMonthCharge = chargesAfterSecondCall.find(
-      (charge) => charge.competence.getTime() === currentMonthCompetence.getTime(),
+      (charge: SubscriptionChargeRow) =>
+        charge.competence.getTime() === currentMonthCompetence.getTime(),
     );
     if (currentMonthCharge) {
       const safeFutureDueDate = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);

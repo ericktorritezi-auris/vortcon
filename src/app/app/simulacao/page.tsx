@@ -62,6 +62,7 @@ export default async function SimulacaoPage({
           status: transaction.status,
           amountCents: transaction.amountCents,
           dueDate: transaction.dueDate,
+          description: transaction.description,
           categoryId: transaction.categoryId,
           categoryName: transaction.category?.name ?? null,
           accountId: transaction.accountId,

@@ -18,6 +18,7 @@ export interface SimulationTransactionView {
   status: FinancialTransactionStatus;
   amountCents: number;
   dueDate: string | Date;
+  description: string;
   categoryId: string | null;
   categoryName: string | null;
   accountId: string;
@@ -223,7 +224,7 @@ export function SimulationView({
               Data
             </span>
             <span className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
-              Categoria
+              Descrição
             </span>
             <span className="text-xs font-bold uppercase tracking-wide text-ink-secondary">
               Tipo
@@ -247,7 +248,7 @@ export function SimulationView({
                 className="border-ink-secondary/10 grid grid-cols-[44px_100px_1fr_110px_120px_130px] items-center gap-0 border-b px-4 py-3 last:border-b-0 hover:bg-surface-page"
               >
                 <Checkbox
-                  label={`Selecionar ${view.categoryName ?? 'sem categoria'}`}
+                  label={`Selecionar ${view.description}`}
                   hideLabel
                   checked={selectedIds.includes(row.id)}
                   onChange={() => toggleRow(row.id)}
@@ -255,8 +256,13 @@ export function SimulationView({
                 <span className="text-sm text-ink-primary">
                   {dateFormatter.format(new Date(view.dueDate))}
                 </span>
-                <span className="text-sm font-medium text-ink-primary">
-                  {view.categoryName ?? 'Sem categoria'}
+                <span className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink-primary">
+                    {view.description}
+                  </p>
+                  <p className="truncate text-xs text-ink-secondary">
+                    {view.categoryName ?? 'Sem categoria'}
+                  </p>
                 </span>
                 <span>
                   <Badge tone={isIncome ? 'success' : 'danger'}>
@@ -335,16 +341,17 @@ export function SimulationView({
                   >
                     <div className="min-w-0 flex-grow">
                       <p className="truncate text-sm font-medium text-ink-primary">
-                        {view.categoryName ?? 'Sem categoria'}
+                        {view.description}
                       </p>
-                      <p className="text-[11px] text-ink-secondary">
-                        Acumulado: <FinancialValue cents={item.runningNetCents} showSign />
+                      <p className="truncate text-[11px] text-ink-secondary">
+                        {view.categoryName ?? 'Sem categoria'} · Acumulado:{' '}
+                        <FinancialValue cents={item.runningNetCents} showSign />
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => toggleRow(item.id)}
-                      aria-label={`Remover ${view.categoryName ?? 'item'} da seleção`}
+                      aria-label={`Remover ${view.description} da seleção`}
                       className="shrink-0 text-financial-dangerText hover:opacity-70"
                     >
                       <X className="h-3.5 w-3.5" aria-hidden="true" />
