@@ -105,6 +105,7 @@ todo lançamento avulso, sem recorrência, já funciona hoje).
 ## COMO SUBIR
 
 Sem migration — só subir os arquivos. Depois do deploy, recomendo:
+
 1. Conferir que o CI passou (os dois arquivos de teste de integração
    alterados).
 2. Resolver manualmente a duplicata do PetShop (R$ 275,00 / R$ 176,00) que
