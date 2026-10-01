@@ -459,15 +459,35 @@ describe('fluxo de recorrência', () => {
 
     const { deletedOccurrences } = await deleteSeriesWithOccurrences(tenantId, series.id);
 
+    // Bug real corrigido (pedido do cliente): o que sobra (mês vigente e
+    // passado) não pode continuar "órfão" — apontando pra uma série que
+    // acabou de ser encerrada pra sempre. Por isso, depois da exclusão,
+    // essas sobras já não têm mais `recurrenceSeriesId` nenhum — viraram
+    // avulsas. A busca abaixo é por conta+descrição (não mais por
+    // `recurrenceSeriesId`), exatamente pra provar que elas ainda existem,
+    // com os mesmos dados, só que desvinculadas.
     const currentOrPastAfter = await prisma.financialTransaction.findMany({
       where: {
-        recurrenceSeriesId: series.id,
+        tenantId,
+        accountId,
+        description: 'Modo FROM_NEXT_MONTH',
         dueDate: { lte: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0) },
       },
     });
-    // Nada do mês vigente ou passado foi tocado.
+    // Nada do mês vigente ou passado foi apagado nem teve valor/data
+    // alterados — só o vínculo com a série que sumiu.
     expect(currentOrPastAfter.length).toBe(currentOrPastBefore.length);
     expect(deletedOccurrences).toBeGreaterThan(0);
+    for (const occurrence of currentOrPastAfter) {
+      expect(occurrence.recurrenceSeriesId).toBeNull();
+      expect(occurrence.recurrenceOccurrenceKey).toBeNull();
+    }
+
+    // Nenhuma ocorrência restante continua vinculada à série excluída.
+    const stillLinked = await prisma.financialTransaction.count({
+      where: { recurrenceSeriesId: series.id },
+    });
+    expect(stillLinked).toBe(0);
 
     // A série foi encerrada — nunca mais materializa nada novo sozinha.
     const seriesAfter = await prisma.recurrenceSeries.findUnique({ where: { id: series.id } });
@@ -475,7 +495,9 @@ describe('fluxo de recorrência', () => {
     const materializedAgain = await materializeSeriesOccurrences(tenantId, series.id);
     expect(materializedAgain).toBe(0);
 
-    await prisma.financialTransaction.deleteMany({ where: { recurrenceSeriesId: series.id } });
+    await prisma.financialTransaction.deleteMany({
+      where: { tenantId, accountId, description: 'Modo FROM_NEXT_MONTH' },
+    });
     await prisma.recurrenceSeries.delete({ where: { id: series.id } });
   });
 

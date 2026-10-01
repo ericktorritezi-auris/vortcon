@@ -431,6 +431,32 @@ export async function deleteSeriesWithOccurrences(
       data: { active: false, endDate: currentMonthEnd },
     });
 
+    // Bug real corrigido (pedido do cliente) — a(s) ocorrência(s) que
+    // sobram (mês vigente e passado, nunca tocadas acima) ficavam "órfãs":
+    // continuavam com `recurrenceSeriesId` apontando pra uma série que
+    // acabou de ser encerrada e nunca mais vai gerar nada. Isso abria
+    // espaço pra duplicata real — se o usuário criasse uma recorrência nova
+    // pro mesmo gasto, as duas ocorrências do mês vigente (a órfã antiga +
+    // a nova) ficavam lado a lado, sem nada no sistema indicando que a
+    // antiga já não pertencia a nenhuma recorrência viva. Como esta série
+    // nunca mais materializa nada (está `active: false` daqui pra frente,
+    // pra sempre), toda ocorrência que sobrou dela deixa de referenciá-la —
+    // vira uma transação avulsa comum, exatamente como se tivesse sido
+    // criada sem recorrência desde o início. `recurrenceSeriesId: null`
+    // nunca colide com a constraint única (que só proíbe repetir o par
+    // série+chave quando a série não é nula).
+    if (series.kind === 'TRANSFER') {
+      await tx.transfer.updateMany({
+        where: { recurrenceSeriesId: seriesId, tenantId },
+        data: { recurrenceSeriesId: null, recurrenceOccurrenceKey: null },
+      });
+    } else {
+      await tx.financialTransaction.updateMany({
+        where: { recurrenceSeriesId: seriesId, tenantId },
+        data: { recurrenceSeriesId: null, recurrenceOccurrenceKey: null },
+      });
+    }
+
     return { deletedOccurrences, mode };
   });
 }

@@ -340,6 +340,15 @@ export async function deleteProgrammingSeriesWithOccurrences(
       data: { active: false, endDate: currentMonthEnd },
     });
 
+    // Mesma correção do domínio financeiro (`deleteSeriesWithOccurrences`)
+    // — nenhuma ocorrência que sobra (mês vigente/passado, ou já
+    // convertida em transação) pode continuar referenciando uma série que
+    // acabou de ser encerrada pra sempre. Vira um lançamento avulso comum.
+    await tx.programmingEntry.updateMany({
+      where: { recurrenceSeriesId: seriesId, tenantId },
+      data: { recurrenceSeriesId: null, recurrenceOccurrenceKey: null },
+    });
+
     return { deletedOccurrences: deleted.count, preservedConvertedOccurrences: preserved, mode };
   });
 }

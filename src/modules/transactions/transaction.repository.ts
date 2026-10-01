@@ -45,7 +45,15 @@ export async function listTransactions(tenantId: string, filters: ListTransactio
   const [items, total] = await Promise.all([
     prisma.financialTransaction.findMany({
       where,
-      orderBy: { dueDate: 'desc' },
+      // Bug real corrigido (pedido do cliente): com só `dueDate` como
+      // critério de ordenação, duas transações do mesmo dia (comum —
+      // várias recorrências vencem junto) não têm uma ordem garantida
+      // entre consultas. Com paginação por skip/take, isso faz uma
+      // transação "pular" de página sozinha de uma visita pra outra —
+      // sumindo e reaparecendo sem nenhuma mudança real nos dados. `id`
+      // como segundo critério (estável, único) fixa a ordem de vez: a
+      // mesma consulta sempre devolve a mesma página pro mesmo dado.
+      orderBy: [{ dueDate: 'desc' }, { id: 'desc' }],
       include: {
         category: true,
         tags: { include: { tag: true } },
@@ -80,7 +88,10 @@ export async function listTransactions(tenantId: string, filters: ListTransactio
 export async function listTransactionsForSimulation(tenantId: string, from: Date, to: Date) {
   return prisma.financialTransaction.findMany({
     where: { tenantId, dueDate: { gte: from, lte: to } },
-    orderBy: { dueDate: 'asc' },
+    // Mesmo desempate de `listTransactions` (segundo critério por `id`) —
+    // esta lista não pagina, mas mantém a ordem estável por consistência
+    // com a lista de Transações.
+    orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
     include: { category: true },
   });
 }

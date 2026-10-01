@@ -533,10 +533,25 @@ describe('Programações', () => {
 
       await deleteProgrammingSeriesWithOccurrences(tenantId, series.id);
 
+      // Bug real corrigido (pedido do cliente, mesma correção do domínio
+      // financeiro): o que sobra (mês vigente/passado) não pode continuar
+      // "órfão" apontando pra uma série encerrada pra sempre — por isso já
+      // não tem mais `recurrenceSeriesId` depois da exclusão. A busca por
+      // beneficiário prova que as entradas continuam existindo, intactas,
+      // só desvinculadas.
       const currentOrPastAfter = await prisma.programmingEntry.count({
-        where: { recurrenceSeriesId: series.id, entryDate: { lte: currentMonthEnd } },
+        where: {
+          tenantId,
+          beneficiaryId: beneficiary.id,
+          entryDate: { lte: currentMonthEnd },
+        },
       });
-      expect(currentOrPastAfter).toBe(currentOrPastBefore); // nunca mexeu
+      expect(currentOrPastAfter).toBe(currentOrPastBefore); // nunca apagou, só desvinculou
+
+      const stillLinked = await prisma.programmingEntry.count({
+        where: { recurrenceSeriesId: series.id },
+      });
+      expect(stillLinked).toBe(0); // nada restante continua vinculado à série excluída
 
       const seriesAfter = await prisma.programmingRecurrenceSeries.findUnique({
         where: { id: series.id },

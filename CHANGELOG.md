@@ -4,6 +4,39 @@ Todas as mudanças notáveis do VortCon são documentadas aqui. Formato baseado 
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/), versionamento
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.8.4] — 2026-10-01
+
+### Corrigido
+
+- **Lançamentos recorrentes "fantasma" após excluir e recriar uma
+  recorrência** (relatado pelo cliente, investigação com evidência real em
+  produção): ao excluir uma recorrência no modo "Do mês seguinte em diante"
+  (o padrão), o lançamento do mês vigente nunca era apagado — isso está
+  certo, é o comportamento pedido desde a v1.3. O bug era o que sobrava
+  continuar **vinculado à série excluída**, mesmo ela já encerrada pra
+  sempre. Se uma recorrência nova fosse criada depois, pro mesmo gasto, o
+  mês vigente acabava com duas transações pendentes lado a lado — a antiga
+  "órfã" e a nova — sem nada no sistema indicando que a primeira já não
+  pertencia a nenhuma recorrência viva. Corrigido: ao excluir uma
+  recorrência (modo padrão), tudo que sobra (mês vigente e passado) agora
+  se desvincula de vez da série — vira uma transação avulsa comum, como se
+  nunca tivesse sido recorrente. Mesma correção aplicada ao domínio de
+  Programações, que tinha a mesma lógica. Nenhuma transação é apagada,
+  criada ou tem valor/data alterado por esta correção — só o vínculo com a
+  série morta é removido.
+- **Lançamentos do mesmo dia "piscando" (aparecendo e sumindo) na lista de
+  Transações**: a lista era ordenada só por data de vencimento, sem
+  nenhum critério de desempate. Quando duas ou mais transações caem no
+  mesmo dia — comum quando várias recorrências vencem junto —, o banco não
+  garantia sempre a mesma ordem entre elas numa nova consulta. Como a
+  lista pagina de 15 em 15, isso fazia uma transação "pular" de página
+  sozinha de uma visita pra outra, sumindo e reaparecendo sem nenhuma
+  mudança real nos dados — reproduzido e confirmado com capturas de tela
+  em aba anônima mostrando o mesmo dia com conteúdo diferente em cargas
+  consecutivas. Corrigido adicionando um segundo critério fixo de
+  desempate (`id`), que torna a ordem — e portanto o que aparece em cada
+  página — sempre a mesma pro mesmo dado.
+
 ## [1.8.3] — 2026-09-29
 
 ### Corrigido
